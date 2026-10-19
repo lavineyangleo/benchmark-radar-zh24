@@ -2767,7 +2767,7 @@ function todaySearchUrl() {
   if (state.source) params.set("source", state.source);
   if (state.organization) params.set("organization", state.organization);
   if (state.event) params.set("event", state.event);
-  return `/?${params.toString()}`;
+  return `/benchmark-radar-zh24/?${params.toString()}`;
 }
 
 function cliSearchUrl(query) {
@@ -3283,7 +3283,7 @@ function renderTrends() {
   replaceChildren(
     byId("trend-table"),
     [...state.data.days].reverse().map((day) => {
-      const link = element("a", { text: day.date, attrs: { href: `/?date=${day.date}` } });
+      const link = element("a", { text: day.date, attrs: { href: `/benchmark-radar-zh24/?date=${day.date}` } });
       link.addEventListener("click", (event) => {
         event.preventDefault();
         const navigationSequence = ++viewNavigationSequence;
