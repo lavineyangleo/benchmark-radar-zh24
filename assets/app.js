@@ -141,7 +141,7 @@ function noFilterMatchNodes() {
           element("a", {
             text: t("issue"),
             attrs: {
-              href: "https://github.com/ktwu01/benchmark-radar/issues/",
+              href: "https://github.com/lavineyangleo/benchmark-radar-zh24",
               target: "_blank",
               rel: "noopener",
             },
@@ -4041,7 +4041,7 @@ function openRubric(item = null, versionOverride = null, updateUrl = true) {
         className: "secondary-link",
         text: "Read the scoring code ↗",
         attrs: {
-          href: "https://github.com/ktwu01/benchmark-radar/blob/main/src/benchmark_radar/rubric.py",
+          href: "https://github.com/lavineyangleo/benchmark-radar-zh24",
           target: "_blank",
           rel: "noopener noreferrer",
         },
@@ -9255,7 +9255,7 @@ function openContact(updateUrl = true) {
 // The published technical report. Contract tests keep these copyable strings
 // aligned with CITATION.cff and the server-rendered citation route.
 const CITE_DOI_URL = "https://arxiv.org/abs/2609.11115";
-const CITE_CFF_URL = "https://github.com/ktwu01/benchmark-radar/blob/main/CITATION.cff";
+const CITE_CFF_URL = "https://github.com/lavineyangleo/benchmark-radar-zh24";
 const CITE_APA =
   "Wu, K., Zhou, J., Shang, E., Wang, J., Han, P., Wang, J., & Xu, W. (2026). " +
   "Benchmark Radar: A living database and search engine for AI benchmarks and evaluation. " +
@@ -9470,7 +9470,7 @@ function openCite(updateUrl = true) {
 // steps in page copy. This query-only prompt points to the Skill and passes on
 // the reader's current search request for issue #487.
 const CLI_SKILL_URL =
-  "https://github.com/ktwu01/benchmark-radar/blob/main/skills/benchmark-radar/SKILL.md";
+  "https://github.com/lavineyangleo/benchmark-radar-zh24";
 const CLI_SKILL_INSTALL = "npx skills add ktwu01/benchmark-radar";
 
 function cliAgentPrompt(query) {
@@ -9914,7 +9914,7 @@ function bindEvents() {
   });
 }
 
-const REPO_SLUG = "ktwu01/benchmark-radar";
+const REPO_SLUG = "lavineyangleo/benchmark-radar-zh24";
 
 // The visible badge reads "★ Star 12", which a screen reader would announce as
 // a bare statistic. The accessible name states the action and keeps the count
@@ -9952,7 +9952,7 @@ const STALE_AFTER_HOURS = 30;
 // that already exists on the page answers "who do I tell". The error messages
 // in those logs are credential-safe by construction, so linking out publishes
 // nothing the repository does not already show.
-const DAILY_RADAR_RUNS_URL = `https://github.com/${REPO_SLUG}/actions/workflows/daily-radar.yml`;
+const DAILY_RADAR_RUNS_URL = `https://github.com/${REPO_SLUG}/actions`;
 
 function contactGlyph() {
   // Same speech-bubble path as the header's Contact badge (issue #213), so a

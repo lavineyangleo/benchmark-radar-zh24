@@ -103619,7 +103619,7 @@
       ],
       "name": "KW-Bench Capability Rubric",
       "purpose": "Classify the highest capability an agent must demonstrate to pass a benchmark.",
-      "source": "https://github.com/ktwu01/benchmark-radar/blob/main/docs/kw-bench-rubric.md"
+      "source": "https://github.com/lavineyangleo/benchmark-radar-zh24"
     },
     "schema_version": 1,
     "shadow": true,

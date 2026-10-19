@@ -130,7 +130,7 @@ showLanguage(savedLanguage());
 
 // Repository star count. Mirrors app.js's renderStarCount: a rate-limited API
 // must never surface as an error because the GitHub link still works blank.
-const REPO_SLUG = "ktwu01/benchmark-radar";
+const REPO_SLUG = "lavineyangleo/benchmark-radar-zh24";
 
 function setStarCount(value) {
   const badge = document.getElementById("badge-stars");
