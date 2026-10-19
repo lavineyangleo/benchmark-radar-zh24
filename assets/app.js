@@ -1,0 +1,10284 @@
+import { searchCatalog, searchCatalogMatches } from "./catalog-search.js";
+import { dimensionMatches, buildDimensionIndex } from "./benchmark-24维筛选-v1.js";
+import { SKYLINE_DOMAINS, SKYLINE_START_DATE, benchmarkDateLabel, skylineModel, skylineGeometry, skylineDateLanes, skylineScoreLanes, skylineCapPositions, skylineFrontierSteps, scorePopulation, matchesScoreCutoff, scoreBrowserSummary } from "./skyline.js";
+import {
+  CATEGORY_COLORS,
+  FALLBACK_COLORS,
+  ORGANIZATION_COLORS,
+  ORGANIZATION_FALLBACK_COLORS,
+  ORGANIZATION_ICONS,
+  ORGANIZATION_FALLBACK_ICON,
+  MODEL_FAMILY_ICONS,
+  organizationColor,
+  organizationIcon,
+  modelIcon,
+  iconGlyph,
+  brandGlyph,
+  modelGlyph,
+} from "./glyphs.js";
+
+// One page of results, in the list and at a time (issue #311). The first
+// paint carries 20 cards; each further page is loaded by scrolling to the
+// sentinel below the list. 100 at once was the archive bound, and a busy day
+// paid for all of it before the reader could scroll.
+const TODAY_PAGE_SIZE = 20;
+// Snapshots recorded before SourceHealth.method existed carry no method
+// field; this fills the gap for historical dates only (issue #174).
+const LEGACY_SOURCE_COLLECTION_METHODS = {
+  arxiv: "RSS",
+  huggingface: "API",
+  github: "API",
+  github_organizations: "API",
+  huggingface_papers: "API",
+  kaggle_datasets: "API",
+  zenodo: "API",
+  crossref: "API",
+  datacite: "API",
+  openaire: "API",
+  openreview: "API",
+  semantic_scholar: "API",
+  github_releases: "API",
+  first_party_feeds: "RSS/Atom",
+  openalex: "API",
+  brave: "API",
+};
+
+// Fetch health records a run under its internal key ("first_party_feeds"),
+// while the source mix counts finished evidence under the label a reader sees
+// ("First-party feed"). Without this bridge a source that returned nothing is
+// simply missing from the mix, and a reader cannot tell "this source looked
+// and found nothing" apart from "this source does not exist" (issue #260).
+const SOURCE_DISPLAY_NAMES = {
+  arxiv: "arXiv",
+  huggingface: "Hugging Face",
+  github: "GitHub",
+  github_organizations: "GitHub Organization",
+  huggingface_papers: "Hugging Face Papers",
+  kaggle_datasets: "Kaggle Dataset",
+  zenodo: "Zenodo",
+  crossref: "Crossref",
+  datacite: "DataCite",
+  openaire: "OpenAIRE",
+  openreview: "OpenReview",
+  semantic_scholar: "Semantic Scholar",
+  github_releases: "GitHub Release",
+  first_party_feeds: "First-party feed",
+  openalex: "OpenAlex",
+  brave: "Brave Web",
+  xbsleepy: "XBsleepy",
+};
+
+const sourceDisplayName = (key) =>
+  SOURCE_DISPLAY_NAMES[key] || String(key).replaceAll("_", " ");
+
+// One sentence per kind of zero, so hovering a zero answers the question it
+// raises instead of only restating that the number is zero.
+const SOURCE_GAP_REASONS = {
+  unreachable: "This source could not be reached on this day.",
+  empty: "This source was checked and found nothing at all on this day.",
+  unranked: "This source returned something, but none of it scored high enough to be listed.",
+};
+
+// Sources that ran for this day but put nothing into the ranked evidence, kept
+// in the order fetch health reports them so the ledger reads the same way every
+// day. Why a source is at zero decides what the reader should do about it, and
+// the source mix counts ranked evidence while fetch health counts raw records,
+// so there are three different zeros and only one of them is "nothing arrived":
+//   unreachable  the fetch failed, so nothing could arrive
+//   empty        the fetch worked and returned no records at all
+//   unranked     records arrived but none scored high enough to be listed
+// Calling the third one "found nothing" would be wrong: GitHub returning 300
+// records that all scored too low is a scoring outcome, not a broken source.
+function zeroItemSources(day) {
+  const counts = day.contributing_source_counts || day.source_counts || {};
+  const merged = new Map();
+  (day.ingest_health || [])
+    .filter((entry) => entry.kind !== "attention")
+    .forEach((entry) => {
+      const name = sourceDisplayName(entry.source);
+      if (Number(counts[name] || 0) > 0) return;
+      // One source can be reported by more than one row (a connector retried
+      // under a second method). A failure anywhere is the answer worth showing,
+      // and the raw counts add up across the rows that did return something.
+      const previous = merged.get(name);
+      merged.set(name, {
+        name,
+        ok: previous ? previous.ok && entry.ok : entry.ok,
+        fetched: (previous?.fetched || 0) + Number(entry.item_count || 0),
+      });
+    });
+  return [...merged.values()].map((entry) => ({
+    ...entry,
+    state: !entry.ok ? "unreachable" : entry.fetched > 0 ? "unranked" : "empty",
+  }));
+}
+
+// Why the Today list is empty, when a source filter is what emptied it.
+//
+// "No observations match these filters. Clear one or more filters" is right
+// when the filters are too narrow and wrong when the source simply had a
+// quiet day: clearing filters cannot conjure evidence that was never
+// collected, so the advice sends the reader looking for a mistake they did
+// not make. Filtering to First-party feed on Aug 18 2026 is exactly that
+// case, and it read as a broken filter (issue #254).
+//
+// Only speaks when the source filter alone is active. With a second filter
+// on, the source's own zero is no longer the whole story, and guessing which
+// of the two emptied the list would be a worse answer than the general one.
+// The generic "no filter matches" case gives the reader a short recovery
+// checklist instead of a single sentence: two ways to widen the view, and a
+// way to ask for a benchmark that is genuinely missing (issue #386).
+function noFilterMatchNodes() {
+  return [
+    element("div", { className: "empty-state" }, [
+      element("p", { text: t("No observations match these filters.") }),
+      element("p", { className: "empty-state-try", text: t("Try:") }),
+      element("ol", { className: "empty-state-steps" }, [
+        element("li", { text: t("Clear one or more filters to widen the view.") }),
+        element("li", { text: t('Reset the date to "all dates".') }),
+        element("li", {}, [
+          document.createTextNode(t("Add your wanted benchmark as an ")),
+          element("a", {
+            text: t("issue"),
+            attrs: {
+              href: "https://github.com/ktwu01/benchmark-radar/issues/",
+              target: "_blank",
+              rel: "noopener",
+            },
+          }),
+          document.createTextNode("."),
+        ]),
+      ]),
+    ]),
+  ];
+}
+
+function emptyTodayNodes(day, benchmarkMatches = 0) {
+  const message = emptyTodayMessage(day, benchmarkMatches);
+  if (message === null) return noFilterMatchNodes();
+  return [element("p", { className: "empty-state", text: message })];
+}
+
+
+function emptyTodayMessage(day, benchmarkMatches = 0) {
+  // A search that found the benchmark but no daily coverage of it is not a
+  // filter that is set too narrow, and telling the reader to widen it sends
+  // them adjusting controls that cannot produce the rows they want. Name what
+  // was found instead, and point at it (issue #245).
+  //
+  // Only when the query is the sole filter. With a second one active, a
+  // matching observation may exist and have been removed by that filter, so
+  // "nothing was collected" would be a claim this function cannot check. And
+  // the two date modes need different sentences: "on this date" is false in
+  // All dates mode, where the search already covered the whole archive.
+  const queryOnly =
+    state.q.trim() &&
+    !state.kind &&
+    !state.category &&
+    !state.source &&
+    !state.organization &&
+    !state.event;
+  if (queryOnly && benchmarkMatches === "pending") {
+    return t("Still checking the benchmark registry\u2026");
+  }
+  if (queryOnly && benchmarkMatches) {
+    return t(
+      todayIsMultiDate()
+        ? "No collected observation mentions \u201c{q}\u201d, but it is in the benchmark registry. The matches are listed above."
+        : "Nothing was collected about \u201c{q}\u201d on this date, but it is in the benchmark registry. The matches are listed above.",
+    ).replace("{q}", state.q.trim());
+  }
+  const others = [state.q.trim(), state.kind, state.category, state.event].filter(Boolean);
+  if (!state.source || others.length) {
+    // Generic case: emptyTodayNodes() renders the recovery checklist (#386).
+    return null;
+  }
+  if (todayIsMultiDate()) return null;
+  const wanted = state.source.trim().toLowerCase();
+  const gap = zeroItemSources(day).find((entry) => entry.name.toLowerCase() === wanted);
+  if (!gap) {
+    return null;
+  }
+  // The three states from issue #260, said in the second person because the
+  // reader is standing in front of the empty list asking about this source.
+  const reason = {
+    unreachable: t("{source} could not be reached on this day, so nothing was collected from it."),
+    empty: t("{source} was checked on this day and had nothing new. The filter is working."),
+    unranked: t(
+      "{source} returned something on this day, but none of it scored high enough to be listed.",
+    ),
+  }[gap.state];
+  return `${reason.replace("{source}", state.source)} ${t("Try another date, or clear the filter.")}`;
+}
+
+const byId = (id) => document.getElementById(id);
+
+// Interface language. English is the truth inside this file: every UI string
+// is emitted through t(), which returns the key unchanged until a zh entry
+// exists below, so the default build stays byte-for-byte English and the
+// dictionary is auditable against the code that renders each string.
+const LANGS = ["en", "zh"];
+const LANG_HTML = { en: "en", zh: "zh-CN" };
+const LANG_STORAGE_KEY = "benchmark-radar:lang";
+
+let lang = "en";
+
+function getLang() {
+  return lang;
+}
+
+function setLang(next) {
+  lang = LANGS.includes(next) ? next : "en";
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(LANG_STORAGE_KEY, lang);
+    }
+  } catch (_) {
+    // Storage can be unavailable (private browsing, some readers).
+  }
+  if (typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.setAttribute("lang", LANG_HTML[lang]);
+  }
+}
+
+function t(key, params) {
+  let value = I18N[getLang()]?.[key] ?? key;
+  if (params) {
+    for (const [name, replacement] of Object.entries(params)) {
+      value = value.replaceAll(`{${name}}`, String(replacement));
+    }
+  }
+  return value;
+}
+
+// The day's GPT prose (briefing bullets, caveat, Q&A answers) is English by
+// default. Under the Chinese interface the snapshot's zh rendering is
+// preferred when the run produced it (issue #231); a day whose zh fields are
+// absent falls back to English.
+function l10nProse(en, zh) {
+  return getLang() === "zh" && zh ? zh : en;
+}
+
+function initialLang() {
+  const param = new URLSearchParams(window.location.search).get("lang");
+  if (LANGS.includes(param)) return param;
+  try {
+    const saved = localStorage.getItem(LANG_STORAGE_KEY);
+    if (LANGS.includes(saved)) return saved;
+  } catch (_) {
+    // Storage can be unavailable (private browsing, some readers).
+  }
+  return "zh";
+}
+
+// Static text in index.html is annotated with data-i18n / data-i18n-title /
+// data-i18n-placeholder / data-i18n-aria slots keyed by this dictionary; the
+// first pass captures the English default so a toggle back restores it exactly.
+// Captured defaults that contain inline markup (<a>, <strong>, <em>...) are
+// kept as live nodes rather than as a serialized string, so restoring a
+// translated paragraph does not strip its link (serializing the captured nodes
+// to a string for storage is forbidden project-wide).
+const staticI18nMarkup = new Map();
+
+function applyStaticI18n() {
+  if (typeof document === "undefined") return;
+  const table = I18N[getLang()] || {};
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    if (node.dataset.i18nEn === undefined) {
+      node.dataset.i18nEn = node.textContent;
+      if (node.querySelector("a,strong,em,code")) {
+        staticI18nMarkup.set(node, node.cloneNode(true));
+      }
+    }
+    const text = table[node.dataset.i18n];
+    if (text !== undefined) {
+      if (text.includes("<")) {
+        node.replaceChildren();
+        node.insertAdjacentHTML("afterbegin", text);
+      } else {
+        node.textContent = text;
+      }
+    } else if (staticI18nMarkup.has(node)) {
+      node.replaceChildren(staticI18nMarkup.get(node).cloneNode(true));
+    } else {
+      node.textContent = node.dataset.i18nEn;
+    }
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach((node) => {
+    if (node.dataset.i18nTitleEn === undefined) {
+      node.dataset.i18nTitleEn = node.getAttribute("title") || "";
+    }
+    const text = table[node.dataset.i18nTitle];
+    const resolved = text ?? node.dataset.i18nTitleEn;
+    if (node.classList.contains("repo-badge")) {
+      // Native title tooltips wait roughly a second before appearing. Header
+      // utilities need immediate feedback, so CSS reads this attribute instead.
+      node.setAttribute("data-tooltip", resolved);
+      node.removeAttribute("title");
+      if (!node.hasAttribute("aria-label")) node.setAttribute("aria-label", resolved);
+    } else {
+      node.setAttribute("title", resolved);
+    }
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+    if (node.dataset.i18nPlaceholderEn === undefined) {
+      node.dataset.i18nPlaceholderEn = node.getAttribute("placeholder") || "";
+    }
+    const text = table[node.dataset.i18nPlaceholder];
+    node.setAttribute("placeholder", text ?? node.dataset.i18nPlaceholderEn);
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach((node) => {
+    if (node.dataset.i18nAriaEn === undefined) {
+      node.dataset.i18nAriaEn = node.getAttribute("aria-label") || "";
+    }
+    const text = table[node.dataset.i18nAria];
+    node.setAttribute("aria-label", text ?? node.dataset.i18nAriaEn);
+  });
+}
+
+function syncLangToggle() {
+  const toggle = byId("lang-toggle");
+  if (!toggle) return;
+  const zh = getLang() === "zh";
+  toggle.setAttribute("aria-pressed", String(zh));
+  byId("lang-toggle-label").textContent = zh ? "EN" : "中";
+  const titleKey = zh ? "Switch to English" : "Switch to Chinese (中文)";
+  toggle.setAttribute("data-tooltip", t(titleKey));
+  toggle.setAttribute("aria-label", t(titleKey));
+  toggle.setAttribute("title", "");
+}
+
+function rerenderCurrentView() {
+  if (!state.data) return;
+  renderTodayDateOptions();
+  if (state.view === "today") renderToday();
+  if (state.view === "leaderboard") renderLeaderboard();
+  if (state.view === "saturation") renderSaturation();
+  if (state.view === "trends") renderTrends();
+  if (state.view === "map") renderTrendMap();
+  renderStaleBanner();
+  renderBuildMeta();
+}
+
+function toggleLang() {
+  setLang(getLang() === "zh" ? "en" : "zh");
+  applyStaticI18n();
+  // The title and canonical belong to the page, not to the language toggle.
+  applyCurrentSeo();
+  syncLangToggle();
+  rerenderCurrentView();
+}
+
+const I18N = {
+  en: {},
+  zh: {
+    "Benchmark type": "Benchmark 类型",
+    "Project dimensions": "项目24维指标",
+    "Project dimension coverage": "项目24维覆盖总览",
+    "All project dimensions": "全部项目维度",
+    "Dimension evidence": "分类证据范围",
+    "Explicit evidence only": "仅有明确分类依据",
+    "Include candidates": "包含待核验候选",
+    "No matching dimension": "未映射到当前证据范围",
+    "Classification evidence": "分类依据",
+    "Supported by metadata": "有明确分类依据",
+    "Candidate; needs review": "候选，待核验",
+    "Unknown project dimension": "未知项目维度",
+    "Source evidence": "来源证据",
+    "Original project definition": "项目原始定义",
+    "Suggested metric (not a reported score)": "建议指标（非已报告成绩）",
+    "{supported} supported · {candidate} candidates": "{supported} 条有明确依据 · {candidate} 条候选",
+    "{covered} / {total} dimensions have explicit metadata evidence": "{total} 维中 {covered} 维已有明确分类依据",
+    "dimensions.scope": "按原始指标表分为 LLM 9维、VLM 7维、ALM 8维。数量基于完整目录；多标签不可相加。分类依据不是完整能力覆盖，也不是维度独立成绩。",
+    "dimensions.filter.note": "默认只显示有明确分类依据的记录；切换证据范围可查看候选。维度筛选仍与搜索、模型、通用类型和分数条件组合。",
+    "dimensions.evidence.note": "原始标签和描述支持任务归类，尚不等于逐篇论文核验。这里保留原有 benchmark 成绩，不将综合成绩拆成维度分数。",
+    "Source category labels": "来源分类标签",
+    "All benchmark types": "全部类型",
+    "Type classification unavailable": "类型分类数据尚不可用",
+    "Unknown benchmark type": "未知类型",
+    "benchmark.types.note": "根据来源标签归类，一项可属于多个类型。数量为完整目录中的记录数，尚未应用搜索、模型和分数筛选。",
+    "Chart notes": "图表说明",
+    "Chart legend": "图例",
+    "Shown / corpus": "显示数／目录总数",
+    "source document": "份来源文档",
+    "Document publication date": "文档发布日期",
+    "Model release": "模型发布日期",
+    "Document published": "文档发布日期",
+    "Model with a reported score": "已有报告成绩的模型",
+    "Filter by model, e.g. GPT-6 Sol": "按模型筛选，例如 GPT-6 Sol",
+    "Searching all benchmarks (score cutoff paused)": "搜索全部 benchmark（暂不按分数筛选）",
+    "Reporting organization color key": "报告机构颜色图例",
+    "Distinct cited documents, including model reports and registry pages": "按引用的独立文档去重，包括模型报告和登记页面",
+    "Each source document counts once per benchmark record.": "每份来源文档对同一条 benchmark 记录只计一次。",
+    "Publishers of the cited source documents.": "所引用文档的发布者。",
+    "This benchmark is not in the loaded catalog.": "已加载的目录中没有这条 benchmark 记录。",
+    "View benchmark details ↑": "查看 benchmark 详情 ↑",
+    "No source documents recorded": "尚未记录来源文档",
+    "Open the source-document list below to trace each count to its citations.": "打开下方来源文档列表，可核对每个计数对应的引用。",
+    "No source documents recorded yet.": "尚未记录来源文档。",
+    "Each linked benchmark counts once for this document. Open its detail to inspect scores, protocols and citations.": "每条 benchmark 记录在这份文档中只计一次。打开详情可查看成绩、测试条件和引用。",
+    "Scores and citations from model reports. Each score keeps its document, test version, protocol and publication date.": "这些成绩和引用来自模型报告。每条成绩都保留来源文档、测试版本、测试条件和发布日期。",
+    "No numeric scores recorded for this benchmark.": "这条 benchmark 尚未记录数值成绩。",
+    "Benchmark Frontier: {n} individual benchmarks from all sources. Dated benchmarks run left to right from 2024. Undated benchmarks remain visible by score. Gold rings mark the measured Pareto frontier.": "Benchmark 前沿：全部来源的 {n} 个独立标记。日期从 2024 年起向右排列，日期未知的仍按分数显示。金色环标出有测量依据的 Pareto 前沿。",
+    "{unscored} without scores excluded · {older} before 2024 · {hidden} hidden by score": "未报告成绩的 {unscored} 个已排除 · {older} 个早于 2024 年 · 分数筛选隐藏 {hidden} 个",
+    "Saturation": "饱和度",
+    "Searching all benchmarks (filters paused)": "搜索全部 benchmark（暂不筛选）",
+    "No comparable score": "没有可比较的分数",
+    "Benchmark date": "Benchmark 日期",
+    "Highest reported score · 0–100": "最高报告分数 · 0–100",
+    "Each dot is a benchmark; scores keep their position": "每个点是一个 benchmark，按实际分数排列",
+    "Date unknown · {n} benchmarks": "日期未知 · {n} 个 benchmark",
+    "Full benchmark catalog could not be loaded.": "未能加载完整的 benchmark 目录。",
+    "Loading all benchmark sources…": "正在加载全部 benchmark 来源…",
+    "Pareto: {p} of {n} benchmarks with verified score scales and a recorded height count. Unverified scales do not enter the frontier.": "{n} 个 benchmark 的分数刻度已核实且柱高有记录，其中 {p} 个位于 Pareto 前沿。刻度未核实的成绩不参与前沿计算。",
+    "{visible} visible · {scored} with scores · {unknown} without scores · {hidden} hidden by filters": "显示 {visible} 个 · {scored} 个有成绩 · {unknown} 个未报告成绩 · 筛选隐藏 {hidden} 个",
+    "{n} benchmarks · {s} sources": "{n} 个 benchmark · {s} 个来源",
+    "Not verified for comparison": "尚未确认可用于比较",
+    "Score scale": "分数刻度",
+    "Not recorded": "未记录",
+    "No benchmarks match these filters.": "没有 benchmark 符合这些筛选条件。",
+    "No score reported": "未报告成绩",
+    "Incomplete measurements": "测量信息不完整",
+    "Other score scales": "其他分数刻度",
+    "Date unknown": "日期未知",
+    "Reported score": "报告分数",
+    "Height": "柱高",
+    "Models with reported scores": "有成绩的独立模型数",
+    "Height recorded for {measured} of {visible} shown benchmarks": "显示的 {visible} 个 benchmark 中，{measured} 个有柱高数据",
+    "Distinct models within each source; configurations may have separate IDs": "按各来源的模型去重，不同配置可有独立 ID",
+    "Source-reported score": "来源报告分数",
+    "Adoption not recorded": "采用量未记录",
+    "Hollow marks: count or score scale unverified": "空心点：数量未知或分数刻度未核实",
+    "Count or score scale unverified": "数量或分数刻度未核实",
+    "{visible} of {n} benchmarks shown · {s} sources in corpus": "显示 {visible} / {n} 个 benchmark · 全部数据来自 {s} 个来源",
+    "Browse all benchmarks": "查找全部 benchmark",
+    "Benchmark Frontier": "Benchmark 前沿",
+    "Benchmark Frontier chart": "Benchmark 前沿图",
+    "Which difficult benchmarks have been tested most": "哪些难题，已有更多模型参加测试",
+    "Show benchmarks with highest reported score below:": "只看最高报告分数低于此值的 benchmark：",
+    "How to read the frontier": "怎样读这张前沿图",
+    "skyline.reading": "每个点代表一条 benchmark 记录。默认高度表示有数值成绩的独立模型数，按来源的模型 ID 去重，保留单独评测的配置；重复成绩不增加模型数。“来源文档数”统计引用的独立报告或登记页面，所有来源按同一规则计数。悬停可查看两种数量。",
+    "skyline.pareto": "侧视图把报告分数和当前选择的数量投影到左侧墙面，省略时间。金色阶梯线只比较分数刻度已核实的 benchmark。在日期不早于 2024 年的范围内，如果没有另一个符合计算条件的 benchmark 标准化分数不高于它、所选数量不低于它，且至少一项严格占优，它就位于 Pareto 前沿。日期只用于筛选范围，不参与支配关系计算；分数和数量也不相乘。拖动分数上限，不会把原本被支配的点变成前沿点。",
+    "skyline.scope": "柱高用 log1p(count)，刻度、悬浮说明和 Pareto 计算都用原始数量。纵轴覆盖全部 2024 年起有成绩的 benchmark，筛选时保持不变。只有明确采用百分比指标、且所选数量已记录的 benchmark 才参与 Pareto 计算；越低越好的百分比换算为 100 减去原值。空心点表示分数刻度未核实或数量未知，未知不等于零。重叠的圆点会错开，悬停或聚焦可追溯实际坐标，方向键可切换 benchmark。刻度一致不代表测试条件相同，也不能据此认定 benchmark 已被解决。",
+    "skyline.regions": "时间轴从 2024 年 1 月 1 日开始，包含当天。优先使用 benchmark 发布日期，其次使用最早的 LLM 数值成绩报告日期。如果来源按模型发布日期记录成绩，则采用最早一条成绩记录的日期，并明确标为模型发布日期估算；它不代表已核实的成绩发表日期。抓取时间和只有采用记录的文档不能代替日期。已知日期早于 2024 年的排除；完全没有日期的记录仍在标明的区域各自显示。底面的文字只是读图提示。",
+    "Release date / first LLM score →": "发布日期／首次 LLM 成绩日期 →",
+    "First LLM score reported": "首次 LLM 成绩报告日期",
+    "First dated LLM score (model-release proxy)": "首条有日期的 LLM 成绩（按模型发布日期估算）",
+    "First score date uses model release": "首条成绩日期按模型发布日期估算",
+    "Exact dates; nearby benchmarks stack vertically": "按实际日期排列，日期相近的点上下错开",
+    "Lower scores at the front": "低分在前方",
+    "Pareto side view": "Pareto 侧视图",
+    "Same scores and selected counts; time omitted": "保留分数和所选数量，省略时间维度",
+    "Date evidence": "日期依据",
+    "Paper first version": "论文首版",
+    "Introducing paper": "首次介绍该 benchmark 的论文",
+    "Dated LLM score": "有日期的 LLM 成绩",
+    "Public release": "公开发布",
+    "Open date source ↗": "查看日期来源 ↗",
+    "Source documents": "来源文档数",
+    "Hard frontier": "难题前沿",
+    "Emerging": "新兴评测",
+    "Saturated": "趋于饱和",
+    "Pareto frontier": "Pareto 前沿",
+    "Original score": "原始分数",
+    "lower is better": "越低越好",
+    "First observed": "首次观测",
+    "Metric": "指标",
+    "Instrument": "评测版本",
+    "Protocol": "测试条件",
+    "Score reported": "成绩报告日期",
+    "Code": "代码",
+    "Science": "科学",
+    "Agent": "智能体",
+    "Multimodal": "多模态",
+    "Model-card measurements are unavailable.": "模型卡测量数据暂时不可用。",
+    "Catalog coverage unavailable.": "暂时无法读取目录覆盖范围。",
+    "Checking catalog coverage…": "正在读取目录覆盖范围…",
+    "3D skyline of {n} benchmarks. Time runs left to right from 2022. Earlier dates have a separate segment. Stems show recorded model-card adoption; hollow marks show unknown adoption or score scales. Gold rings mark the measured Pareto frontier.": "{n} 个 benchmark 的三维天际线。时间从 2022 年起向右延伸，更早的日期单独保留。细柱表示已记录的模型卡采用量；空心点表示采用量或分数刻度未知。金色圆环标出有测量依据的 Pareto 前沿。",
+    // --- Brackets and chrome -------------------------------------------------
+    "Skip to content": "跳到主要内容",
+    "Benchmark Radar": "Benchmark 雷达日报",
+    "Subscribe to Benchmark Radar via RSS": "通过 RSS 订阅 Benchmark Radar",
+    "Site utilities": "网站工具",
+    "Switch to Chinese (中文)": "切换到中文",
+    "Switch to English": "切换到英文",
+    "Get in touch · Email, WeChat, Discord": "联系我 · 邮件、微信、Discord",
+    Data: "数据",
+    Contact: "联系",
+    "Privacy notice": "隐私声明",
+    "Open the repository and star it": "打开仓库并给个 Star",
+    Star: "Star",
+    "Dashboard views": "仪表盘视图",
+    Today: "今日",
+    Leaderboard: "排行榜",
+    Trends: "趋势",
+    Trend: "趋势",
+    Explore: "探索",
+    Blog: "博客",
+    Rubric: "评分标准",
+    "Daily briefing": "每日简报",
+    "Questions for today": "今日问答",
+    // The Q&A question strings are fixed (questions.py QUESTION_GROUPS) and
+    // stored in English in every snapshot, so they are translated here against
+    // the exact stored text rather than by a second server-side field (issue
+    // #231). Group titles ship the same way.
+    "What arrived": "今日新增",
+    "What is still moving": "仍在变动",
+    "What it means": "这意味着什么",
+    "What benchmarks, datasets, or evaluation methods did the radar first see today?":
+      "雷达今天首次看到了哪些benchmark、数据集或评估方法？",
+    "Which of today's arrivals document how they score an answer?":
+      "今天的哪些新增条目记录了它们如何给答案评分？",
+    "Which artifacts the radar already tracked moved measurably, and over what span?":
+      "雷达已跟踪的哪些条目出现了可测变动，跨度如何？",
+    "Which of that movement is corroborated by more than one data source?":
+      "其中哪些变动得到了不止一个数据源的印证？",
+    "What should someone building or evaluating AI systems do differently today?":
+      "构建或评估 AI 系统的人今天应该做哪些不同的选择？",
+    "What does today's evidence fail to show, and what would change the reading?":
+      "今天的证据未能说明什么，什么会改变这一解读？",
+    Search: "搜索",
+    "Title, summary, or source": "标题、摘要或来源",
+    "Scan date": "扫描日期",
+    Kind: "类型",
+    Category: "类别",
+    Source: "来源",
+    Organization: "机构",
+    Event: "事件",
+    "Clear filters": "清除筛选",
+    Filters: "筛选",
+    "More filters": "更多筛选",
+    "Date:": "日期:",
+    "Search benchmarks…": "搜索benchmark…",
+    "Refresh data": "刷新数据",
+    "Today's radar": "今日雷达",
+    "Past 30 days": "近 30 天",
+    "Past 60 days": "近 60 天",
+    "Data through": "数据截至",
+    "Reported benchmark scores": "Benchmark 已报告成绩",
+    "Browse scored benchmarks": "查找已有成绩的 benchmark",
+    "All scored": "全部有成绩的 benchmark",
+    "Highest": "最高分",
+    "raw score ×100": "原始分数 ×100",
+    "Scores use each chart's displayed scale; scoring systems and test conditions differ.": "分数沿用各自图表的刻度，各项评测的计分方式和测试条件不同。",
+    "Ranked by data points": "按成绩记录数排名",
+    "data point": "条成绩记录",
+    "data points": "条成绩记录",
+    "Data points": "成绩记录数",
+    "Benchmark": "Benchmark",
+    "Highest score": "最高分",
+    "Reported by": "报告来源",
+    "First reported": "首次报告",
+    "Domain": "领域",
+    "{n} reports": "{n} 次报告",
+    "Click to pin benchmark details": "点击以固定该 benchmark 详情",
+    "No benchmarks match this cutoff.": "没有 benchmark 符合该上限。",
+    "Coding": "编程",
+    "Math": "数学",
+    "Agents": "智能体",
+    "Vision": "视觉",
+    "Knowledge": "知识",
+    "Language": "语言",
+    "Other": "其他",
+    "Benchmarks": "benchmark 数",
+    "Jan": "1月",
+    "Feb": "2月",
+    "Mar": "3月",
+    "Apr": "4月",
+    "May": "5月",
+    "Jun": "6月",
+    "Jul": "7月",
+    "Aug": "8月",
+    "Sep": "9月",
+    "Oct": "10月",
+    "Nov": "11月",
+    "Dec": "12月",
+    "Show top 5": "只看前 5 名",
+    "No numeric score": "暂无数值成绩",
+    "Outside current filter": "当前筛选范围外",
+    "No scored benchmarks match these filters.": "没有符合筛选条件的 benchmark。",
+    "Loading observations…": "正在加载记录……",
+    "Historical data could not be loaded. Select the range again to retry.": "历史记录加载失败，请重新选择时间范围再试。",
+
+    "Matching observations": "匹配结果",
+    Sources: "来源",
+    "All-time totals": "全部统计",
+    All: "全部",
+    // --- Today view row and metrics -----------------------------------------
+    "Updated": "更新于",
+    "Released": "发布于",
+    "Just now": "刚刚",
+    "{n}m ago": "{n} 分钟前",
+    "{n}h ago": "{n} 小时前",
+    "{n}d ago": "{n} 天前",
+    "yesterday": "昨天",
+    "Page {page} of {pages} · showing {start}–{end} of {total}":
+      "第 {page}/{pages} 页 · 显示第 {start}–{end} 条，共 {total} 条",
+    Previous: "上一页",
+    Next: "下一页",
+    "normal": "正常",
+    "Sort: Recency ↓, then Priority ↓": "排序:新鲜度 ↓,再按优先度 ↓",
+    "Sort: Date, then Recency ↓, then Priority ↓": "排序:日期,再按新鲜度 ↓,再按优先度 ↓",
+    "Sort: New releases first, then Recency ↓, then Priority ↓":
+      "排序:新发布优先,再按新鲜度 ↓,再按优先度 ↓",
+    "Sort: Date, then new releases, then Recency ↓, then Priority ↓":
+      "排序:日期,再新发布优先,再按新鲜度 ↓,再按优先度 ↓",
+    "Sort: Date ↓": "排序:日期 ↓",
+    Stars: "Star 数",
+    Forks: "Fork 数",
+    Likes: "点赞数",
+    Downloads: "下载数",
+    Citations: "引用数",
+    "Influential citations": "高影响力引用数",
+    "Source metadata": "来源元数据",
+    "Activity counters": "活跃度数据",
+    "Not reported by this source": "该来源未报告",
+    // --- Leaderboard ---------------------------------------------------------
+    "Which benchmarks do model cards report?": "模型卡报告了哪些benchmark?",
+    "What does this source record?": "这个来源记录了什么？",
+    "Registry overview": "总览",
+    "What the evidence shows": "证据说明了什么",
+    "Stated findings": "明确结论",
+    "Scores over time": "分数随时间变化",
+    "Benchmark reported scores over time": "benchmark报告分数随时间的变化",
+    "All tracked benchmarks": "所有追踪的benchmark",
+    "Search every benchmark": "搜索全部benchmark",
+    "Most documented benchmarks": "来源文档最多的 benchmark",
+    Rank: "排名",
+    Benchmark: "benchmark",
+    "leaderboard.column.model_cards": "来源文档数",
+    "Jump to a benchmark": "跳转到某个benchmark",
+    "One score, copied from the report that published it": "一个分数，照抄自发布它的报告",
+    "Show all {n} benchmarks": "显示全部 {n} 个benchmark",
+    "Show top {n}": "只显示前 {n} 个",
+    "A report counts once per test, even if it lists that test several times. Some reports publish their results as a picture rather than text, and we read those with software that can misread a digit, so the list at the bottom of this page links every count back to the report it came from.":
+      "一份报告对同一项测试只计一次，即使它列出了多次。有些报告以图片而非文字发布结果，我们用软件读取，可能会看错数字，因此本页底部的清单把每个计数链接回它的来源报告。",
+    model: "个模型",
+    models: "个模型",
+    "No source documents record a benchmark yet.": "尚无来源文档记录任何 benchmark。",
+    "Search benchmarks, tasks, domains…": "搜索benchmark、任务、领域…",
+    "{n} benchmarks": "{n} 个benchmark",
+    "Model reports": "模型报告",
+    "No benchmark in this registry has a score read from a document yet.": "此登记册中还没有任何benchmark有从文档中读到的分数。",
+    "What would it take to chart best score against lowest cost?":
+      "要把最高分数和最低成本画在一张图上,还差什么?",
+    "Benchmarks by source documents": "按来源文档数排列的 benchmark",
+    "Benchmark name or alias": "benchmark名称或别名",
+    Domain: "领域",
+    "Benchmark released": "benchmark发布",
+    "Audit the counts": "核对数量",
+    "Source documents in the catalog": "目录中的来源文档",
+    "Dashboard unavailable": "仪表盘不可用",
+    "The validated data file could not be loaded.": "无法加载校验过的数据文件。",
+    "Try refreshing, or inspect the latest daily Issue while the dashboard rebuilds.": "请尝试刷新,或在仪表盘重建时查看最新的每日 Issue。",
+    "Open daily Issues ↗": "打开每日 Issue ↗",
+    "error.note": "请尝试刷新,或在仪表盘重建时查看最新的每日 Issue。",
+    "Open daily Issues": "打开每日 Issue ↗",
+    "Select a node": "选择一个节点",
+    "All dates": "所有日期",
+    "How to read this chart": "如何解读这张图",
+    "frontier.explainer.sub":
+      "每个能从引文文档中逐字读到的数值,都按该文档的发布日期放置,而不是按评测日期。折线只直接连接在所显示数值中创下新报告纪录的实际观测点;它不会在两次报告之间维持某个分数,也不会延伸到最后一个纪录之后。测试版本和运行条件可能不同,因此这是一条报告纪录路径,而不是同条件趋势。没有更新数字可读时,缺口会被标出而不是用线穿过。benchmark是否已经饱和,仍由你来判断,本面板不会给出饱和结论。",
+    "leaderboard.filters.note":
+      "每份文档对同一条 benchmark 记录只计一次。文档内重复提及或重复报告成绩，不增加引用次数。本表涵盖所有来源。",
+    "leaderboard.ledger.note":
+      "这里列出所有来源的文档。展开一份文档，可查看它记录的 benchmark，并核对原始证据。",
+    "Benchmarks with this name": "同名的benchmark",
+    "Showing {shown} of {total} registry records matching \u201c{q}\u201d. Narrow the search to see the rest.":
+      "显示与\u201c{q}\u201d匹配的 {total} 条登记册记录中的 {shown} 条。缩小搜索范围可查看其余记录。",
+    "Still checking the benchmark registry\u2026": "正在查询benchmark登记册\u2026",
+    "The benchmark catalog could not be loaded.":
+      "无法加载抓取的benchmark目录,因此这些结果可能不完整。",
+    "The benchmark registry could not be loaded, so this search covered collected observations only.":
+      "无法加载benchmark登记册,因此本次搜索只覆盖了已收集的内容。",
+    "No collected observation mentions \u201c{q}\u201d, but it is in the benchmark registry. The matches are listed above.":
+      "收集到的内容中没有提到\u201c{q}\u201d,但它在benchmark登记册中。匹配结果列在上方。",
+    "Registry records matching \u201c{q}\u201d. These are benchmarks the radar tracks, not things collected on a date.":
+      "登记册中与\u201c{q}\u201d匹配的记录。这些是雷达追踪的benchmark,而不是某一天收集到的内容。",
+    "Nothing was collected about \u201c{q}\u201d on this date, but it is in the benchmark registry. The matches are listed above.":
+      "这一天没有收集到关于\u201c{q}\u201d的内容,但它在benchmark登记册中。匹配结果列在上方。",
+    "pareto.readiness.summary": "要把最高分数和最低成本画在一张图上,还差什么?",
+    "pareto.readiness.note1":
+      "两个分数只有在各自都记录了以下信息时才能比较:测的是哪个版本、取的是哪一部分、数值高好还是低好、用的哪个模型、由什么软件运行、给了多少思考时间、花了多少钱、用了多长时间、何时发布,以及这个数字出自哪里。其中测试本身和运行方式必须一致,而模型、成本、耗时和日期可以不同,因为它们正是图表要对比的内容。本站记录的是某张模型卡提到了某个benchmark,还没有记录这些测量值。",
+    "pareto.readiness.note2":
+      "一旦有了这些数据,这张图就可以把成本或速度与分数对照,并只把那些在两方面都无人能同时超越的结果连成一条线。再加一个日期滑块,就能看出这条线随时间如何移动。",
+    "map.heading.note":
+      "看看哪些内容最常出现,以及它们来自哪里。想查看某个具体条目时,再打开连接视图。",
+    "map.explorer.note": "这里有很多点。选择一个点即可查看它与什么相连,或打开匹配结果。",
+    "map.detail.note":
+      "选择主题、来源或机构,即可在今日页面只看相关结果。选择条目即可查看它每次出现的记录。",
+    "trends.heading.note": "计数描述的是发现数量,不是科学质量。",
+    "trends.daily.title": "每日证据与关注量",
+    "trends.daily.note": "类别标签会有重叠。每个条形都是独立计数,不是堆叠总量的一部分。",
+    "trends.releaseOnly": "仅看新发布",
+    "trends.releaseOnly.note": "排除对已出现内容的更新式再公告记录。",
+    Updated: "更新于",
+    Unknown: "未知",
+    // --- Metric nouns (singular/plural both map to the same zh noun) --------
+    point: "分",
+    points: "分",
+    comment: "条评论",
+    comments: "条评论",
+    source: "个来源",
+    sources: "个来源",
+    "evidence record": "条证据",
+    "model card": "张模型卡",
+    "model cards": "张模型卡",
+    "score read from a document": "个从文档读到的分数",
+    "scores read from a document": "个从文档读到的分数",
+    organization: "个机构",
+    benchmark: "个benchmark",
+    benchmarks: "个benchmark",
+    value: "个值",
+    values: "个值",
+    date: "个日期",
+    dates: "个日期",
+    domain: "个领域",
+    domains: "个领域",
+    artifact: "个工件",
+    artifacts: "个工件",
+    day: "天",
+    days: "天",
+    month: "个月",
+    months: "个月",
+    topic: "个主题",
+    topics: "个主题",
+    // --- Today / health ------------------------------------------------------
+    "Evidence cited by GPT": "GPT 引用的证据",
+    "Caveat: ": "注意: ",
+    "No briefing was recorded for this day.": "这一天没有记录简报。",
+    "No observations match these filters. Clear one or more filters to widen the view.":
+      "没有符合条件的记录。清除一个或多个筛选条件以扩大范围。",
+    "No observations match these filters.": "没有符合这些筛选条件的记录。",
+    "Clear one or more filters to widen the view.": "清除一个或多个筛选条件以扩大范围。",
+    "Try:": "试试:",
+    'Reset the date to "all dates".': "将日期重置为“全部日期”。",
+    "Add your wanted benchmark as an ": "把你想要的 benchmark 作为一个",
+    issue: "issue 提交",
+    "Evidence: ": "证据: ",
+    "Attention: active": "关注度:活跃",
+    "No categorized records in this scan.": "本次扫描没有分类记录。",
+    "more categories": "更多类别",
+    "None observed today": "今日无记录",
+    "No records today": "今日无记录",
+    "all ok": "全部正常",
+    empty: "为空",
+    "Active attention": "活跃关注度",
+    "Evidence": "证据",
+    new: "新增",
+    active: "活跃",
+    none: "无",
+    evidence: "条证据",
+    attention: "关注",
+    flat: "持平",
+    up: "上升",
+    down: "下降",
+    found: "已找到",
+    failed: "失败",
+    ok: "正常",
+    "Attention ingest": "关注度采集",
+    "Evidence ingest": "证据采集",
+    "Producer report": "生产者报告",
+    "Truncated at the record per-source limit": "在单项来源上限处被截断",
+    "History begins": "历史始于",
+    "At least two daily snapshots are required to calculate a trend": "计算趋势至少需要两个每日快照",
+    Baseline: "基线",
+    "active attention signals": "条活跃关注信号",
+    "Two snapshots are available. The chart shows the first comparable daily change; broader trend language begins with three snapshots.":
+      "已有两个快照。图表显示第一次可比较的日变化;更完整的趋势表述需要三个快照。",
+    "Two snapshots are available, but they covered different data sources or a different report limit, so the change between them is not comparable.":
+      "已有两个快照,但两者覆盖的数据源或报告上限不同,因此它们之间的变化不可比较。",
+    "Compared with": "与",
+    "surfaced evidence is": "相比,已出现的证据",
+    "active attention is": ",活跃关注度",
+    "Biggest domain moves": "最大的领域变化",
+    "covered different data sources or used a different report limit than": "覆盖的数据源或报告上限不同于",
+    "so the two scans": "因此这两次扫描",
+    "are not directly comparable. Counts are shown without a change figure.": "不可直接比较。计数将不附带变化数值显示。",
+    "vs previous scan": "对比上次扫描",
+    "not comparable": "不可比较",
+    "recent daily average": "近期日平均",
+    "not enough history": "历史不足",
+    cumulative: "累计",
+    "vs its average": "对比其平均值",
+    "also updated (not counted above)": "另有更新(未计入上方)",
+    "no change": "无变化",
+    "New releases only. Re-announced updates are tracked separately.":
+      "仅统计新发布。重新宣布的更新单独跟踪。",
+    snapshots: "个快照",
+    "category match": "个类别匹配",
+    "category matches": "个类别匹配",
+    // --- Questions -----------------------------------------------------------
+    "In plain English: ": "用简单的话说: ",
+    "Evidence is insufficient to answer this today.": "目前证据不足以回答这个问题。",
+    "Takeaway: ": "要点: ",
+    "Counter-view: ": "反面观点: ",
+    "View analysis": "查看分析",
+    "Answered by": "由",
+    confidence: "置信度",
+    in: "花费了",
+    calls: "次调用",
+    "input tokens": "输入 token",
+    "output tokens": "输出 token",
+    "every figure computed before the call and cited by ID": "所有数字都在调用前计算并通过 ID 引用",
+    "OpenAI model": "OpenAI 模型",
+    "GPT synthesis": "GPT 综合",
+    "via OpenAI Responses API": "经由 OpenAI Responses API",
+    "evidence records": "条证据记录",
+    "history days injected": "天历史记录被注入",
+    and: "和",
+    "Evidence & briefing details": "证据与简报详情",
+    "Briefing details": "简报详情",
+    "Daily questions were not enabled for this run.": "本次运行未启用每日问答。",
+    "Daily questions failed to generate": "每日问答生成失败",
+    "No questions were answered for this day.": "这一天没有可回答的问题。",
+    "Why it matters": "为什么重要",
+    // --- Score blocks --------------------------------------------------------
+    "Priority score": "优先度评分",
+    "Priority score meets this scan's": "本次扫描的优先度分数达到",
+    " triage threshold; not an endorsement.": " 分诊阈值,并非背书。",
+    "not an endorsement": "并非背书",
+    "uncategorized": "未分类",
+    "How is this scored?": "这个分数怎么来的?",
+    "Not quality-scored": "未做质量评分",
+    "This is a public attention signal. Its activity is shown separately from scientific evidence and priority.":
+      "这是一个公开的关注度信号。它的活跃度与科学证据和优先度分开展示。",
+    "Supporting submissions": "支撑提交",
+    "Open primary artifact ↗": "打开主要工件 ↗",
+    "Why surfaced": "为什么出现",
+    "Open primary source ↗": "打开主要来源 ↗",
+    "View matching observations →": "查看匹配记录 →",
+    "Selected node": "已选节点",
+    "Connected to": "连接到",
+    "Paraphrased example": "转述示例",
+    Scenario: "场景",
+    "Evaluated artifact": "被评估的工件",
+    "Comparison caveat": "对比注意事项",
+    "Open official benchmark source ↗": "打开官方benchmark来源 ↗",
+    "Benchmarks": "benchmark",
+    // --- Trends --------------------------------------------------------------
+    "Recent activity": "最近动态",
+    "Signals over time": "随时间变化的信号",
+    "Counts describe discovery volume, not scientific quality.": "计数描述的是发现量,不是科学质量。",
+    "New by domain": "按领域的新内容",
+    "Daily evidence and attention volume": "每日证据与关注度量",
+    "Category tags overlap. Each bar is an independent count, not a part of a stacked total.":
+      "类别标签有重叠。每个柱是独立计数,不是堆叠总量的组成部分。",
+    "Releases only": "仅发布",
+    "Excludes records re-announced as an update to something already surfaced.":
+      "排除作为已出现内容的更新而再次宣布的记录。",
+    "Dev checker": "开发检查",
+    "trends.ledger.note":
+      "来源结构统计的是评分后的排序证据;抓取状态统计的是评分前的原始记录,所以一个来源可能正常却仍为空。",
+    Date: "日期",
+    "Coverage (UTC)": "覆盖范围 (UTC)",
+    "Source mix": "来源结构",
+    Categories: "类别",
+    Events: "事件",
+    Attention: "关注度",
+    "Fetch health": "抓取状态",
+    // Sources at zero on a day (issue #260). The sentence templates carry
+    // {sources} and {date} so zh can order them its own way.
+    "On {date} these sources found nothing at all: {sources}.":
+      "{date},这些来源什么都没有找到:{sources}。",
+    "On {date} these sources could not be reached: {sources}.":
+      "{date},这些来源无法访问:{sources}。",
+    "On {date} these sources returned something, but none of it scored high enough to be listed: {sources}.":
+      "{date},这些来源有返回内容,但都没有达到上榜所需的分数:{sources}。",
+    "A source that stays at zero for several days is usually broken, not quiet.":
+      "一个来源连续几天都是零,通常说明它出了问题,而不是没有新内容。",
+    "This source was checked and found nothing at all on this day.":
+      "这个来源当天检查过了,但什么都没有找到。",
+    "This source could not be reached on this day.": "这个来源当天无法访问。",
+    "This source returned something, but none of it scored high enough to be listed.":
+      "这个来源有返回内容,但都没有达到上榜所需的分数。",
+    // --- Map ----------------------------------------------------------------
+    "Big picture": "整体概览",
+    "What we found": "我们发现了什么",
+    "Want more detail?": "想看更多细节?",
+    "See how everything connects": "看看所有内容如何相连",
+    "view.map.note":
+      "总览概括了整个语料库。关系画布包含每一个工件以及与其相连的机构、来源和主题;选择节点即可将其带入今日筛选。",
+    "Pick a dot": "选择一个点",
+    "See what it connects to": "看看它连接了什么",
+    "view.map.detail.note": "主题、来源和机构节点会设置对应的今日筛选。工件节点会设置日期和标题搜索。",
+    // --- Frontier / workbench -------------------------------------------------
+    "Priority & evidence": "优先度与证据",
+    "View score track ↑": "查看分数轨道 ↑",
+    "Show on the chart ↑": "在图表中显示 ↑",
+    "Model cards": "模型卡",
+    "Best on record": "历史最佳",
+    "Only charted score": "唯一入图分数",
+    "Headroom left": "剩余空间",
+    "Readable values": "可读数值",
+    "Supports: ": "支持: ",
+    "Does not support: ": "不支持: ",
+    "Score read from a document": "从文档读到的分数",
+    Model: "模型",
+    Adoption: "采用",
+    "Open source record ↗": "打开来源记录 ↗",
+    "Open source document ↗": "打开来源文档 ↗",
+    "Read from": "读取自",
+    "Cited by": "被引用",
+    "Test variant": "测试变体",
+    "Run conditions": "运行条件",
+    "new benchmark": "新benchmark",
+    "Not yet reported": "尚未报告",
+    "not yet reported in these cards": "这些模型卡中尚未报告",
+    "Reported by": "报告机构",
+    "Reported score": "报告的分数",
+    "Score as reported": "报告的分数",
+    "self reported": "自行报告",
+    "model release date": "模型发布日期",
+    "Best reported score:": "报告的最高分:",
+    "{n} row(s) have no release date, so they carry no position on this axis and are not drawn.":
+      "有 {n} 行没有发布日期,因此在此坐标轴上没有位置,未被绘制。",
+    "{count} scores reported to {source}, placed at each model's release date, which is the only date recorded and is not when the score was measured. Highest {best} by {model}, lowest {low}.":
+      "向 {source} 报告的 {count} 个分数,按各模型的发布日期排布;这是唯一记录在案的日期,并非分数的测量时间。最高 {best},来自 {model};最低 {low}。",
+    "Date (model release)": "日期（模型发布）",
+    "Benchmark home ↗": "benchmark主页 ↗",
+    "Top cards": "头部模型卡",
+    "Disclosure": "披露",
+    "No benchmarks match these filters. Clear one or more filters to widen the view.":
+      "没有符合条件的benchmark。清除一个或多个筛选条件以扩大范围。",
+    "source documents": "来源文档",
+    "Each document counts once per benchmark.": "每份文档对每个benchmark只计一次。",
+    "Each document counts once per benchmark. Plus {count} crawled benchmark records from {sources}.":
+      "每份文档对每个benchmark只计一次。另有来自 {sources} 的 {count} 条爬取的benchmark记录。",
+    "{count} more in the crawled catalog, {withScores} with a reported score.":
+      "爬取目录中还有 {count} 个，其中 {withScores} 个有报告的分数。",
+    organizations: "机构",
+    "The denominator for reporting breadth.": "衡量报告广度时的分母。",
+    "Benchmarks tracked": "追踪的benchmark数",
+    "Benchmarks reported at least once": "被报告至少一次的benchmark数",
+    "The subset a ranked row can speak to.": "排名行所能覆盖的子集。",
+    "New benchmarks": "新benchmark",
+    "Benchmarks this document reports": "此文档报告的benchmark",
+    "Last checked on": "最后整理于",
+    "date unknown": "日期未知",
+    "shown": "显示",
+    "tracked": "追踪",
+    "of": "共",
+    // --- Catalog detail (issue #316) --------------------------------
+    // The crawled benchmark detail panel (identity / openness / size) shipped
+    // its section headings, field labels and "not established" placeholders in
+    // English under zh, so only the shared "Released" line came through. These
+    // cover the rest of that panel; the benchmark's own description text stays
+    // as authored because it is source data, not chrome.
+    Identity: "基本信息",
+    "description not established": "简介尚未确定",
+    Publisher: "发布方",
+    "publisher not established": "发布方尚未确定",
+    "release date not established": "发布日期尚未确定",
+    Modality: "模态",
+    "modality not established": "模态尚未确定",
+    "No paper, repository, dataset or site link established.":
+      "尚未确定论文、代码仓库、数据集或站点链接。",
+    "Identity below comes from the {source} card after review matched it to the same benchmark; scores are unchanged.":
+      "以下基本信息来自 {source} 卡片；人工核对确认它指向同一个benchmark，分数不受影响。",
+    Openness: "开放性",
+    "openness not established": "开放性尚未确定",
+    open: "开放",
+    restricted: "受限",
+    "Code licence": "代码许可证",
+    "Data licence": "数据许可证",
+    "not established": "尚未确定",
+    "No openness evidence recorded.": "未记录开放性证据。",
+    Size: "规模",
+    "size not established": "规模尚未确定",
+    "counts the": "统计的是",
+    "what it counts is unclear": "统计对象不明",
+    "evidence ↗": "证据 ↗",
+    // Publisher roles and artifact kinds are label maps keyed by a raw enum, so
+    // an unmapped role/kind still falls back to its raw value rather than blank.
+    "published the hub card": "发布了 Hub 卡片",
+    "organization behind the paper": "论文背后的机构",
+    maintainer: "维护者",
+    Paper: "论文",
+    "Code repository": "代码仓库",
+    Dataset: "数据集",
+    "Project site": "项目站点",
+    // --- Contact --------------------------------------------------------------
+    "Benchmark Radar": "Benchmark 雷达日报",
+    "Get in touch": "联系我",
+    Email: "邮件",
+    WeChat: "微信",
+    Discord: "Discord",
+    "The complete dataset is free to download. If it saves you research time, star the repository so other eval builders can find it.":
+      "完整数据集可以免费下载。如果它帮你节省了研究时间，请给仓库点个 Star，让更多评测开发者找到它。",
+    Download: "下载",
+    "Star the repository": "给仓库点 Star",
+    "Free dataset. No crawler needed.": "免费数据集，无需爬虫。",
+    "If this saved you research time, cite the work, star the repo and help other eval builders find it.":
+      "如果它帮你节省了研究时间，请引用这项工作、给仓库点 Star，让更多评测开发者找到它。",
+    Cite: "引用",
+    About: "关于",
+    "About this site": "关于本站",
+    Publications: "论文与引用",
+    "Search AI, LLM, agent, multimodal, and AI-for-science benchmarks":
+      "搜索 AI、大模型、智能体、多模态与科学智能 benchmark",
+    "Cite this work": "引用这项工作",
+    "Pick the format your paper or repository needs, then click it to copy.":
+      "选择你的论文或仓库需要的格式，点击即可复制。",
+    "Click to copy": "点击复制",
+    "Click to copy link": "点击复制链接",
+    "Copy it with your keyboard": "请用键盘复制",
+    "Citation file (.cff)": "引用文件 (.cff)",
+    "View the citation file": "查看引用文件",
+    "Benchmark score data comes from lab model reports and from":
+      "benchmark 分数数据来自各家实验室的模型报告，以及",
+    CLI: "命令行",
+    "This search covers all dates.": "此处搜索全部日期的结果。",
+    "Still want today's results?": "仍要搜索今天的，请",
+    "Search today": "点击这里",
+    "More than 10 results.": "结果超过 10 条。",
+    "Use the CLI version to export all data.": "使用我们的命令行版本导出全部数据。",
+    "Query it locally (CLI version)": "在本地查询（命令行版本）",
+    Install: "安装",
+    "Continue your search for “{query}” with the CLI.": "用命令行继续搜索“{query}”。",
+    "Agent prompt": "给编程智能体的提示词",
+    "Read the setup guide": "查看安装指南",
+    "Share Benchmark Radar": "分享 Benchmark Radar",
+    Share: "分享",
+    Copied: "已复制",
+    Contact: "联系作者",
+    "for a one-click export.": "即可一键导出。",
+    // --- Remaining dynamic strings ------------------------------------------
+    " on a": " 以",
+    " scored records on": " 项已评分记录,以",
+    " · current": " · 现行",
+    " · superseded": " · 已取代",
+    "(zoom)": "(缩放)",
+    "(zoomed)": "(已缩放)",
+    "A wrong row in the adoption ranking is a real bug. So is a data source that stopped returning anything, or a benchmark you expected the radar to see.":
+      "采用排行中的一行错误就是真实的 bug;某个数据源停止采集,或者一个你期待雷达发现的benchmark没有出现,同样是 bug。",
+    "All domains": "所有领域",
+    "All organizations": "所有机构",
+    "Any release date": "任意发布日期",
+    "Artifact nodes connected to topics, organizations, and discovery sources":
+      "连接到主题、机构与发现来源的工件节点",
+    Artifacts: "工件",
+    Authors: "作者",
+    "Click the marker to pin these details": "点击标记以固定这些详情",
+    "Click to pin record details": "点击固定记录详情",
+    Comments: "评论",
+    "Discovery sources": "发现来源",
+    "Each linked benchmark counts once for this document. Open its detail to inspect scores, protocols and citations.":
+      "每个关联 benchmark 在这份文档中只计一次。打开详情可查看分数、评测条件和引用来源。",
+    "Every record matching at least one taxonomy category is retained. A score of":
+      "只要匹配至少一个分类类别的记录都会被保留。达到分数",
+    "How priority is scored": "优先度如何评分",
+    "Most represented organizations": "出现最多的机构",
+    "No benchmark is reported by a curated card yet.": "目前还没有精选模型卡报告任何benchmark。",
+    "No description published at the source.": "来源没有发布描述。",
+    "No discovery sources yet.": "还没有发现来源。",
+    "No further description beyond the preview above.": "除了上面的预览,没有更多描述。",
+    "No organizations identified yet.": "还没有识别出机构。",
+    "No source documents in the registry yet.": "登记册中还没有来源文档。",
+    "No topics assigned yet.": "还没有分配主题。",
+    "Not a verbatim benchmark item. This description paraphrases the official source; open it for the exact tasks and scoring rules.":
+      "不是逐字的benchmark条目。此描述转述自官方来源;请打开它以查看确切的题目与评分规则。",
+    "Not a verbatim benchmark item. This is an illustrative format based on the recorded domain; use the official source for the exact tasks and scoring rules.":
+      "不是逐字的benchmark条目。这是根据记录领域生成的示例格式;请使用官方来源查看确切的题目与评分规则。",
+    "No score for this benchmark could be read verbatim from the cited documents, so there is no track to draw. An absent value is not a zero and not a plateau.":
+      "无法从引文文档中逐字读到该benchmark的分数,因此没有可绘制的轨道。缺失的数值既不是零,也不是平台期。",
+    "No model card in this registry reports this benchmark yet, so there is no score to draw. That zero is a reading, not a gap in the collection.":
+      "本登记册中还没有任何模型卡报告该benchmark,因此没有可绘制的分数。这个零是一个读数,而不是收集上的缺口。",
+    "No score for this benchmark could be read verbatim from the cited documents. An absent value is not a zero and not a plateau.":
+      "无法从引文文档中逐字读到该benchmark的分数。缺失的数值既不是零,也不是平台期。",
+    "Open public discussion ↗": "打开公开讨论 ↗",
+    Organizations: "机构",
+    "Pinned · click the marker again or press Escape to close": "已固定 · 再次点击标记或按 Escape 关闭",
+    Priority: "优先度",
+    "Priority is the weighted mean of four components, each measured on a 0 to":
+      "优先度是四个维度的加权平均,每个维度都以 0 到",
+    "Producer discovered": "发现者发现于",
+    Published: "发布",
+    "Radar first observed": "雷达首次观察到",
+    "Read full card ↗": "阅读完整模型卡 ↗",
+    Recency: "新鲜度",
+    Released: "发布于",
+    Relevance: "相关性",
+    "Representative task shape": "代表性任务形态",
+    "Rubric v": "评分标准 v",
+    Score: "分数",
+    Scored: "已评分",
+    "Scores from the": "分数来自",
+    "Scoring rubric v": "评分标准 v",
+    "Show the first 18 benchmarks": "显示前 18 个benchmark",
+    "Showing all": "显示全部",
+    Submissions: "提交数",
+    "The current rubric is v": "当前评分标准为 v",
+    "This historical scan used": "本次历史扫描采用了",
+    "This record scores": "该记录得分",
+    "This record was scored by rubric v": "该记录由评分标准 v",
+    "Topic coverage": "主题覆盖",
+    Topics: "主题",
+    "What this score does not claim": "这个分数的含义之外",
+    "reported scores over time": "报告分数随时间的变化",
+    "charted score": "个入图分数",
+    "charted scores": "个入图分数",
+    after: "之后",
+    "an inclusion cutoff. Records below it were not retained.": "为纳入门槛。低于它的记录未被保留。",
+    as: "作为",
+    "author nodes summarized above and omitted from the canvas": "个作者节点已在上面汇总,并从画布中省略",
+    "best on record": "历史最佳",
+    by: "由",
+    "cited by": "被引用",
+    contributes: "贡献",
+    "here are third parties": "有第三方",
+    "here is a third party": "有第三方",
+    listed: "已列出",
+    "no score read from a document in this window": "此窗口中没有从文档中读到的分数",
+    // Issue #254: why the Today list is empty, when a source filter emptied it.
+    "No observations match these filters. Clear one or more filters to widen the view.":
+      "没有符合这些筛选条件的结果。请清除一个或多个筛选条件以扩大范围。",
+    "{source} could not be reached on this day, so nothing was collected from it.":
+      "{source} 在这一天无法访问，因此未从中收集到任何内容。",
+    "{source} was checked on this day and had nothing new. The filter is working.":
+      "{source} 在这一天已检查过，没有新内容。筛选功能正常。",
+    "{source} returned something on this day, but none of it scored high enough to be listed.":
+      "{source} 在这一天有返回内容，但都未达到列入所需的分数。",
+    "Try another date, or clear the filter.": "请尝试其他日期，或清除筛选条件。",
+    // Stale-run banner: plain words a first-time reader can act on.
+    "Last updated {date}, {hours} hours ago. The automatic update has not succeeded since.":
+      "数据上次更新于 {date}，距今 {hours} 小时。那之后的自动更新一直没有成功。",
+    "Some sources failed to answer on {date}: {gaps}.": "{date} 有几个来源没有响应：{gaps}。",
+    "What broke?": "哪里出了问题？",
+    "one value read verbatim from a cited document": "一个从引文文档中逐字读到的数值",
+    "not yet reported": "尚未报告",
+    "points to zero, the floor of this metric": "指向零,该指标的底线",
+    "run conditions": "运行条件",
+    "document publication date": "文档发布日期",
+    "quoting another vendor's figure, marked with a ring on the chart":
+      "引用另一家供应商的数据,图表中以圆环标出",
+    release: "发布",
+    "release date unrecorded": "未记录发布日期",
+    released: "发布于",
+    // Latest releases (issue #530)
+    "Leaderboard views": "排行榜视图",
+    "Latest releases": "最新发布",
+    "Model-card adoption": "模型卡采用情况",
+    "Reported scores": "报告分数",
+    "latest.deck":
+      "近期发布的benchmark，按当前获得的关注度排序：GitHub star、Hugging Face 论文点赞以及最近 30 天的 Hugging Face 数据集下载量。",
+    "Release window": "发布时间窗口",
+    "{days} days": "{days} 天",
+    "7 days": "7 天",
+    "30 days": "30 天",
+    "90 days": "90 天",
+    "Attention score": "关注度得分",
+    "GitHub stars": "GitHub star 数",
+    "Hugging Face paper upvotes": "Hugging Face 论文点赞数",
+    "Hugging Face dataset downloads, last 30 days": "Hugging Face 数据集下载量（最近 30 天）",
+    unavailable: "资源已不可用",
+    "not observed": "未观测到",
+    "{value} · stale since {date}": "{value} · 自 {date} 起未更新",
+    "{value} · stale": "{value} · 未更新",
+    "{value} · unverified since {date}": "{value} · 自 {date} 起未经核验",
+    "{value} · unverified": "{value} · 未经核验",
+    "source ↗": "来源 ↗",
+    "Coverage {coverage}": "覆盖率 {coverage}",
+    unranked: "未排名",
+    high: "高",
+    medium: "中",
+    low: "低",
+    "limited signals: not enough fresh durable signal to rank":
+      "信号有限：缺少足够新鲜的持久信号，未纳入排名",
+    "no score": "无得分",
+    "No benchmark released in the last {days} days has a measurable attention signal yet.":
+      "最近 {days} 天内发布的benchmark尚无可测量的关注度信号。",
+    "Try {window}": "试试 {window}",
+    "See model-card adoption instead": "改看模型卡采用情况",
+    "Loading this window…": "正在加载该时间窗口…",
+    "This window could not be loaded. Refresh to try again.": "无法加载该时间窗口，请刷新重试。",
+    "The {window} window is not in this build.": "此版本未提供 {window} 的时间窗口。",
+    "The latest releases ranking is not available in this build.": "此版本未提供最新发布排行。",
+    "{ranked} of {total} releases in this window are ranked; the rest are listed with limited signals.":
+      "该时间窗口内 {total} 个发布中有 {ranked} 个进入排名；其余因信号有限仅列出。",
+    "Data through {through} · average signal coverage {coverage}.":
+      "数据截至 {through} · 平均信号覆盖率 {coverage}。",
+    "Find in this window": "在该时间窗口内查找",
+    "Benchmark name": "benchmark 名称",
+    "No release in this window matches “{query}”.": "该时间窗口内没有与“{query}”匹配的发布。",
+    "Clear the search": "清除搜索",
+    "Showing {shown} that match “{query}”.": "显示与“{query}”匹配的 {shown} 个。",
+    normalized: "归一化",
+    "not scored": "未计分",
+    "Ranking {method}: {signals}, each normalized as log1p(value) / log1p(window maximum) and summed to a 0 to 100 score. A release is ranked only when enough of its weight comes from fresh, durable signals; the rest are listed with limited signals. Dataset downloads are a rolling 30-day figure, never a cumulative total. Stars come from the benchmark's own repository, never a parent framework. Window {start} to {end}, UTC.":
+      "排名方法 {method}：{signals}，各信号按 log1p(值) / log1p(窗口最大值) 归一化后加权求和为 0 到 100 的得分。只有当足够权重来自新鲜且持久的信号时才纳入排名，其余因信号有限仅列出。数据集下载量为滚动 30 天数字，绝非累计总量。star 数来自该benchmark自己的仓库，绝非上级框架。时间窗口 {start} 至 {end}（UTC）。",
+    "scale. Every number below is read from the same definition the pipeline applies.":
+      "的标尺。下面每个数字都按流程应用的同一套定义读取。",
+    to: "到",
+    "to the total": "到总分",
+    "two versions are not directly comparable, and past records are not rescored.":
+      "两个版本不可直接比较,过去的记录不会重新评分。",
+    weight: "权重",
+    "Also connected to": "还连接到",
+    "At a glance": "一眼看懂",
+    "Change over": "过去",
+    "Days it appeared": "出现天数",
+    "First found": "首次发现",
+    Items: "条目",
+    "Items connected to topics, organizations, and sources": "与主题、机构和来源相连的条目",
+    "Last found": "最近发现",
+    "Latest priority score": "最新优先级分数",
+    "No organizations yet.": "还没有机构。",
+    "No sources yet.": "还没有来源。",
+    "No topics yet.": "还没有主题。",
+    "Nothing found yet.": "还没有发现任何内容。",
+    Selected: "已选择",
+    "Times found": "发现次数",
+    "What it is about": "内容主题",
+    "Where we found it": "发现来源",
+    "Who appears most": "谁出现得最多",
+    item: "条目",
+    items: "条目",
+    "not enough earlier data": "没有足够的早期数据",
+    "AI agents": "AI 智能体",
+    benchmarks: "benchmark",
+    datasets: "数据集",
+    evaluations: "评测",
+    "times found": "次发现",
+    "also tracked in the registry above": "上方登记表中已收录",
+    // --- Coverage for dynamic t() call sites ---------------------------------
+    "or above marks the item as recommended; it does not control inclusion. Watchlisted artifacts are also retained.":
+      "及以上分数表示该条目被推荐；该分数不决定是否收录。观察名单中的工件同样会保留。",
+    "not scored": "未评分",
+    "data quality": "数据质量",
+    "no scores collected": "未采集到分数",
+    "{shown} of {total} matches": "共 {total} 条匹配，已显示 {shown} 条",
+    "{full} match every word · {partial} share only some": "{full} 条包含全部关键词 · {partial} 条只包含部分",
+    "No benchmark matches every word; these share only some": "没有 benchmark 包含全部关键词，以下只包含部分",
+    "No benchmark matches that name": "没有匹配该名称的benchmark",
+    "Benchmark search is unavailable right now": "benchmark搜索暂时不可用",
+    "not recorded": "未记录",
+    "The source declares a maximum of {max} but carries values above it, so that bound is not a scale.":
+      "来源声明的满分是 {max}，但存在超过它的数值，因此这个上限并不是一个统一的量表。",
+    "Every score in this series falls between 0 and 1, so the chart multiplies them by 100 to read as 0 to 100. That is a change of units only: it asserts no maximum, and each point's pinned card shows the number the source published.":
+      "该序列的每个分数都落在 0 到 1 之间，因此图表将它们乘以 100，按 0 到 100 显示。这只是单位换算：它不声明任何满分，每个点的详情卡仍显示来源发布的原始数值。",
+    "same benchmark, other source": "同一benchmark，其他来源",
+    "related split": "相关子集",
+    "same framework": "同一框架",
+    "introduced in the same paper": "出自同一篇论文",
+    "has a related variant": "存在相关变体",
+    "Related records": "相关记录",
+    "Loading benchmark details…": "正在加载benchmark详情…",
+    "Could not load details for this benchmark.": "无法加载该benchmark的详情。",
+    "Ranked by how many curated model cards report each benchmark, which measures vendor reporting convention rather than benchmark quality. A crawled score count answers a different question: AIME 2025 carries 115 crawled scores and GPQA Diamond 26 model cards, and those are different measures rather than competing ones.":
+      "排名依据是每个benchmark被多少张精选模型卡报告，衡量的是厂商的报告惯例而非benchmark质量。爬取到的分数数量回答的是另一个问题：AIME 2025 有 115 个爬取到的分数，GPQA Diamond 有 26 张模型卡，两者是不同的度量而不是互相竞争的指标。",
+    "points to the {bound}-point bound of this metric": "指向该指标 {bound} 分的上限",
+    "across {domains}{listed}.": "覆盖 {domains}{listed}。",
+    " · {count} released in the newest 18-month window already appear across three or more dated organizations. Follow their trajectories before reading the raw rank.":
+      " · 最近 18 个月窗口内发布的 {count} 项已经出现在三家及以上有明确日期的机构中。在解读原始排名之前，先看它们的轨迹变化。",
+    "Show all {count} benchmarks": "显示全部 {count} 个benchmark",
+    "Star this repository on GitHub. {count} stars": "在 GitHub 上给这个仓库点 Star。{count} 个 star",
+    "Upvote us": "帮我们投一票",
+    "Hugging Face: #1 Paper of the Day, September 14, 2026. View the ranking":
+      "Hugging Face 每日论文第 1 名，2026 年 9 月 14 日。查看榜单",
+  },
+};
+
+const state = {
+  data: null,
+  view: "today",
+  todayDate: "",
+  q: "",
+  kind: "",
+  category: "",
+  source: "",
+  organization: "",
+  event: "",
+  entity: "",
+  rubric: "",
+  contact: false,
+  cite: false,
+  cli: false,
+  trendReleasedOnly: false,
+  // Leaderboard filters carry their own prefixed keys so a shared permalink can
+  // hold a Today filter and a Leaderboard filter at once without either view
+  // silently reinterpreting the other's `category` or `organization`.
+  lq: "",
+  ldomain: "",
+  lorg: "",
+  lera: "",
+  lscore: 70,
+  lheight: "models",
+  benchmarkVisibleLimit: 50,
+  scoreRankingExpanded: false,
+  lfrontier: "",
+  lfrontierExplicit: false,
+  benchmarkIndex: null,
+  catalogDocuments: null,
+  // Null until the first fetch attempt resolves either way. A slug permalink
+  // can only be checked against the index once the index has actually
+  // arrived, so "not yet loaded" and "failed to load" must not look alike.
+  benchmarkIndexLoaded: false,
+  benchmarkQuery: "",
+  benchmarkModel: "",
+  benchmarkType: "",
+  benchmarkTaxonomy: null,
+  benchmarkDimension: "",
+  benchmarkDimensionEvidence: "supported",
+  dimensionTaxonomy: null,
+  leaderboardShowAll: false,
+  leaderboardTopExpanded: false,
+  // Issue #530: the leaderboard opens on the latest releases; the cumulative
+  // adoption view is one click, or one legacy permalink, away. An empty
+  // window means "the payload's default".
+  lmode: "latest",
+  lrq: "",
+  lwindow: "",
+  todayResultsKey: "",
+  todayRenderedDate: "",
+  todayPage: 1,
+  observations: null,
+  fullDataLoaded: false,
+  fullDataPromise: null,
+  trendsDataLoaded: false,
+  trendsDataPromise: null,
+};
+
+// A Trends, Explore, or archive-wide Today click can wait on a larger payload.
+// A newer route choice must win even if that older request settles later.
+let viewNavigationSequence = 0;
+let successfulDataRefreshSequence = 0;
+let nextDashboardRequestSequence = 0;
+let latestAppliedDashboardRequestSequence = 0;
+
+function dayHasEvidenceItems(day) {
+  return Array.isArray(day?.evidence_items);
+}
+
+function payloadHasEvidenceItems(data) {
+  return Boolean(data?.days?.some(dayHasEvidenceItems));
+}
+
+function payloadHasObservations(data) {
+  return Boolean(
+    data?.days?.some(
+      (day) => dayHasEvidenceItems(day) || Array.isArray(day?.attention?.observations),
+    ),
+  );
+}
+
+function mergeDashboardData(current, incoming) {
+  if (!current) return incoming;
+  const currentDays = new Map((current.days || []).map((day) => [day.date, day]));
+  const days = (incoming.days || []).map((day) => {
+    const previous = currentDays.get(day.date);
+    if (dayHasEvidenceItems(day) || !dayHasEvidenceItems(previous)) return day;
+    return { ...day, ...previous, ...day, evidence_items: previous.evidence_items };
+  });
+  for (const [date, previous] of currentDays) {
+    if (!days.some((day) => day.date === date)) days.push(previous);
+  }
+  days.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const corpus = incoming.corpus?.entities
+    ? incoming.corpus
+    : {
+        ...(current.corpus || {}),
+        ...(incoming.corpus || {}),
+        aggregates: incoming.corpus?.aggregates || current.corpus?.aggregates || {},
+      };
+  return { ...current, ...incoming, days, corpus };
+}
+
+function applyDashboardData(data, requestSequence, fullPayload) {
+  // Responses race, especially when a reader presses Refresh while the
+  // bootstrap is still in flight. Request start order decides which successful
+  // response is newer; a failed newer request does not discard an older useful
+  // response, while an older late success cannot overwrite fresher data.
+  if (requestSequence < latestAppliedDashboardRequestSequence) return false;
+  latestAppliedDashboardRequestSequence = requestSequence;
+  state.data = mergeDashboardData(state.data, data);
+  // Bootstrap keeps the latest day's evidence_items so Today can paint. That
+  // is not the full archive: only radar.json carries every day's items.
+  // Trends has every day but strips those items, so it must not look full.
+  state.fullDataLoaded =
+    Boolean(fullPayload) ||
+    Boolean(!data.bootstrap && payloadHasEvidenceItems(data) && (data.days || []).length > 1);
+  state.trendsDataLoaded =
+    state.fullDataLoaded ||
+    state.trendsDataLoaded ||
+    Boolean(!data.bootstrap && Array.isArray(data.days) && data.days.length > 1);
+  if (payloadHasObservations(data)) {
+    state.observations = null;
+  }
+  return true;
+}
+
+function element(tag, options = {}, children = []) {
+  const node = document.createElement(tag);
+  if (options.className) node.className = options.className;
+  if (options.text !== undefined) node.textContent = String(options.text);
+  if (options.attrs) {
+    Object.entries(options.attrs).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) node.setAttribute(key, String(value));
+    });
+  }
+  children.filter(Boolean).forEach((child) => node.append(child));
+  return node;
+}
+
+// A round (i) toggle for one sentence of provenance/method text that a reader
+// needs once, not on every visit to an already-familiar block. Collapsed by
+// default; the marker itself carries the affordance (no plain "How to read
+// this" text link), so it stays visible and consistent wherever it appears --
+// the score-evidence and frontier-explainer disclosures share its "expand"
+// visual treatment even though they use a text summary instead of this icon.
+function infoDisclosure(text) {
+  return element("details", { className: "info-disclosure" }, [
+    element("summary", {
+      className: "info-disclosure-toggle",
+      attrs: { "aria-label": t("What does this source record?") },
+      text: "i",
+    }),
+    element("p", { className: "info-disclosure-body", text }),
+  ]);
+}
+
+// Coalesce bursts of input (typing in a filter box) into a single trailing
+// render, so the corpus is not re-filtered and the DOM rebuilt on every
+// keystroke. Used by the filter panels that re-render their whole view.
+function debounce(fn, waitMs = 80) {
+  let timer = null;
+  const debounced = (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, waitMs);
+  };
+  debounced.flush = (...args) => {
+    clearTimeout(timer);
+    timer = null;
+    fn(...args);
+  };
+  return debounced;
+}
+
+function svgElement(tag, attrs = {}, text = null) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+  if (text !== null) node.textContent = String(text);
+  return node;
+}
+
+function replaceChildren(target, children) {
+  target.replaceChildren(...children.filter(Boolean));
+}
+
+function formatDate(value, options = { dateStyle: "long" }) {
+  if (!value) return t("Unknown");
+  const withTime = value.length === 10 ? `${value}T00:00:00Z` : value;
+  return new Intl.DateTimeFormat(getLang() === "zh" ? "zh" : "en", { timeZone: "UTC", ...options }).format(
+    new Date(withTime),
+  );
+}
+
+function shorten(value, max = 190) {
+  if (!value) return "";
+  const normalized = value.trim();
+  if (normalized.length <= max) return normalized;
+  const candidate = normalized.slice(0, max - 1).trimEnd();
+  const lastSpace = candidate.lastIndexOf(" ");
+  const cutoff = lastSpace >= Math.floor(max * 0.6)
+    ? candidate.slice(0, lastSpace)
+    : candidate;
+  return `${cutoff.replace(/[,:;.!?-]+$/, "")}…`;
+}
+
+// Expanding a record whose teaser already ran most of the way through the
+// description used to re-show that same opening text in full, which reads as
+// "this just repeats what I already read" rather than as new information.
+// Continuing from where the teaser was cut keeps the expanded view additive.
+function summaryRemainder(fullText, teaser) {
+  const trimmedFull = (fullText || "").trim();
+  const teaserBody = teaser.replace(/…$/, "").trim();
+  if (!trimmedFull.startsWith(teaserBody)) return trimmedFull;
+  const rest = trimmedFull.slice(teaserBody.length).trim();
+  return rest ? `…${rest}` : "";
+}
+
+function option(value, label, selected = false) {
+  return element("option", {
+    text: label,
+    attrs: { value, ...(selected ? { selected: "" } : {}) },
+  });
+}
+
+function readUrl() {
+  const currentParams = new URLSearchParams(window.location.search);
+  const pathUtility = utilityFromPath(window.location.pathname);
+  const utilityHistory = window.history?.state?.benchmarkRadarUtility;
+  let backgroundLocation = null;
+  if (utilityHistory?.utility === pathUtility && utilityHistory.backgroundUrl) {
+    try {
+      backgroundLocation = new URL(utilityHistory.backgroundUrl, window.location.origin);
+    } catch {
+      backgroundLocation = null;
+    }
+  }
+  // A utility's clean URL deliberately carries no dashboard filters. Its own
+  // history entry keeps the background URL so Forward can restore the same
+  // filtered view behind the sheet instead of resetting it to an empty Today.
+  const params = backgroundLocation?.searchParams || currentParams;
+  const requestedView = params.get("view");
+  // Legacy Explorer permalinks resolve to the filterable Today list.
+  const legacyView = ["trends", "map", "leaderboard", "saturation"].includes(requestedView)
+    ? requestedView
+    : "";
+  // The path is the view, and that is what keeps Back and Forward honest: the
+  // address bar is the only record of which view the reader is on, so restoring
+  // an entry restores the view it describes. Reading a marker written into the
+  // page at build time instead would hand back the generated view every time,
+  // whichever entry the reader went back to.
+  //
+  // At the root, ?view= is the old permalink shape and still decides; boot
+  // rewrites it onto the matching path so it stops existing as a second URL
+  // for the same page.
+  const pathView = viewFromPath(backgroundLocation?.pathname || window.location.pathname);
+  const backgroundView = utilityHistory?.utility === pathUtility
+    && VIEW_SEO[utilityHistory.backgroundView]
+    ? utilityHistory.backgroundView
+    : "";
+  state.view = pathUtility
+    ? backgroundView || "today"
+    : (pathView && pathView !== "today" ? pathView : legacyView) || "today";
+  state.q = params.get("q") || "";
+  // A bare search permalink has archive-wide intent. An explicit date remains
+  // a deliberate narrow search, including the "today" link in the scope banner.
+  state.todayDate = params.get("date") || (state.q ? "all" : "");
+  state.kind = params.get("kind") || "";
+  state.category = params.get("category") || "";
+  state.source = params.get("source") || "";
+  state.organization = params.get("organization") || "";
+  state.event = params.get("event") || "";
+  state.todayPage = Math.max(1, Number.parseInt(params.get("page") || "1", 10) || 1);
+  state.entity = params.get("entity") || "";
+  state.lq = params.get("lq") || "";
+  state.lrq = params.get("lrq") || "";
+  state.ldomain = params.get("ldomain") || "";
+  state.lorg = params.get("lorg") || "";
+  state.lera = params.get("lera") || "";
+  state.lwindow = LATEST_WINDOWS.includes(params.get("lwindow")) ? params.get("lwindow") : "";
+  state.lscore = scoreCutoff(params.get("lscore"));
+  state.lheight = ["cards", "documents"].includes(params.get("lheight")) ? "documents" : "models";
+  state.benchmarkVisibleLimit = BENCHMARK_SEARCH_LIMIT;
+  state.benchmarkQuery = (params.get("bq") || "").trim();
+  state.benchmarkModel = (params.get("bmodel") || "").trim();
+  state.benchmarkType = (params.get("btype") || "").trim();
+  state.benchmarkDimension = (params.get("bdim") || "").trim();
+  state.benchmarkDimensionEvidence = params.get("bdevidence") === "all" ? "all" : "supported";
+  state.lfrontier = params.get("lfrontier") || "";
+  state.lfrontierExplicit = Boolean(state.lfrontier);
+  // Existing benchmark permalinks follow the score history to its new tab.
+  if (state.view === "leaderboard" && state.lfrontierExplicit) state.view = "saturation";
+  // Resolved after that redirect: a legacy benchmark permalink is a Saturation
+  // address, and its cutoff must not decide which leaderboard mode opens next.
+  state.lmode = leaderboardModeFromParams(params, state.view);
+  const rawHash = window.location.hash.slice(1);
+  const hashParams = new URLSearchParams(rawHash);
+  // A first-class utility path wins over every legacy fragment. This keeps a
+  // malformed URL such as /cite/#rubric from opening two sheets, while the old
+  // root fragments still migrate to their clean paths during initialize().
+  state.contact = !pathUtility && (rawHash === "contact" || hashParams.has("contact"));
+  state.cite = pathUtility === "cite"
+    || (!pathUtility && (rawHash === "cite" || hashParams.has("cite")));
+  state.cli = pathUtility === "cli"
+    || (!pathUtility && (rawHash === "cli" || hashParams.has("cli")));
+  state.rubric = pathUtility === "rubric"
+    ? currentParams.get("version") || "current"
+    : !pathUtility && rawHash === "rubric"
+      ? "current"
+      : !pathUtility
+        ? hashParams.get("rubric") || ""
+        : "";
+}
+
+// `push` adds a history entry; `replace` overwrites the current one.
+//
+// Every call used to replace, so no navigation was ever backable: a reader who
+// searched, opened a benchmark and pressed Back left the site entirely, because
+// the search URL had been overwritten rather than kept (issue #286).
+//
+// Pushing everything is the wrong fix. The filter boxes call this on a debounce
+// as the reader types, so `q=m`, `q=mm`, `q=mml`, `q=mmlu` would each become an
+// entry and Back would walk backwards through their own typing one keystroke at
+// a time. The split is by what the reader did:
+//
+//   push    a discrete navigation they chose -- changing view, selecting a
+//           benchmark, opening an entity
+//   replace continuous refinement of the view they are already on -- typing in
+//           a filter, moving the date, toggling a facet, closing a dialog
+function writeUrl(mode = "replace") {
+  const utility = activeUtility();
+  const params = new URLSearchParams();
+  // The CLI handoff is the one utility that needs the current search term.
+  // Keep the background filters in history, while exposing only q in its URL.
+  if (utility === "cli" && state.view === "today" && state.q.trim()) {
+    params.set("q", state.q.trim());
+  }
+  // Every filter below belongs to exactly one view, so only that view may write
+  // it. Serializing all of them unconditionally is what leaked `lfrontier` onto
+  // Today/Trends/Map links and `date` onto Leaderboard links (issue #123): the
+  // reader would click "2026-07-31" and land on a URL carrying a leaderboard
+  // selection that nothing on the page reads back.
+  if (!utility && state.view === "today") {
+    if (state.todayDate === "all") {
+      params.set("date", "all");
+    } else if (
+      state.todayDate &&
+      (state.q || state.todayDate !== state.data?.latest_date)
+    ) {
+      // A latest-day search must keep its date in the URL. A bare ?q= link is
+      // intentionally archive-wide, so dropping this value would widen again
+      // on reload after the reader clicked "Search today" in the scope banner.
+      params.set("date", state.todayDate);
+    }
+    if (state.q) params.set("q", state.q);
+    if (state.kind) params.set("kind", state.kind);
+    if (state.category) params.set("category", state.category);
+    if (state.source) params.set("source", state.source);
+    if (state.organization) params.set("organization", state.organization);
+    if (state.event) params.set("event", state.event);
+    if (state.todayPage > 1) params.set("page", state.todayPage);
+  }
+  if (!utility && state.view === "map" && state.entity) params.set("entity", state.entity);
+  if (!utility && state.view === "leaderboard") {
+    // The adoption filters are written only in adoption mode: any of them in
+    // a URL is what readUrl takes as the reader's choice of that mode, so a
+    // latest-releases address that carried them would flip on reload, and
+    // an adoption address needs no extra marker to survive one.
+    if (state.lmode === "adoption") {
+      params.set("lscore", state.lscore);
+      if (state.lheight === "documents") params.set("lheight", state.lheight);
+      if (state.lq) params.set("lq", state.lq);
+      if (state.ldomain) params.set("ldomain", state.ldomain);
+      if (state.lorg) params.set("lorg", state.lorg);
+      if (state.lera) params.set("lera", state.lera);
+    } else {
+      if (state.lwindow && state.lwindow !== latestReleasesDefaultWindow()) {
+        params.set("lwindow", state.lwindow);
+      }
+      // Written in the latest branch and kept out of
+      // LEADERBOARD_ADOPTION_PARAMS: a marker there would make a shared
+      // latest-releases search address reload into the adoption view.
+      if (state.lrq) params.set("lrq", state.lrq);
+    }
+  }
+  if (!utility && state.view === "saturation") {
+    params.set("lscore", state.lscore);
+    if (state.benchmarkQuery) params.set("bq", state.benchmarkQuery);
+    if (state.benchmarkModel) params.set("bmodel", state.benchmarkModel);
+    if (state.benchmarkType) params.set("btype", state.benchmarkType);
+    if (state.benchmarkDimension) params.set("bdim", state.benchmarkDimension);
+    if (state.benchmarkDimensionEvidence === "all") params.set("bdevidence", "all");
+    // A benchmark auto-picked as the default is not the reader's choice, so it
+    // stays out of the URL until they select one themselves.
+    if (state.lfrontierExplicit && state.lfrontier) {
+      params.set("lfrontier", state.lfrontier);
+    }
+  }
+  if (utility === "rubric" && state.rubric && state.rubric !== "current") {
+    params.set("version", state.rubric);
+  }
+  const query = params.toString();
+  // Contact remains an in-page utility. Cite, CLI, and Rubric have first-class
+  // paths, so they never write a second fragment URL for the same content.
+  let hash = "";
+  if (!utility && state.contact) hash = "contact";
+  // The view decides the path. Reusing window.location.pathname kept whichever
+  // page loaded first, so switching to Trends from /leaderboard/ wrote
+  // /leaderboard/ back and the address bar disagreed with the screen.
+  const path = utility
+    ? UTILITY_SEO[utility].canonical
+    : VIEW_PATHS[state.view] || "/";
+  const url = `${path}${query ? `?${query}` : ""}${hash ? `#${hash}` : ""}`;
+  // Pushing a URL identical to the current one would make Back a no-op that
+  // looks broken: the reader presses it, the address bar does not change, and
+  // they press it again. Re-selecting the benchmark already shown is the
+  // common way to hit this.
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const previousUtility = window.history?.state?.benchmarkRadarUtility;
+  const historyState = utility
+    ? {
+        benchmarkRadarUtility: {
+          utility,
+          backgroundView: previousUtility?.backgroundView || state.view,
+          backgroundUrl: previousUtility?.backgroundUrl || current,
+          returnOnClose: mode === "push" || Boolean(previousUtility?.returnOnClose),
+        },
+      }
+    : null;
+  if (mode === "push" && url !== current) {
+    window.history.pushState(historyState, "", url);
+    return;
+  }
+  window.history.replaceState(historyState, "", url);
+}
+
+// A pushed entry changes the URL on Back without re-rendering anything, so the
+// page would silently disagree with its own address bar. This is what makes the
+// pushes above safe: the restored URL is read back into state and the view it
+// describes is drawn (issue #286).
+async function onPopState() {
+  viewNavigationSequence += 1;
+  // Before the payload lands, state is not yet drawable. Read the URL anyway:
+  // initialize() renders from state once the fetch settles, and skipping the
+  // read here would leave it rendering whatever the reader navigated away
+  // from while the address bar showed the restored entry.
+  readUrl();
+  // The citation card draws no data, so it opens before the payload lands and
+  // has to close before it too. Below the early return it would survive Back
+  // on a slow or failing build: the hash would go, the dialog would stay.
+  const citeDialog = byId("cite-dialog");
+  if (state.cite) {
+    if (!citeDialog?.open) openCite(false);
+  } else if (citeDialog?.open) {
+    citeDialog.close();
+  }
+  const cliDialog = byId("cli-dialog");
+  if (state.cli) {
+    if (!cliDialog?.open) openCli(false);
+  } else if (cliDialog?.open) {
+    cliDialog.close();
+  }
+  const rubricDialog = byId("rubric-dialog");
+  if (state.rubric) {
+    if (!rubricDialog?.open && state.data) {
+      openRubric(null, state.rubric === "current" ? null : state.rubric, false);
+    }
+  } else if (rubricDialog?.open) {
+    rubricDialog.close();
+  }
+  applyCurrentSeo();
+  syncNavState();
+  if (!state.data) return;
+  try {
+    await ensureDataForState();
+  } catch (error) {
+    // A restored history entry may require the full corpus even though the
+    // current document only loaded the bootstrap. Reloading its real path lets
+    // the generated page keep its seeded content visible when that fetch is
+    // unavailable, instead of leaving the previous view under the new URL.
+    console.error(error);
+    window.location.assign(window.location.href);
+    return;
+  }
+  // readUrl() restores a bare Today URL as an empty date, which only
+  // initialize() and refreshData() then default to the latest scan. A history
+  // restore skipped that step, so closing a utility sheet or pressing Back
+  // filtered every observation against snapshot_date === "" and Today rendered
+  // its empty state (issue #503). Normalize the restored date the same way.
+  if (
+    !validTodayDate()
+  ) {
+    state.todayDate = state.data.latest_date;
+  }
+  setView(state.view, false);
+  // The renderers read their own controls back from state (the date picker at
+  // renderToday, the leaderboard search at renderLeaderboardFilters), so this
+  // restores the form values as well as the content.
+  rerenderCurrentView();
+  const contactDialog = byId("contact-dialog");
+  if (state.contact) {
+    if (!contactDialog?.open) openContact(false);
+  } else if (contactDialog?.open) {
+    contactDialog.close();
+  }
+}
+
+// The query-string views are application states, while the path-based static
+// pages are the indexable search entries. Every state restates the matching
+// title and description for readers, but its canonical consolidates onto the
+// server-delivered page. Filter permutations therefore cannot fragment search
+// signals. These strings are English on purpose: the visible interface still
+// translates through data-i18n.
+const VIEW_SEO = {
+  today: {
+    title: "AI Benchmark Search Engine & Database | Benchmark Radar",
+    description:
+      "Search an open database of AI, LLM, agent, multimodal and AI-for-science benchmarks, each with its own page carrying the paper, code, dataset and scores.",
+    canonical: "/benchmark-radar-zh24/",
+  },
+  leaderboard: {
+    title: "Latest AI benchmark releases and rankings | Benchmark Radar",
+    description:
+      "Benchmarks released in the last 7, 30 or 90 days, ranked by the attention they are receiving now: GitHub stars, Hugging Face paper upvotes and dataset downloads.",
+    canonical: "/benchmark-radar-zh24/leaderboard/",
+  },
+  saturation: {
+    title: "AI benchmark saturation and score histories | Benchmark Radar",
+    description:
+      "Browse benchmarks by highest reported score or search the complete catalog. Inspect reported scores over time with their sources, dates, and test conditions.",
+    canonical: "/benchmark-radar-zh24/saturation/",
+  },
+  trends: {
+    title: "AI benchmark discovery trends over time | Benchmark Radar",
+    description:
+      "Daily volume of new AI benchmark evidence by category, source, and event, with a ledger of every collection day in the corpus.",
+    canonical: "/benchmark-radar-zh24/trends/",
+  },
+  map: {
+    title: "Explore connections across AI benchmarks | Benchmark Radar",
+    description:
+      "See how benchmarks, datasets, evaluations, sources, and organizations connect across the Benchmark Radar corpus, and jump from any topic into the filtered daily list.",
+    canonical: "/benchmark-radar-zh24/explore/",
+  },
+};
+
+// These sheets are also indexable pages. The dashboard view stays mounted
+// behind an open sheet, but the address, head metadata, and canonical all
+// describe the utility the reader is actually looking at.
+const UTILITY_SEO = {
+  cli: {
+    title: "Search AI benchmarks locally with the CLI | Benchmark Radar",
+    description:
+      "Install Benchmark Radar's offline CLI and consumer Skill, download the searchable data, and query AI benchmark evidence from local files.",
+    canonical: "/benchmark-radar-zh24/cli/",
+  },
+  cite: {
+    title: "Benchmark Radar publications and citation | Paper, APA, BibTeX",
+    description:
+      "Read the Benchmark Radar technical report and copy its citation in APA or BibTeX format, or open the repository's citation file and permanent DOI.",
+    canonical: "/benchmark-radar-zh24/cite/",
+  },
+  rubric: {
+    title: "How Benchmark Radar scores benchmark evidence | Rubric",
+    description:
+      "Read the versioned scoring rubric Benchmark Radar uses to prioritize benchmark evidence, including component weights, score bands, and limits.",
+    canonical: "/benchmark-radar-zh24/rubric/",
+  },
+};
+
+// One list, not two: a view whose canonical says /trends/ is reachable at
+// /trends/ and nowhere else, so the URL a reader shares and the URL a crawler
+// indexes cannot drift apart.
+const VIEW_PATHS = Object.fromEntries(
+  Object.entries(VIEW_SEO).map(([view, seo]) => [view, seo.canonical]),
+);
+const PATH_VIEWS = Object.fromEntries(
+  Object.entries(VIEW_PATHS).map(([view, path]) => [path, view]),
+);
+const PATH_UTILITIES = Object.fromEntries(
+  Object.entries(UTILITY_SEO).map(([utility, seo]) => [seo.canonical, utility]),
+);
+
+// "/benchmark-radar-zh24/leaderboard", "/benchmark-radar-zh24/leaderboard/" and "/benchmark-radar-zh24/leaderboard/index.html" are one page. A
+// reader who trims the trailing slash should not silently land on Today.
+function viewFromPath(pathname) {
+  const trimmed = pathname.replace(/index\.html$/, "");
+  const path = trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+  return PATH_VIEWS[path] || "";
+}
+
+function utilityFromPath(pathname) {
+  const trimmed = pathname.replace(/index\.html$/, "");
+  const path = trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+  return PATH_UTILITIES[path] || "";
+}
+
+function activeUtility() {
+  if (state.cli) return "cli";
+  if (state.cite) return "cite";
+  if (state.rubric) return "rubric";
+  return "";
+}
+
+function applySeo(seo) {
+  document.title = seo.title;
+  const description = document.querySelector('meta[name="description"]');
+  if (description) description.setAttribute("content", seo.description);
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (canonical) {
+    // Keep every entry point, including the former Pages URL, consolidated
+    // onto the custom domain instead of reflecting whichever origin served it.
+    const url = new URL(seo.canonical, window.location.origin);
+    canonical.setAttribute("href", url.href);
+  }
+}
+
+function applyViewSeo(view) {
+  applySeo(VIEW_SEO[view] || VIEW_SEO.today);
+}
+
+function applyCurrentSeo() {
+  const utility = activeUtility();
+  applySeo(utility ? UTILITY_SEO[utility] : VIEW_SEO[state.view] || VIEW_SEO.today);
+}
+
+// Every visible navigation item uses one visual active state. Explore and
+// Rubric remain direct routes, so opening either leaves the global nav without
+// a false current item.
+function syncNavState() {
+  const utility = activeUtility();
+  document.querySelectorAll("[data-view]").forEach((item) => {
+    const active = !utility && item.dataset.view === state.view;
+    item.classList.toggle("nav-active", active);
+    if (active) {
+      item.setAttribute("aria-current", "page");
+    } else {
+      item.removeAttribute("aria-current");
+    }
+  });
+  const cliNav = byId("cli-nav");
+  if (cliNav?.classList) {
+    cliNav.classList.toggle("nav-active", utility === "cli");
+    cliNav.setAttribute("aria-expanded", String(utility === "cli"));
+    if (utility === "cli") cliNav.setAttribute("aria-current", "page");
+    else cliNav.removeAttribute("aria-current");
+  }
+  const citeNav = byId("cite-nav");
+  if (citeNav?.classList) {
+    citeNav.classList.toggle("nav-active", utility === "cite");
+    citeNav.setAttribute("aria-expanded", String(utility === "cite"));
+    if (utility === "cite") citeNav.setAttribute("aria-current", "page");
+    else citeNav.removeAttribute("aria-current");
+  }
+  const citeOpen = byId("cite-open");
+  citeOpen?.setAttribute("aria-expanded", String(utility === "cite"));
+  if (utility === "cite") citeOpen?.setAttribute("aria-current", "page");
+  else citeOpen?.removeAttribute("aria-current");
+}
+
+// `update` false is for restoring a view that is already in the URL (boot and
+// popstate), where writing history again would either duplicate the entry or
+// fight the entry being restored.
+function setView(view, update = true, mode = "push") {
+  if (selectedFrontierPoint || describedFrontierPoint) {
+    clearFrontierPointSelection();
+  }
+  state.view = view;
+  applyCurrentSeo();
+  document.querySelectorAll(".view").forEach((section) => {
+    section.hidden = section.id !== `${view}-view`;
+  });
+  syncNavState();
+  if (update) writeUrl(mode);
+}
+
+function selectFrontier(benchmarkId) {
+  state.lfrontier = benchmarkId;
+  state.lfrontierExplicit = true;
+}
+
+function openSaturation(benchmarkId) {
+  selectFrontier(benchmarkId);
+  setView("saturation");
+  renderSaturation();
+  if (window.matchMedia("(max-width: 1050px)").matches) {
+    byId("adoption-frontier").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function categoryColor(category, index = 0) {
+  return CATEGORY_COLORS[category] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+}
+
+function dailySnapshot(date = state.todayDate) {
+  return (
+    state.data.days.find((day) => day.date === date) ||
+    state.data.days[state.data.days.length - 1]
+  );
+}
+
+function rubricFor(item = null) {
+  const version = String(item?.score_version || state.data?.rubric?.scoring_version || 1);
+  return state.data?.rubrics?.[version] || state.data?.rubric;
+}
+
+function scoreMax(item = null) {
+  return Number(item?.score_max || rubricFor(item)?.score_max) || 4;
+}
+
+function scoreBlock(item) {
+  const raw = Number(item.total_score || 0);
+  const max = Number(scoreMax(item));
+  // Issue #248: a 100-point score rounds to an integer (68, not 68.46), but
+  // legacy 0-4 records carry meaningful hundredths (3.01, 2.94), so they keep
+  // two decimals. The track always uses the raw value, so it never
+  // misrepresents the ratio.
+  const precision = max > 10 ? 0 : 2;
+  const score = raw.toFixed(precision);
+  const maxDisplay = precision === 0 ? String(Math.round(max)) : String(max);
+  const width = Math.max(0, Math.min(100, (raw / max) * 100));
+  const trackFill = element("span", {});
+  const track = element("div", { className: "score-track" }, [trackFill]);
+  trackFill.style.width = `${width}%`;
+  // The mark doubles as the way into the rubric. A number presented without
+  // a reachable definition of how it was produced asks the reader to trust it
+  // on faith, which is the opposite of what an evidence log is for. It carries
+  // no visible caption: the number, the bar and the mark already say "score
+  // out of something, explained here", and spelling it out on every row cost a
+  // third line in a card that has four of them (issue #593). The full sentence
+  // stays in the label, so nothing is lost to a screen reader.
+  const explain = element("button", {
+    className: "score-explain",
+    attrs: {
+      type: "button",
+      "aria-label": `${t("Priority score")} ${score} ${t("of")} ${maxDisplay}. ${t("How is this scored?")}`,
+    },
+  }, [
+    element("span", { className: "info-mark", text: "i", attrs: { "aria-hidden": "true" } }),
+  ]);
+  explain.addEventListener("click", (event) => {
+    // The control lives inside a native <summary>; keep rubric access from
+    // also toggling the row.
+    event.preventDefault();
+    event.stopPropagation();
+    openRubric(item);
+  });
+  return element("div", { className: "score" }, [
+    element("div", { className: "score-value" }, [
+      element("strong", { text: score }),
+      explain,
+    ]),
+    track,
+  ]);
+}
+
+function titleCase(value) {
+  return String(value)
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+// The timestamp that best describes when the observed event happened. The
+// updated_at field only exists for update events, so fall back through the
+// publish and discovery times rather than dropping the time entirely.
+function eventTimestamp(item) {
+  if (item.updated_at) return item.updated_at;
+  if (item.published_at) return item.published_at;
+  return item.discovered_at || "";
+}
+
+// Time is one of the highest-signal attributes on a Today page, so rows show
+// how long ago an event happened instead of a bare "UPDATED" (issue #248).
+// A YYYY-MM-DD as a UTC timestamp, or NaN when it is absent or unparseable.
+// Pinned to T00:00:00Z for the same reason scoreTrackChart's axis is: a bare
+// date string is parsed in local time by some engines, which slides a point
+// across a day boundary depending on where the reader is sitting.
+function dateValue(date) {
+  if (!date) return Number.NaN;
+  return new Date(`${String(date).slice(0, 10)}T00:00:00Z`).getTime();
+}
+
+function relativeTime(iso) {
+  if (!iso) return "";
+  const time = new Date(iso).getTime();
+  if (!Number.isFinite(time)) return "";
+  const minutes = Math.max(0, Math.round((Date.now() - time) / 60000));
+  if (minutes < 1) return t("Just now");
+  if (minutes < 60) return t("{n}m ago", { n: minutes });
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return t("{n}h ago", { n: hours });
+  const days = Math.round(hours / 24);
+  if (days <= 1) return t("yesterday");
+  if (days < 7) return t("{n}d ago", { n: days });
+  return formatDate(iso, { dateStyle: "medium" });
+}
+
+function eventVerb(item) {
+  const kind = String(item.event_kind || "");
+  const verb = kind === "updated" ? t("Updated") : kind === "released" ? t("Released") : titleCase(kind);
+  const time = relativeTime(eventTimestamp(item));
+  return time ? `${verb} ${time}` : verb;
+}
+
+// The collapsed row carries a plain-text provenance line instead of the six
+// uppercase chips: source and event in normal typography, at most two
+// categories, everything else under expansion (issue #248).
+function recordMeta(item) {
+  const categories = item.categories || [];
+  const visible = categories.slice(0, 2).map(titleCase);
+  const extra = categories.length - visible.length;
+  return element("div", { className: "record-meta" }, [
+    element("span", { className: "meta-source", text: item.source }),
+    element("span", {
+      className: "meta-event",
+      text: eventVerb(item),
+      attrs: {
+        title: eventTimestamp(item)
+          ? `${formatDate(eventTimestamp(item), { dateStyle: "medium", timeStyle: "short" })} UTC`
+          : "",
+      },
+    }),
+    ...(visible.length
+      ? visible.map((category) => element("span", { className: "meta-category", text: category }))
+      : [element("span", { className: "meta-category", text: t("uncategorized") })]),
+    ...(extra > 0
+      ? [element("span", { className: "meta-more", text: `+${extra}` })]
+      : []),
+    ...(item.watchlist
+      ? [element("span", { className: "meta-watchlist", text: `★ ${item.watchlist}` })]
+      : []),
+  ]);
+}
+
+function definition(label, value) {
+  return element("div", {}, [
+    element("dt", { text: label }),
+    element("dd", { text: value }),
+  ]);
+}
+
+const RECORD_METRIC_LABELS = {
+  stars: "Stars",
+  forks: "Forks",
+  likes: "Likes",
+  downloads: "Downloads",
+  citations: "Citations",
+  influential_citations: "Influential citations",
+};
+
+function compactNames(values, limit = 2) {
+  const names = [...new Set((values || []).map((value) => String(value).trim()).filter(Boolean))];
+  if (!names.length) return "";
+  const shown = names.slice(0, limit).join(", ");
+  return names.length > limit ? `${shown} +${names.length - limit}` : shown;
+}
+
+// Source facts are different from score components. A counter appears only
+// when its connector supplied that field; an absent counter is labelled as
+// unreported rather than rendered as zero. This lets a reader audit Adoption 0
+// for sources that publish activity counters while making sources without
+// those counters explicit (issue #361).
+function recordFactEntries(item) {
+  const facts = [];
+  const organizations = compactNames(item.organizations);
+  const authors = compactNames(item.authors);
+  if (organizations) facts.push([t("Organizations"), organizations]);
+  if (authors) facts.push([t("Authors"), authors]);
+  const metrics = item.metrics || {};
+  let metricCount = 0;
+  Object.entries(RECORD_METRIC_LABELS).forEach(([key, label]) => {
+    if (!Object.hasOwn(metrics, key)) return;
+    const rawValue = metrics[key];
+    const value = Number(rawValue);
+    if (rawValue === null || rawValue === undefined || !Number.isFinite(value)) return;
+    const locale = getLang() === "zh" ? "zh-CN" : "en-US";
+    facts.push([t(label), value.toLocaleString(locale)]);
+    metricCount += 1;
+  });
+  if (!metricCount) facts.push([t("Activity counters"), t("Not reported by this source")]);
+  return facts;
+}
+
+function recordDateEntries(item) {
+  const entries = [];
+  if (item.published_at) {
+    entries.push([t("Published"), formatDate(item.published_at, { dateStyle: "medium" })]);
+  }
+  if (item.updated_at && item.updated_at !== item.published_at) {
+    entries.push([t("Updated"), formatDate(item.updated_at, { dateStyle: "medium" })]);
+  }
+  return entries;
+}
+
+function recordFacts(item) {
+  const facts = recordFactEntries(item);
+  if (!facts.length) return null;
+  return element(
+    "div",
+    {
+      className: "record-facts",
+      attrs: { role: "group", "aria-label": t("Source metadata") },
+    },
+    facts.map(([label, value]) =>
+      element("span", {}, [
+        element("strong", { text: label }),
+        document.createTextNode(`: ${value}`),
+      ]),
+    ),
+  );
+}
+
+function safeHttpUrl(value) {
+  try {
+    const url = new URL(String(value));
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function validBriefingCitations(citations) {
+  const seen = new Set();
+  return (Array.isArray(citations) ? citations : []).flatMap((citation) => {
+    const id = String(citation?.id || "");
+    const href = safeHttpUrl(citation?.url);
+    if (!/^E\d{3}$/.test(id) || !href || seen.has(id)) return [];
+    seen.add(id);
+    return [{
+      id,
+      href,
+      title: String(citation?.title || id),
+      source: String(citation?.source || "Primary source"),
+    }];
+  });
+}
+
+function briefingContent(line, citations) {
+  const links = new Map(citations.map((citation) => [citation.id, citation]));
+
+  const nodes = [];
+  let cursor = 0;
+  for (const match of String(line).matchAll(/\bE\d{3}\b/g)) {
+    const citation = links.get(match[0]);
+    if (!citation) continue;
+    nodes.push(document.createTextNode(line.slice(cursor, match.index)));
+    nodes.push(element("a", {
+      className: "briefing-evidence-link",
+      text: match[0],
+      attrs: {
+        href: citation.href,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        title: `Open evidence: ${citation.title}`,
+        "aria-label": `${match[0]}: ${citation.title}`,
+      },
+    }));
+    cursor = match.index + match[0].length;
+  }
+  nodes.push(document.createTextNode(line.slice(cursor)));
+  return nodes;
+}
+
+// A briefing bullet is model prose of the form "The claim. Why it matters:
+// the point. Evidence: E001, E002. High confidence." For a scan to meet the
+// takeaway first and the support on demand, that one paragraph is split into a
+// short head, an optional body, and a metadata line carrying the confidence and
+// the source count. Bullets that do not follow the shape (older days) fall back
+// to the whole line as the head with no body or meta.
+function briefingParts(line) {
+  let text = String(line).trim();
+  let confidence = "";
+  const confidenceMatch = text.match(/\b(High|Medium|Low|Moderate|Mixed)\s+confidence\.?\s*$/i);
+  if (confidenceMatch) {
+    confidence = confidenceMatch[1];
+    text = text.slice(0, confidenceMatch.index).trim();
+  }
+  // Lift the trailing "Evidence: E001, E002." clause out of the prose in both
+  // the split and the fallback shapes, so the IDs never stay in the running
+  // sentences a scan of the findings has to wade through.
+  const evidenceIds = [...new Set(text.match(/\bE\d{3}\b/g) || [])];
+  text = text.replace(/\s*\.?\s*Evidence:\s*((?:E\d{3}\s*,\s*)*E\d{3})\.?\s*/i, "").trim();
+  const whyIndex = text.search(/\bWhy it matters:\s*/i);
+  if (whyIndex === -1) return { head: text, body: "", confidence, evidenceIds };
+  const head = text.slice(0, whyIndex).trim();
+  const body = text
+    .slice(whyIndex + "Why it matters:".length)
+    .trim();
+  return { head, body, confidence, evidenceIds };
+}
+
+function briefingMeta(parts, citations) {
+  const chips = [];
+  if (parts.confidence) {
+    chips.push(element("span", {
+      className: `briefing-chip briefing-chip-${parts.confidence.toLowerCase()}`,
+      text: `${parts.confidence} ${t("confidence")}`,
+    }));
+  }
+  const citedSources = parts.evidenceIds.flatMap((id) => {
+    const citation = citations.find((entry) => entry.id === id);
+    return citation ? [citation] : [];
+  });
+  if (citedSources.length > 0) {
+    const sourceText = `${citedSources.length} ${
+      citedSources.length === 1 ? t("source") : t("sources")
+    }`;
+    const citation = citedSources.length === 1 ? citedSources[0] : null;
+    chips.push(citation
+      ? element("a", {
+          className: "briefing-chip briefing-chip-sources",
+          text: sourceText,
+          attrs: {
+            href: citation.href,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            title: `Open evidence: ${citation.title}`,
+            "aria-label": `${sourceText}: ${citation.title}`,
+          },
+        })
+      : element("span", {
+          className: "briefing-chip briefing-chip-sources",
+          text: sourceText,
+        }));
+  }
+  if (!chips.length) return null;
+  return element("p", { className: "briefing-insight-meta" }, chips);
+}
+
+function briefingInsight(line, citations) {
+  const parts = briefingParts(line);
+  const head = element("h3", { className: "briefing-insight-head" },
+    briefingContent(parts.head || line, citations));
+  // The body is the "why it matters" support under the head, and the evidence
+  // clause was lifted out of it into the metadata chips by briefingParts.
+  const body = parts.body
+    ? element("p", { className: "briefing-insight-body" }, briefingContent(parts.body, citations))
+    : null;
+  return element("article", { className: "briefing-insight" }, [
+    head,
+    body,
+    briefingMeta(parts, citations),
+  ]);
+}
+
+function briefingProvenance(briefing) {
+  if (briefing.generator !== "openai-responses") return null;
+  const usage = briefing.usage || {};
+  const input = briefing.input || {};
+  return element("p", {
+    className: "daily-briefing-meta",
+    text: `${t("GPT synthesis")}: ${briefing.model || t("OpenAI model")} ${t("via OpenAI Responses API")} · ${Number(usage.input_tokens || 0).toLocaleString()} ${t("input tokens")} / ${Number(usage.output_tokens || 0).toLocaleString()} ${t("output tokens")} · ${Number(input.evidence_items || 0).toLocaleString()} ${t("evidence records")} ${t("and")} ${Number(input.history_days || 0).toLocaleString()} ${t("history days injected")}.`,
+  });
+}
+
+function briefingEvidenceList(citations) {
+  if (!citations.length) return null;
+  return element("section", {
+    className: "daily-briefing-evidence",
+    attrs: { "aria-labelledby": "daily-briefing-evidence-heading" },
+  }, [
+    element("h3", {
+      className: "daily-briefing-evidence-title",
+      text: t("Evidence cited by GPT"),
+      attrs: { id: "daily-briefing-evidence-heading" },
+    }),
+    element("ul", {}, citations.map((citation) =>
+      element("li", {}, [
+        element("a", {
+          text: `${citation.id} — ${citation.title}`,
+          attrs: {
+            href: citation.href,
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+        }),
+        element("span", { text: ` (${citation.source})` }),
+      ]))),
+  ]);
+}
+
+function briefingDetails(briefing, citations) {
+  const provenance = briefingProvenance(briefing);
+  const caveatText = l10nProse(briefing.caveat, briefing.caveat_zh);
+  const caveat = caveatText
+    ? element("p", { className: "daily-briefing-caveat" }, [
+        element("strong", { text: t("Caveat: ") }),
+        document.createTextNode(String(caveatText)),
+      ])
+    : null;
+  const evidence = briefingEvidenceList(citations);
+  if (!provenance && !caveat && !evidence) return null;
+
+  const label = citations.length
+    ? `${t("Evidence & briefing details")} · ${citations.length.toLocaleString()} ${
+        citations.length === 1 ? t("source") : t("sources")
+      }`
+    : t("Briefing details");
+  return element("details", { className: "daily-briefing-details" }, [
+    element("summary", { text: label }),
+    provenance,
+    caveat,
+    evidence,
+  ]);
+}
+
+// The briefing is generated once per UTC day and stored in that day's snapshot,
+// so a day can legitimately have none: it predates the feature, no API key was
+// configured, or every pass over the day failed the call. Say which rather than
+// leaving the reader with a heading above blank space.
+function renderDailyBriefing(day) {
+  const briefing = day.briefing || {};
+  const enBullets = Array.isArray(briefing.bullets) ? briefing.bullets : [];
+  const zhBullets = Array.isArray(briefing.bullets_zh) ? briefing.bullets_zh : [];
+  const bullets = getLang() === "zh" && zhBullets.length ? zhBullets : enBullets;
+  const citations = validBriefingCitations(briefing.citations);
+  // A briefing carrying another day's date describes the wrong day, so it is
+  // withheld rather than shown beside this date's listings.
+  const usable = briefing.date === day.date ? bullets.filter((line) => line.trim()) : [];
+  replaceChildren(
+    byId("daily-briefing-body"),
+    usable.length
+      ? [
+          // Model prose becomes a scannable insight block per bullet: a short
+          // head (the takeaway), the "why it matters" support beneath it, and a
+          // metadata line carrying confidence and source count instead of
+          // paragraph-wide prose and mid-sentence evidence IDs.
+          ...usable.map((line) => briefingInsight(line, citations)),
+          briefingDetails(briefing, citations),
+        ]
+      : [
+          element("p", {
+            className: "empty-state",
+            text: t("No briefing was recorded for this day."),
+          }),
+        ],
+  );
+}
+
+// Statistic values are printed from the registry the answer cites, never from
+// the model's prose, so a number reaches the page only if it was computed
+// before the call. This mirrors report.py's `_format_stat_value` exactly.
+function formatStatValue(stat) {
+  const value = stat?.value;
+  // `toLocaleString()` is not used: it rounds to three fraction digits, so a
+  // registry value of 1234.56789 would reach the page as 1,234.568. Grouping is
+  // applied to the integer part only, which matches Python's `f"{value:,}"` and
+  // keeps the printed figure identical to the Markdown report's.
+  let rendered;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const [whole, fraction] = String(value).split(".");
+    // \B keeps the separator out of a leading "-", so -1234 groups as -1,234.
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    rendered = fraction ? `${grouped}.${fraction}` : grouped;
+  } else {
+    rendered = String(value ?? "");
+  }
+  const unit = String(stat?.unit || "").trim();
+  if (unit && unit !== "count") rendered = `${rendered} ${unit}`;
+  const window = String(stat?.window || "").trim();
+  if (window && window !== "today") {
+    // Spans already carry their own parentheses; do not nest another pair.
+    rendered = window.endsWith(")") ? `${rendered} ${window}` : `${rendered} (${window})`;
+  }
+  return rendered;
+}
+
+function answerCitations(answer) {
+  const stats = (Array.isArray(answer?.cited_stats) ? answer.cited_stats : []).map((stat) =>
+    element("li", {}, [
+      element("code", { className: "answer-stat-id", text: String(stat?.id || "") }),
+      document.createTextNode(` ${String(stat?.label || "")}: `),
+      element("strong", { text: formatStatValue(stat) }),
+    ]),
+  );
+  // Same rule as the briefing: only an exact evidence ID with a safe http(s)
+  // URL becomes a link, so a citation nobody can follow is not rendered as one.
+  const evidence = validBriefingCitations(answer?.cited_evidence).map((citation) =>
+    element("li", {}, [
+      element("code", { className: "answer-stat-id", text: citation.id }),
+      document.createTextNode(" "),
+      element("a", {
+        text: citation.title,
+        attrs: {
+          href: citation.href,
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+      }),
+      element("span", { text: ` (${citation.source})` }),
+    ]),
+  );
+  if (!stats.length && !evidence.length) return null;
+  return element("ul", { className: "answer-citations" }, [...stats, ...evidence]);
+}
+
+function answerBlock(answer) {
+  const insufficient = answer?.sufficient_evidence === false;
+  const confidence = String(answer?.confidence || "").trim();
+  // The question, the confidence, and one line of signal are the decision the
+  // reader came for; the explanation, its sources and the trade-offs back it
+  // up but would otherwise take over the page if all shown at once. So the
+  // answer is a native disclosure, collapsed by default, whose summary is the
+  // compact take while its detail holds everything that supports it. Native
+  // <details>/<summary> gives the reversible expand/re-collapse and keyboard
+  // support (Tab to focus, Enter/Space to toggle) for free and stays collapsed
+  // on load because no `open` attribute is rendered.
+  const citations = answerCitations(answer);
+  const sourceCount = validBriefingCitations(answer?.cited_evidence).length;
+  const meta = element("p", { className: "answer-meta" }, [
+    ...(confidence
+      ? [
+          element("span", {
+            className: `pill pill-confidence pill-confidence-${confidence}`,
+            text: `${confidence} ${t("confidence")}`,
+          }),
+        ]
+      : []),
+    ...(sourceCount
+      ? [
+          element("span", {
+            className: "answer-source-count",
+            text: `${sourceCount} ${sourceCount === 1 ? t("source") : t("sources")}`,
+          }),
+        ]
+      : []),
+  ]);
+  const detail = element("div", { className: "answer-detail" }, [
+    element("p", { className: "answer-plain" }, [
+      element("em", { text: t("In plain English: ") }),
+      document.createTextNode(l10nProse(String(answer?.plain_english || ""), answer?.plain_chinese)),
+    ]),
+    citations,
+    // Stated on the answer rather than hidden in a tooltip: "the evidence does
+    // not support an answer today" is a result, not a rendering failure.
+    ...(insufficient
+      ? [
+          element("p", {
+            className: "answer-insufficient",
+            text: t("Evidence is insufficient to answer this today."),
+          }),
+        ]
+      : []),
+    element("p", { className: "answer-takeaway" }, [
+      element("strong", { text: t("Takeaway: ") }),
+      document.createTextNode(l10nProse(String(answer?.takeaway || ""), answer?.takeaway_zh)),
+    ]),
+    // The counter-view is the point of the format: an answer that only ever
+    // confirms itself teaches a reader nothing about how much to trust it.
+    element("p", { className: "answer-counter-view" }, [
+      element("strong", { text: t("Counter-view: ") }),
+      document.createTextNode(l10nProse(String(answer?.counter_view || ""), answer?.counter_view_zh)),
+    ]),
+  ]);
+  return element("article", { className: "answer" }, [
+    // Question first, confidence and sources as a de-emphasized metadata row
+    // beneath it rather than pinned to the question's own line, so a scan of a
+    // day's answers stays a scan of the questions themselves.
+    element("h4", { className: "answer-question" }, [
+      document.createTextNode(t(String(answer?.question || ""))),
+    ]),
+    element("p", { className: "answer-signal", text: l10nProse(String(answer?.signal || ""), answer?.signal_zh) }),
+    meta,
+    element("details", { className: "answer-disclosure" }, [
+      element("summary", { className: "answer-disclosure-summary" }, [
+        element("span", { className: "answer-disclosure-label", text: t("View analysis") }),
+      ]),
+      detail,
+    ]),
+  ]);
+}
+
+function questionsProvenance(questions) {
+  if (questions.generator !== "openai-responses") return null;
+  const usage = questions.usage || {};
+  return element("p", {
+    className: "daily-questions-meta",
+    text: `${t("Answered by")} ${questions.model || t("OpenAI model")} ${t("in")} ${Number(questions.calls || 0).toLocaleString()} ${t("calls")} · ${Number(usage.input_tokens || 0).toLocaleString()} ${t("input tokens")} / ${Number(usage.output_tokens || 0).toLocaleString()} ${t("output tokens")} · ${t("every figure computed before the call and cited by ID")}.`,
+  });
+}
+
+// The Q&A is opt-in and generated once per UTC day, so a day can legitimately
+// have none: it predates the feature, was disabled, or the calls failed. The
+// snapshot's `questions.status` says which, so the empty state names the
+// actual reason instead of one generic message for all three.
+function absentQuestionsMessage(questions) {
+  const status = questions.status;
+  if (status === "disabled") {
+    return questions.reason || t("Daily questions were not enabled for this run.");
+  }
+  if (status === "error") {
+    return `${t("Daily questions failed to generate")}: ${questions.reason || "unknown error"}.`;
+  }
+  return t("No questions were answered for this day.");
+}
+
+function renderDailyQuestions(day) {
+  const questions = day.questions || {};
+  const groups = Array.isArray(questions.groups) ? questions.groups : [];
+  // A Q&A carrying another day's date answers questions about the wrong day,
+  // so it is withheld rather than shown beside this date's listings.
+  const usable = questions.date === day.date ? groups : [];
+  const rendered = usable.flatMap((group) => {
+    const answers = (Array.isArray(group?.answers) ? group.answers : []).map(answerBlock);
+    if (!answers.length) return [];
+    return [
+      element("section", { className: "question-group" }, [
+        element("h3", {
+          className: "question-group-title",
+          text: t(String(group?.title || "Questions")),
+        }),
+        ...answers,
+      ]),
+    ];
+  });
+  replaceChildren(
+    byId("daily-questions-body"),
+    rendered.length
+      ? [
+          // Without a certified comparison window, day-over-day differences may
+          // be collection changes rather than field changes. Saying so up front
+          // stops the answers below from reading as a trend claim.
+          ...(questions.comparable === false
+            ? [
+                element("p", {
+                  className: "daily-questions-caveat",
+                  text: String(
+                    questions.comparability_note ||
+                      "No certified comparison window today, so these answers describe what was captured rather than how the field is trending.",
+                  ),
+                }),
+              ]
+            : []),
+          ...rendered,
+          questionsProvenance(questions),
+        ]
+      : [
+          element("p", {
+            className: "empty-state",
+            text: absentQuestionsMessage(questions),
+          }),
+        ],
+  );
+}
+
+const TODAY_WINDOWS = { "30d": 30, "60d": 60 };
+
+function todayDateRange(date = state.todayDate) {
+  const days = TODAY_WINDOWS[date];
+  if (!days || !state.data?.latest_date) return null;
+  const end = state.data.latest_date;
+  const start = new Date(`${end}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - days + 1);
+  return { start: start.toISOString().slice(0, 10), end };
+}
+
+function todayIsMultiDate() {
+  return state.todayDate === "all" || Boolean(TODAY_WINDOWS[state.todayDate]);
+}
+
+function validTodayDate() {
+  return todayIsMultiDate() || state.data.facets.dates.includes(state.todayDate);
+}
+
+function renderTodayDateOptions() {
+  if (!state.data) return;
+  replaceChildren(
+    byId("today-date"),
+    [
+      option("all", t("All dates"), state.todayDate === "all"),
+      option("30d", t("Past 30 days"), state.todayDate === "30d"),
+      option("60d", t("Past 60 days"), state.todayDate === "60d"),
+      ...[...state.data.facets.dates].reverse().map((date) =>
+        option(date, formatDate(date, { dateStyle: "medium" }), date === state.todayDate),
+      ),
+    ],
+  );
+}
+
+function renderBuildMeta() {
+  if (!state.data) return;
+  byId("build-meta").textContent = `${t("Updated")} ${formatDate(
+    state.data.generated_at,
+    {
+      dateStyle: "medium",
+      timeStyle: "short",
+    },
+  )} UTC`;
+}
+
+// The search box reads the daily feed: titles, summaries and source names of
+// what the crawl collected on a date. The benchmark registry is a different
+// dataset, and until issue #245 nothing joined them, so a reader searching for
+// a benchmark by name got one of two wrong answers. "researchclawbench"
+// returned "No observations match these filters", advice that cannot work
+// because clearing a filter does not add a dataset. "terminal-bench" was worse:
+// it returned an arXiv paper on uncertainty propagation, which ranked because
+// the string "Terminal-Bench-2" appears in its abstract. Both benchmarks are in
+// the registry with scores, and both were unreachable from the box that looks
+// like the way to find them.
+//
+// So the query runs against the registry too, and its matches are named as
+// benchmarks rather than mixed into a list sorted by daily priority. A prose
+// mention inside an abstract and a registry record are different kinds of
+// answer, and collapsing them is what produced the arXiv result.
+let benchmarkIndexRerenderQueued = false;
+
+function renderTodayBenchmarks() {
+  const section = byId("today-benchmarks");
+  if (!section) return 0;
+  const query = state.q.trim();
+  if (!query) {
+    section.hidden = true;
+    replaceChildren(byId("today-benchmarks-results"), []);
+    return 0;
+  }
+  // Only fetched when someone actually searches, so the dashboard's first
+  // paint never waits on a catalog most visits do not open.
+  //
+  // Attached once, not once per keystroke. loadBenchmarkIndex() caches its
+  // promise, so on a slow connection every debounced keystroke would hang
+  // another handler on the same fetch and they would all fire together when it
+  // landed, each one re-filtering the observations and rebuilding the list.
+  if (!state.benchmarkIndexLoaded && !benchmarkIndexRerenderQueued) {
+    benchmarkIndexRerenderQueued = true;
+    loadBenchmarkIndex().then((records) => {
+      state.benchmarkIndex = records;
+      state.benchmarkIndexLoaded = true;
+      if (state.q.trim()) renderToday({ resultsOnly: true });
+    });
+  }
+  const matches = searchBenchmarkIndex(state.benchmarkIndex || [], query);
+  const indexFailed = state.benchmarkIndexLoaded && state.benchmarkIndex === null;
+  const rows = matches.slice(0, BENCHMARK_SEARCH_LIMIT).map((record) =>
+    benchmarkResultRow(record, { navigate: true }),
+  );
+  // Still on the wire. Zero matches is not yet a fact, so the empty list must
+  // not print the sentence this whole change exists to stop printing: on a
+  // cold search for a crawled-only benchmark the catalog has not arrived, and
+  // a slow request would leave "clear one or more filters" on screen for as
+  // long as it takes. Reported as pending until it settles.
+  const indexPending = !state.benchmarkIndexLoaded;
+  if (!rows.length && !indexFailed && !indexPending) {
+    section.hidden = true;
+    replaceChildren(byId("today-benchmarks-results"), []);
+    return 0;
+  }
+  section.hidden = false;
+  const total = matches.length;
+  // Saying "matching X" over a truncated list invites the reader to conclude a
+  // benchmark that is present but past row 50 does not exist, which is the
+  // reading this whole change is trying to prevent. Show the arithmetic.
+  const truncated = total > rows.length;
+  const note = rows.length
+    ? truncated
+      ? t(
+          "Showing {shown} of {total} registry records matching \u201c{q}\u201d. Narrow the search to see the rest.",
+        )
+          .replace("{shown}", rows.length)
+          .replace("{total}", total)
+          .replace("{q}", query)
+      : t(
+          "Registry records matching \u201c{q}\u201d. These are benchmarks the radar tracks, not things collected on a date.",
+        ).replace("{q}", query)
+    : "";
+  const warning = indexFailed
+    ? t("The benchmark catalog could not be loaded.")
+    : indexPending
+      ? t("Still checking the benchmark registry\u2026")
+      : "";
+  byId("today-benchmarks-note").textContent = [note, warning].filter(Boolean).join(" ");
+  replaceChildren(byId("today-benchmarks-results"), rows);
+  return !total && indexPending ? "pending" : total;
+}
+
+function todaySearchUrl() {
+  const params = new URLSearchParams();
+  params.set("date", state.data.latest_date);
+  if (state.q) params.set("q", state.q);
+  if (state.kind) params.set("kind", state.kind);
+  if (state.category) params.set("category", state.category);
+  if (state.source) params.set("source", state.source);
+  if (state.organization) params.set("organization", state.organization);
+  if (state.event) params.set("event", state.event);
+  return `/?${params.toString()}`;
+}
+
+function cliSearchUrl(query) {
+  const params = new URLSearchParams({ q: query });
+  return `/benchmark-radar-zh24/cli/?${params.toString()}`;
+}
+
+function renderSearchScopeBanner(observationCount, benchmarkMatches) {
+  const banner = byId("search-scope-banner");
+  const query = state.q.trim();
+  if (!query || state.todayDate !== "all") {
+    banner.hidden = true;
+    banner.replaceChildren();
+    return;
+  }
+
+  const todayLink = element("a", {
+    text: t("Search today"),
+    attrs: { href: todaySearchUrl() },
+  });
+  todayLink.addEventListener("click", (event) => {
+    event.preventDefault();
+    viewNavigationSequence += 1;
+    state.todayDate = state.data.latest_date;
+    state.todayPage = 1;
+    renderToday();
+  });
+  const sentenceGap = getLang() === "zh" ? "" : " ";
+  const sentenceEnd = getLang() === "zh" ? "。" : ".";
+  const scopeMessage = element("p", { className: "search-scope-message" });
+  scopeMessage.append(
+    document.createTextNode(`${t("This search covers all dates.")}${sentenceGap}`),
+    document.createTextNode(`${t("Still want today's results?")}${sentenceGap}`),
+    todayLink,
+    document.createTextNode(sentenceEnd),
+  );
+
+  const knownBenchmarkMatches = Number.isFinite(benchmarkMatches) ? benchmarkMatches : 0;
+  const totalResults = observationCount + knownBenchmarkMatches;
+  const cliLink = element("a", {
+    text: t("Use the CLI version to export all data."),
+    attrs: { href: cliSearchUrl(query) },
+  });
+  cliLink.addEventListener("click", (event) => {
+    event.preventDefault();
+    openCli();
+  });
+  const cliMessage = totalResults > 10
+    ? element("p", { className: "search-scope-export" }, [
+        document.createTextNode(`${t("More than 10 results.")}${sentenceGap}`),
+        cliLink,
+      ])
+    : null;
+
+  replaceChildren(banner, [scopeMessage, cliMessage]);
+  banner.hidden = false;
+}
+
+function renderToday({ resultsOnly = false } = {}) {
+  // Events are bound before the data file resolves (initialize), so a nav
+  // click or filter keystroke in the load window must no-op, not throw.
+  if (!state.data) return;
+  const showingAllDates = todayIsMultiDate();
+  const requestedDate = showingAllDates ? state.data.latest_date : state.todayDate;
+  const day = dailySnapshot(requestedDate);
+  if (!day) return;
+  // Trends days carry counts but not evidence_items. Rendering that date as
+  // Today would wipe the latest-scan list until radar.json arrives. Stay on
+  // the latest day we can actually list, then fill the requested date after
+  // ensureFullData() lands.
+  if (
+    !showingAllDates &&
+    requestedDate &&
+    requestedDate !== state.data.latest_date &&
+    !Array.isArray(day.evidence_items)
+  ) {
+    state.todayDate = state.data.latest_date;
+    return renderToday({ resultsOnly });
+  }
+  state.todayRenderedDate = state.todayDate;
+  byId("today-date").value = state.todayDate;
+  const range = todayDateRange();
+  const heading = range ? `Past ${TODAY_WINDOWS[state.todayDate]} days`
+    : showingAllDates ? "All dates" : "Today's radar";
+  byId("today-heading").textContent = t(heading);
+  byId("today-heading").setAttribute("data-i18n", heading);
+  byId("today-range").hidden = !range;
+  byId("today-range").textContent = range
+    ? `${formatDate(range.start)} – ${formatDate(range.end)} · ${t("Data through")} ${formatDate(range.end)} UTC`
+    : "";
+
+  if (!resultsOnly) {
+    // The briefing and connector health describe one scan, not an archive-wide
+    // result set. Hiding them in All dates mode keeps latest-day context from
+    // appearing to explain observations collected across the full history.
+    byId("daily-briefing").hidden = showingAllDates;
+    byId("daily-questions").hidden = showingAllDates;
+    byId("source-health-panel").hidden = showingAllDates;
+
+    renderDailyBriefing(day);
+    renderDailyQuestions(day);
+    syncFilters();
+  }
+  // The badge tracks the secondary filters live, including during the
+  // resultsOnly re-renders that follow each drawer interaction.
+  updateFiltersCount();
+  const observations = filteredObservations();
+  const benchmarkMatches = renderTodayBenchmarks();
+  renderSearchScopeBanner(observations.length, benchmarkMatches);
+  const resultsKey = [
+    state.todayDate,
+    state.q,
+    state.kind,
+    state.category,
+    state.source,
+    state.organization,
+    state.event,
+  ].join("\u0000");
+  if (resultsKey !== state.todayResultsKey) {
+    if (state.todayResultsKey) state.todayPage = 1;
+    state.todayResultsKey = resultsKey;
+  }
+  // A single busy scan can carry hundreds of observations. Real pages keep the
+  // DOM bounded without silently loading everything as the reader reaches the
+  // bottom. They also make position explicit and back-button friendly.
+  const pageCount = Math.max(1, Math.ceil(observations.length / TODAY_PAGE_SIZE));
+  state.todayPage = Math.min(Math.max(1, state.todayPage), pageCount);
+  const pageStart = (state.todayPage - 1) * TODAY_PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + TODAY_PAGE_SIZE, observations.length);
+  const visibleObservations = observations.slice(pageStart, pageEnd);
+  // The legend is two readings, not three (issue #311): the class breakdown
+  // and the order. The raw total repeated what the breakdown already adds up
+  // to, and the attention noun lost its verb now that it stands beside
+  // "normal" instead of a sentence.
+  const evidenceCount = observations.filter(
+    (item) => item.observation_kind === "evidence",
+  ).length;
+  const attentionCount = observations.length - evidenceCount;
+  byId("today-breakdown").textContent =
+    `${evidenceCount} ${t("normal")} · ${attentionCount} ${t("attention")}`;
+  // The list is sorted by priority within a day; say so at the point of use
+  // rather than making the reader infer it. Attention rows carry no priority,
+  // so a kind-filtered attention set falls back to date order, and in All
+  // dates mode the archive is ordered by date first and priority second
+  // (issue #248).
+  //
+  // Releases lead each day ahead of priority (issue #332), so the caption says
+  // that too whenever the result set actually mixes releases with anything
+  // else. A set that is all releases, or has none, is ordered by priority
+  // alone, and naming a tie-break that changed nothing would misdescribe it.
+  // Read off the whole result set rather than the current page: the caption
+  // describes the ordering the reader is paging through, and page one of a
+  // release-led day is all releases even when later pages are not.
+  //
+  // The caption stops at "new releases first" rather than claiming a strict
+  // timestamp order across release tiers. Inside each tier, scored recency now
+  // leads priority so v5's event-kind discount changes the visible order.
+  const priorityScored = visibleObservations.some((item) => Number(item.total_score) > 0);
+  const releases = observations.filter(isRelease).length;
+  const releasesLead = releases > 0 && releases < observations.length;
+  byId("today-sort").textContent = !priorityScored
+    ? t("Sort: Date ↓")
+    : showingAllDates
+      ? releasesLead
+        ? t("Sort: Date, then new releases, then Recency ↓, then Priority ↓")
+        : t("Sort: Date, then Recency ↓, then Priority ↓")
+      : releasesLead
+        ? t("Sort: New releases first, then Recency ↓, then Priority ↓")
+        : t("Sort: Recency ↓, then Priority ↓");
+  const listHost = byId("today-list");
+  replaceChildren(
+    listHost,
+    visibleObservations.length
+      ? visibleObservations.map((item, offset) => observationCard(item, pageStart + offset))
+      : emptyTodayNodes(day, benchmarkMatches),
+  );
+  byId("today-page-status").textContent = t(
+    "Page {page} of {pages} · showing {start}–{end} of {total}",
+    {
+      page: state.todayPage,
+      pages: pageCount,
+      start: observations.length ? pageStart + 1 : 0,
+      end: pageEnd,
+      total: observations.length,
+    },
+  );
+  byId("today-page-prev").disabled = state.todayPage <= 1;
+  byId("today-page-next").disabled = state.todayPage >= pageCount;
+
+  if (resultsOnly) {
+    writeUrl();
+    return;
+  }
+
+  const healthEntries = [
+    ...day.ingest_health.map((entry) => ({
+      ...entry,
+      layer: entry.kind === "attention" ? t("Attention ingest") : t("Evidence ingest"),
+      method:
+        entry.method ||
+        (entry.ok ? LEGACY_SOURCE_COLLECTION_METHODS[entry.source] : "") ||
+        "",
+    })),
+    ...day.producer_health.map((entry) => ({ ...entry, layer: t("Producer report") })),
+  ];
+  // Fetch plumbing is not what the reader came for, so the roster stays
+  // collapsed to one line and the reader expands it on demand. The summary
+  // still carries the failure count, so a gap is legible without opening the
+  // panel: connector failures are usually long-lived and known, and
+  // force-opening on every one of them buried the list beside it.
+  const failedCount = healthEntries.filter((entry) => !entry.ok).length;
+  byId("health-status").textContent = failedCount
+    ? `${failedCount} ${t("of")} ${healthEntries.length} ${t("failed")}`
+    : `${healthEntries.length} ${t("ok")}`;
+  byId("health-status").classList.toggle("has-failure", failedCount > 0);
+  // Absent on snapshots written before the cap was published, in which case no
+  // count can be identified as truncated and all are shown as-is.
+  const ingestCap = day.selection?.max_items_per_source ?? null;
+  replaceChildren(
+    byId("health-list"),
+    healthEntries.map((entry) => {
+      const children = [
+        element("span", { className: `health-dot${entry.ok ? " ok" : ""}` }),
+        element("span", {
+          className: "health-name",
+          text: entry.method
+            ? `${entry.source} · ${entry.method} · ${entry.layer}`
+            : `${entry.source} · ${entry.layer}`,
+        }),
+        element("span", {
+          className: "health-count",
+          // A source that returned exactly the per-source cap was truncated, so
+          // the number is a ceiling. "300+ found" says that; "300 found" read as
+          // a measured total.
+          text: entry.ok
+            ? entry.item_count
+              ? `${entry.item_count}${entry.item_count === ingestCap ? "+" : ""} ${t("found")}`
+              : t("empty")
+            : t("failed"),
+          ...(entry.item_count === ingestCap
+            ? { attrs: { title: t("Truncated at the record per-source limit") } }
+            : {}),
+        }),
+      ];
+      if (entry.error) {
+        children.push(element("p", { className: "health-detail", text: entry.error }));
+      }
+      return element("li", {}, children);
+    }),
+  );
+
+  // How many distinct benchmarks/datasets/etc. the whole corpus has ever
+  // surfaced, by category (issue #52). `topics` already counts each artifact
+  // once across every source and day; this just makes that total legible
+  // outside the trend map.
+  const topics = state.data.corpus?.aggregates?.topics || [];
+  const totalArtifacts = Number(state.data.corpus?.aggregates?.entity_types?.artifact || 0);
+  byId("corpus-totals-status").textContent = `${totalArtifacts.toLocaleString()} ${t("artifacts")}`;
+  replaceChildren(
+    byId("corpus-totals-list"),
+    [...topics]
+      .sort((a, b) => b.entity_count - a.entity_count)
+      .map((topic) =>
+        element("li", {}, [
+          element("span", {
+            className: "health-name",
+            text: topic.topic.replace(/_/g, " "),
+          }),
+          element("span", {
+            className: "health-count",
+            text: topic.entity_count.toLocaleString(),
+          }),
+        ]),
+      ),
+  );
+
+  writeUrl();
+}
+
+function deltaText(value) {
+  if (!value) return t("no change");
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function domainCard(category, trend, index) {
+  const swatch = element("span", { className: "legend-swatch" });
+  swatch.style.setProperty("--swatch", categoryColor(category, index));
+  // A null delta means the previous scan used a different report limit, so the
+  // two counts are not comparable and no change is claimed.
+  const comparable = trend.delta !== null && trend.delta !== undefined;
+  const delta = comparable ? Number(trend.delta) : 0;
+  const rows = [
+    [t("vs previous scan"), comparable ? deltaText(delta) : t("not comparable")],
+    [
+      t("recent daily average"),
+      trend.baseline === null || trend.baseline === undefined
+        ? t("not enough history")
+        : Number(trend.baseline).toFixed(2),
+    ],
+    [t("cumulative"), Number(trend.cumulative || 0).toLocaleString()],
+  ];
+  if (trend.momentum !== null && trend.momentum !== undefined) {
+    const percent = Math.round(Number(trend.momentum) * 100);
+    rows.splice(2, 0, [t("vs its average"), `${percent > 0 ? "+" : ""}${percent}%`]);
+  }
+  const updatedOnly = Math.max(0, (trend.total_count || 0) - (trend.count || 0));
+  if (updatedOnly) {
+    rows.push([t("also updated (not counted above)"), updatedOnly.toLocaleString()]);
+  }
+  return element(
+    "article",
+    {
+      className: `domain-card${!comparable ? "" : delta > 0 ? " is-up" : delta < 0 ? " is-down" : ""}`,
+    },
+    [
+      element("div", { className: "domain-head" }, [
+        swatch,
+        element("h3", { text: category.replaceAll("_", " ") }),
+      ]),
+      element("p", {
+        className: "domain-count",
+        text: String(trend.count ?? 0),
+        attrs: { title: t("New releases only. Re-announced updates are tracked separately.") },
+      }),
+      element(
+        "dl",
+        { className: "domain-stats" },
+        rows.flatMap(([label, value]) => [
+          element("dt", { text: label }),
+          element("dd", { text: value }),
+        ]),
+      ),
+    ],
+  );
+}
+
+function renderDomainMetrics(day) {
+  const grid = byId("domain-grid");
+  if (!grid) return;
+  const trends = day.category_trends || {};
+  const entries = Object.entries(trends).sort(
+    (a, b) => (b[1].count || 0) - (a[1].count || 0) || a[0].localeCompare(b[0]),
+  );
+  byId("domain-date").textContent = formatDate(day.date, { dateStyle: "medium" });
+  replaceChildren(
+    grid,
+    entries.length
+      ? entries.map(([category, trend], index) => domainCard(category, trend, index))
+      : [
+          element("p", {
+            className: "empty-state",
+            text: t("No categorized records in this scan."),
+          }),
+        ],
+  );
+}
+
+function sameCollectionContext(a, b) {
+  return (
+    (a.selection || {}).report_limit === (b.selection || {}).report_limit &&
+    JSON.stringify(a.coverage_signature || []) === JSON.stringify(b.coverage_signature || [])
+  );
+}
+
+function coverageNote(day) {
+  return (day.coverage_gaps || []).length
+    ? ` Coverage is incomplete: ${day.coverage_gaps.join(", ")} failed.`
+    : "";
+}
+
+function renderTrends() {
+  if (!state.data) return;
+  const categories = state.data.facets.categories;
+  byId("trend-released-only").checked = state.trendReleasedOnly;
+  replaceChildren(
+    byId("trend-legend"),
+    [
+      ...categories.map((category, index) => {
+        const swatch = element("span", { className: "legend-swatch" });
+        swatch.style.setProperty("--swatch", categoryColor(category, index));
+        return element("span", { className: "legend-item" }, [
+          swatch,
+          element("span", { text: `${t("Evidence")}: ${category.replaceAll("_", " ")}` }),
+        ]);
+      }),
+      (() => {
+        const swatch = element("span", { className: "legend-swatch attention-swatch" });
+        return element("span", { className: "legend-item" }, [
+          swatch,
+          element("span", { text: t("Attention: active") }),
+        ]);
+      })(),
+    ],
+  );
+  renderDomainMetrics(state.data.days[state.data.days.length - 1]);
+  const dayCount = state.data.days.length;
+  const trendMessage = byId("trend-message");
+  const trendChart = byId("trend-chart");
+  if (dayCount === 1) {
+    const only = state.data.days[0];
+    trendMessage.textContent =
+      `${t("History begins")} ${formatDate(only.date)}. ${t("At least two daily snapshots are required to calculate a trend")}. ` +
+      `${t("Baseline")}: ${only.evidence_count} ${t("evidence records")} ${t("and")} ${only.attention.active_count} ${t("active attention signals")}.`;
+    trendChart.hidden = true;
+  } else if (dayCount === 2) {
+    trendMessage.textContent = sameCollectionContext(
+      state.data.days[1],
+      state.data.days[0],
+    )
+      ? t("Two snapshots are available. The chart shows the first comparable daily change; broader trend language begins with three snapshots.") +
+        coverageNote(state.data.days[1])
+      : t("Two snapshots are available, but they covered different data sources or a different report limit, so the change between them is not comparable.");
+    trendChart.hidden = false;
+  } else {
+    const latest = state.data.days[dayCount - 1];
+    const previous = state.data.days[dayCount - 2];
+    // Raising the report limit lifts every count at once. Announcing that as
+    // movement would report a collection-policy change as a change in field,
+    // so the same gate the domain cards use applies to this sentence.
+    const comparable = sameCollectionContext(latest, previous);
+    if (comparable) {
+      const evidenceDelta = latest.evidence_count - previous.evidence_count;
+      const attentionDelta = latest.attention.active_count - previous.attention.active_count;
+      const direction = (value) =>
+      value > 0 ? `${t("up")} ${value}` : value < 0 ? `${t("down")} ${Math.abs(value)}` : t("flat");
+      const movers = Object.entries(latest.category_trends || {})
+        .filter(([, trend]) => trend.delta)
+        .sort((a, b) => Math.abs(b[1].delta) - Math.abs(a[1].delta))
+        .slice(0, 2)
+        .map(([category, trend]) => `${category.replaceAll("_", " ")} ${deltaText(trend.delta)}`);
+      trendMessage.textContent =
+        `${t("Compared with")} ${previous.date}, ${t("surfaced evidence is")} ${direction(evidenceDelta)} ${t("and")} ${t("active attention is")} ${direction(attentionDelta)}.` +
+        (movers.length ? ` ${t("Biggest domain moves")}: ${movers.join(", ")}.` : "") +
+        coverageNote(latest);
+    } else {
+      trendMessage.textContent =
+        `${latest.date} ${t("covered different data sources or used a different report limit than")} ${previous.date}, ${t("so the two scans")} ` +
+        t("are not directly comparable. Counts are shown without a change figure.");
+    }
+    trendChart.hidden = false;
+  }
+  const countsFor = (day) =>
+    state.trendReleasedOnly ? day.category_counts_released : day.category_counts;
+  const maxTotal = Math.max(
+    1,
+    ...state.data.days.map((day) =>
+      Math.max(...Object.values(countsFor(day)), day.attention.active_count),
+    ),
+  );
+  replaceChildren(
+    byId("trend-chart"),
+    state.data.days.map((day, dayIndex) => {
+      const dayCounts = countsFor(day);
+      const total = Object.values(dayCounts).reduce((sum, count) => sum + count, 0);
+      const segments = categories.map((category, index) => {
+        const segment = element("span", { className: "bar-segment" });
+        segment.style.height = `${((dayCounts[category] || 0) / maxTotal) * 260}px`;
+        segment.style.setProperty("--bar-color", categoryColor(category, index));
+        return segment;
+      });
+      const attentionBar = element("span", { className: "attention-volume" });
+      attentionBar.style.height = `${(day.attention.active_count / maxTotal) * 260}px`;
+      const button = element("button", {
+        className: "day-column",
+        attrs: {
+          type: "button",
+          "aria-label": `${formatDate(day.date)}: ${total} overlapping evidence category matches across ${day.evidence_count} evidence records and ${day.attention.active_count} attention signals`,
+        },
+      }, [
+        element("span", { className: "series-bars" }, [...segments, attentionBar]),
+        element("span", { className: "day-label", text: day.date.slice(5) }),
+      ]);
+      const previous = state.data.days[dayIndex - 1];
+      const show = () => {
+        // Escape stays honoured until the pointer or focus leaves and returns,
+        // so the card does not spring back while the column is still active.
+        if (dismissedTooltipColumn === button) return;
+        // Clear the previous column's description first: moving between columns
+        // must never leave two triggers pointing at one card.
+        hideDayTooltip();
+        showDayTooltip(button, day, previous, dayCounts, categories);
+      };
+      button.showDayTooltip = show;
+      button.addEventListener("pointerenter", show);
+      button.addEventListener("focus", show);
+      // Mixed pointer and keyboard use: leaving with the mouse must not close a
+      // card the keyboard still owns, so hand it back to the focused column.
+      // An Escape dismissal lifts only once the column is neither hovered nor
+      // focused; otherwise taking the mouse off a focused column would undo the
+      // dismissal and reopen the card the reader just closed.
+      button.addEventListener("pointerleave", releaseDayTooltip);
+      button.addEventListener("blur", releaseDayTooltip);
+      button.addEventListener("click", () => {
+        const navigationSequence = ++viewNavigationSequence;
+        state.todayDate = day.date;
+        setView("today");
+        renderToday();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        ensureFullData()
+          .then(() => {
+            if (navigationSequence !== viewNavigationSequence || state.view !== "today") return;
+            state.todayDate = day.date;
+            renderToday();
+          })
+          .catch((error) => console.error(error));
+      });
+      return button;
+    }),
+  );
+  hideDayTooltip();
+  byId("snapshot-count").textContent = `${state.data.snapshot_count} ${t("snapshots")}`;
+  renderSourceGapNote(state.data.days[dayCount - 1]);
+  replaceChildren(
+    byId("trend-table"),
+    [...state.data.days].reverse().map((day) => {
+      const link = element("a", { text: day.date, attrs: { href: `/?date=${day.date}` } });
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        const navigationSequence = ++viewNavigationSequence;
+        state.todayDate = day.date;
+        setView("today");
+        renderToday();
+        ensureFullData()
+          .then(() => {
+            if (navigationSequence !== viewNavigationSequence || state.view !== "today") return;
+            state.todayDate = day.date;
+            renderToday();
+          })
+          .catch((error) => console.error(error));
+      });
+      return element("tr", {}, [
+        element("td", {}, [link]),
+        element("td", {
+          text: `${formatDate(day.since, { dateStyle: "short", timeStyle: "short" })} → ${formatDate(day.generated_at, { dateStyle: "short", timeStyle: "short" })}`,
+        }),
+        element("td", { text: day.evidence_count }),
+        element("td", {}, sourceMixCell(day)),
+        element("td", {
+          text: countMapText(day.category_counts),
+        }),
+        element("td", { text: countMapText(day.event_kind_counts) }),
+        element("td", {
+          text: `${day.attention.new_count} ${t("new")} · ${day.attention.active_count} ${t("active")}`,
+        }),
+        element("td", { text: healthSummary(day.ingest_health) }),
+      ]);
+    }),
+  );
+}
+
+// The chart exists to compare days, so the tooltip answers only what made this
+// column this tall and whether that is up or down. Momentum, baselines, and
+// cumulative totals stay on the domain cards rather than being repeated here.
+const TOOLTIP_CATEGORY_LIMIT = 4;
+
+// The column whose card is open, so a scroll or resize can re-place it, and the
+// column Escape dismissed, so re-entering is required before it opens again.
+let openTooltipColumn = null;
+let dismissedTooltipColumn = null;
+
+function showDayTooltip(column, day, previous, dayCounts, categories) {
+  const tooltip = byId("day-tooltip");
+  const total = Object.values(dayCounts).reduce((sum, count) => sum + count, 0);
+  // A different report limit or connector set lifts every count at once, so the
+  // same gate the headline sentence uses decides whether a delta is meaningful.
+  const comparable = previous && sameCollectionContext(day, previous);
+  const previousTotal = comparable
+    ? Object.values(
+        state.trendReleasedOnly
+          ? previous.category_counts_released
+          : previous.category_counts,
+      ).reduce((sum, count) => sum + count, 0)
+    : null;
+  const ranked = categories
+    .map((category, index) => ({
+      category,
+      count: dayCounts[category] || 0,
+      color: categoryColor(category, index),
+    }))
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const shown = ranked.slice(0, TOOLTIP_CATEGORY_LIMIT);
+  const restCount = ranked
+    .slice(TOOLTIP_CATEGORY_LIMIT)
+    .reduce((sum, entry) => sum + entry.count, 0);
+
+  const rows = shown.map((entry) => {
+    const swatch = element("span", { className: "legend-swatch" });
+    swatch.style.setProperty("--swatch", entry.color);
+    return element("span", { className: "day-tooltip-row" }, [
+      swatch,
+      element("span", {
+        className: "day-tooltip-name",
+        text: entry.category.replaceAll("_", " "),
+      }),
+      element("span", { className: "day-tooltip-value", text: entry.count }),
+    ]);
+  });
+  if (restCount) {
+    rows.push(
+      element("span", { className: "day-tooltip-row day-tooltip-rest" }, [
+        element("span", {
+          className: "day-tooltip-name",
+          text: `+${ranked.length - shown.length} ${t("more categories")}`,
+        }),
+        element("span", { className: "day-tooltip-value", text: restCount }),
+      ]),
+    );
+  }
+
+  replaceChildren(tooltip, [
+    element("span", { className: "day-tooltip-date", text: formatDate(day.date) }),
+    element("span", {
+      className: "day-tooltip-total",
+      text:
+        `${metricLabel(total, "category match", "category matches")}` +
+        (previousTotal === null
+          ? ""
+          : total === previousTotal
+            ? ` · ${t("flat")} vs ${previous.date.slice(5)}`
+            : ` · ${deltaText(total - previousTotal)} vs ${previous.date.slice(5)}`),
+    }),
+    rows.length ? element("span", { className: "day-tooltip-rows" }, rows) : null,
+    element("span", {
+      className: "day-tooltip-attention",
+      text: `${t("Active attention")}: ${day.attention.active_count}`,
+    }),
+  ]);
+
+  tooltip.hidden = false;
+  tooltip.setAttribute("aria-hidden", "false");
+  // Point the trigger at the card while it is open. Without this the breakdown
+  // is visual only: a screen reader on the focused column would never reach it.
+  column.setAttribute("aria-describedby", tooltip.id);
+  openTooltipColumn = column;
+  positionDayTooltip(tooltip, column);
+  // Tabbing to an off-screen column scrolls the chart after focus fires, which
+  // would leave the card behind. Re-place it once that scrolling has settled.
+  requestAnimationFrame(() => {
+    if (openTooltipColumn === column && !tooltip.hidden) {
+      positionDayTooltip(tooltip, column);
+    }
+  });
+}
+
+function positionDayTooltip(tooltip, column) {
+  const frame = tooltip.parentElement;
+  // Drop any narrowing a previous cramped placement applied, so every hover is
+  // measured at the card's natural width.
+  tooltip.style.maxWidth = "";
+  const frameBox = frame.getBoundingClientRect();
+  const columnBox = column.getBoundingClientRect();
+  const width = tooltip.offsetWidth;
+  const height = tooltip.offsetHeight;
+  // Reads the live width, so a placement that narrows the card first still
+  // clamps against its new size rather than the width measured on entry.
+  const clampLeft = (value) =>
+    Math.min(
+      Math.max(value, 8),
+      Math.max(frame.clientWidth - tooltip.offsetWidth - 8, 8),
+    );
+  // The bar stack is a fixed-height plotting box, so its own top says nothing
+  // about how tall the rendered bars are. Measure the drawn segments instead.
+  const drawn = [...column.querySelectorAll(".bar-segment, .attention-volume")]
+    .map((bar) => bar.getBoundingClientRect())
+    .filter((box) => box.height > 0);
+  const barTop = drawn.length
+    ? Math.min(...drawn.map((box) => box.top))
+    : columnBox.bottom;
+  const above = barTop - frameBox.top - height - 10;
+  const center = columnBox.left - frameBox.left + columnBox.width / 2;
+  if (above >= 0) {
+    // There is room over the bar, so sit above it and stay centred.
+    tooltip.style.left = `${clampLeft(center - width / 2)}px`;
+    tooltip.style.top = `${above}px`;
+    return;
+  }
+  // A tall bar leaves no headroom. Move beside the column rather than on top of
+  // it, so the hovered bar the reader is inspecting is never covered.
+  const gap = 12;
+  const rightEdge = columnBox.right - frameBox.left + gap;
+  const leftEdge = columnBox.left - frameBox.left - gap - width;
+  const fitsRight = rightEdge + width <= frame.clientWidth - 8;
+  const fitsLeft = leftEdge >= 8;
+  const besideTop = () =>
+    `${Math.max(
+      Math.min(barTop - frameBox.top, frame.clientHeight - tooltip.offsetHeight - 8),
+      8,
+    )}px`;
+  if (fitsRight || fitsLeft) {
+    tooltip.style.left = `${clampLeft(fitsRight ? rightEdge : leftEdge)}px`;
+    tooltip.style.top = besideTop();
+    return;
+  }
+  // Neither side has room at the card's natural width. Narrow it to whichever
+  // side has more space rather than letting it clamp back over the bar; the
+  // card is capped in CSS, so this only ever shrinks it further.
+  const roomRight = frame.clientWidth - 8 - rightEdge;
+  const roomLeft = columnBox.left - frameBox.left - gap - 8;
+  const useRight = roomRight >= roomLeft;
+  tooltip.style.maxWidth = `${Math.max(Math.round(useRight ? roomRight : roomLeft), 120)}px`;
+  tooltip.style.left = `${clampLeft(
+    useRight ? rightEdge : columnBox.left - frameBox.left - gap - tooltip.offsetWidth,
+  )}px`;
+  tooltip.style.top = besideTop();
+}
+
+function hideDayTooltip() {
+  const tooltip = byId("day-tooltip");
+  if (!tooltip) return;
+  tooltip.hidden = true;
+  tooltip.setAttribute("aria-hidden", "true");
+  openTooltipColumn = null;
+  document
+    .querySelectorAll("#trend-chart .day-column[aria-describedby]")
+    .forEach((column) => column.removeAttribute("aria-describedby"));
+}
+
+// Escape closes the card without moving focus, so a reader who finds it in the
+// way can clear it and keep their place in the column order.
+function dismissDayTooltip() {
+  if (!openTooltipColumn) return false;
+  dismissedTooltipColumn = openTooltipColumn;
+  hideDayTooltip();
+  return true;
+}
+
+// The chart scrolls horizontally, so an open card has to follow its column. A
+// column scrolled out of the viewport takes its card with it: on a narrow frame
+// the card would otherwise stay pinned at the clamp edge, labelled with a day
+// no longer on screen.
+function repositionDayTooltip() {
+  const tooltip = byId("day-tooltip");
+  if (!tooltip || tooltip.hidden || !openTooltipColumn) return;
+  const chart = byId("trend-chart");
+  const columnBox = openTooltipColumn.getBoundingClientRect();
+  const chartBox = chart.getBoundingClientRect();
+  if (columnBox.right <= chartBox.left || columnBox.left >= chartBox.right) {
+    hideDayTooltip();
+    return;
+  }
+  positionDayTooltip(tooltip, openTooltipColumn);
+}
+
+// A pointer leaving, or focus moving on, closes the card only if no day column
+// still holds focus. Otherwise the keyboard's card is restored. The check is
+// deferred because blur fires before focus settles on the next element, and a
+// pointerleave arrives before :hover has updated.
+function releaseDayTooltip() {
+  hideDayTooltip();
+  requestAnimationFrame(() => {
+    // An Escape dismissal outlives a pointer moving away: it lifts only once
+    // its column is neither hovered nor focused, so taking the mouse off a
+    // focused column cannot reopen the card the reader just closed.
+    const dismissed = dismissedTooltipColumn;
+    if (
+      dismissed &&
+      document.activeElement !== dismissed &&
+      !dismissed.matches(":hover")
+    ) {
+      dismissedTooltipColumn = null;
+    }
+    const focused = document.activeElement;
+    if (
+      focused &&
+      focused.classList &&
+      focused.classList.contains("day-column") &&
+      typeof focused.showDayTooltip === "function" &&
+      byId("day-tooltip").hidden
+    ) {
+      focused.showDayTooltip();
+    }
+  });
+}
+
+function metricLabel(value, singular, plural = `${singular}s`) {
+  const count = Number(value || 0);
+  const noun = count === 1 ? t(singular) : t(plural);
+  return `${count.toLocaleString()} ${noun}`;
+}
+
+// The ledger is long and the newest day sits at the top of it, so the gaps for
+// that day are stated once in plain words above the table. Naming the sources
+// is the point: "3 sources are at zero" tells a reader there is a problem but
+// not where to look, and each of the three reasons calls for different
+// follow-up (fix the fetch, wait, or look at the scoring).
+function renderSourceGapNote(day) {
+  const note = byId("source-gap-note");
+  if (!note) return;
+  const gaps = day ? zeroItemSources(day) : [];
+  if (!gaps.length) {
+    note.hidden = true;
+    note.textContent = "";
+    return;
+  }
+  const named = (state) =>
+    gaps.filter((entry) => entry.state === state).map((entry) => entry.name);
+  const sentence = (template, names) =>
+    names.length ? t(template, { date: formatDate(day.date), sources: names.join(", ") }) : "";
+  const sentences = [
+    sentence("On {date} these sources found nothing at all: {sources}.", named("empty")),
+    sentence("On {date} these sources could not be reached: {sources}.", named("unreachable")),
+    sentence(
+      "On {date} these sources returned something, but none of it scored high enough to be listed: {sources}.",
+      named("unranked"),
+    ),
+  ].filter(Boolean);
+  // Only the first two sentences are a reason to go and check something. A
+  // source whose records all scored too low is the ranking doing its job, so
+  // adding the warning there would cry wolf on a normal day.
+  const worrying = named("empty").length + named("unreachable").length;
+  note.textContent = worrying
+    ? `${sentences.join(" ")} ${t("A source that stays at zero for several days is usually broken, not quiet.")}`
+    : sentences.join(" ");
+  note.classList.toggle("is-warning", worrying > 0);
+  note.hidden = false;
+}
+
+// The source mix used to list only sources that found something, so a day on
+// which a source found nothing looked identical to a day on which that source
+// did not exist. The zeros are the interesting half: a source that quietly
+// returns nothing several days running is usually broken, not idle, so they are
+// spelled out here rather than left to be inferred from an absence (issue #260).
+function sourceMixCell(day) {
+  const found = Object.entries(day.source_counts || {});
+  const gaps = zeroItemSources(day);
+  const parts = [];
+  // "none" contradicts a row that goes on to name three sources at zero, so it
+  // is only printed when the day has nothing at all to say about its sources.
+  if (found.length || !gaps.length) {
+    parts.push(
+      element("span", {
+        text: found.length
+          ? found.map(([name, count]) => `${name.replaceAll("_", " ")} ${count}`).join(" · ")
+          : t("none"),
+      }),
+    );
+  }
+  gaps.forEach((entry) => {
+    parts.push(
+      element("span", {
+        // Why it is zero is the reader's next question, and an unranked source
+        // is the ranking working as intended rather than a fault to chase, so
+        // it is not dressed up in the same alarm colour as the other two.
+        className: entry.state === "unranked" ? "source-gap is-unranked" : "source-gap",
+        text: `${entry.name} 0`,
+        attrs: { title: t(SOURCE_GAP_REASONS[entry.state]) },
+      }),
+    );
+  });
+  return parts;
+}
+
+function countMapText(values) {
+  const entries = Object.entries(values || {});
+  return entries.length
+    ? entries
+        .map(([name, count]) => `${name.replaceAll("_", " ")} ${count}`)
+        .join(" · ")
+    : t("none");
+}
+
+function healthSummary(entries) {
+  // A source that returned nothing still succeeded. Only a failure is not ok,
+  // and an empty run is reported alongside rather than counted as a fault.
+  const total = entries.length;
+  const ok = entries.filter((entry) => entry.ok).length;
+  const empty = entries.filter((entry) => entry.ok && entry.item_count === 0).length;
+  const base = ok === total ? t("all ok") : `${ok}/${total} ${t("ok")}`;
+  return empty ? `${base} · ${empty} ${t("empty")}` : base;
+}
+
+// How old a release was when the scan that found it ran, in hours.
+//
+// `published_at` is the release moment and every crawled release carries one.
+// `discovered_at` is deliberately NOT a fallback: it is the crawl timestamp, so
+// reading age from it would report every release as zero hours old and hand the
+// freshest tier to rows whose real date is unknown. A release we cannot date is
+// not treated as fresh.
+//
+// Measured against the snapshot's own `generated_at` rather than the reader's
+// clock. A reader opening an older date wants that day ranked as it stood, and
+// the wall clock would collapse every past day into one undifferentiated tier.
+// It also keeps the sort deterministic, which matters because the result is
+// cached in `state.observations` and reused across every re-render.
+function releaseAgeHours(item) {
+  const released = item.published_at || item.updated_at;
+  const reference = item.snapshot_generated_at;
+  if (!released || !reference) return Number.POSITIVE_INFINITY;
+  const hours = (new Date(reference).getTime() - new Date(released).getTime()) / 3_600_000;
+  return Number.isFinite(hours) ? Math.max(0, hours) : Number.POSITIVE_INFINITY;
+}
+
+const RELEASE_FRESH_HOURS = 24;
+const RELEASE_RECENT_HOURS = 72;
+
+// Ascending rank, so a plain subtraction orders the day: releases from the last
+// day, then the last three days, then older releases, then everything that is
+// not a release at all. `event_kind` is set by the pipeline to "released" /
+// "updated" on evidence rows and "discussed" on attention rows.
+//
+// The tiers keep a new release ahead of an update. Scored recency then orders
+// within a tier, making v5's update/prerelease discount visible before priority
+// breaks ties. Crawl lag already spreads a single day's releases across roughly
+// 72 hours of real time, so "today's releases" was never one moment.
+function releaseRank(item) {
+  if (item.event_kind !== "released") return 3;
+  const hours = releaseAgeHours(item);
+  if (hours < RELEASE_FRESH_HOURS) return 0;
+  if (hours < RELEASE_RECENT_HOURS) return 1;
+  return 2;
+}
+
+function isRelease(item) {
+  return item.event_kind === "released";
+}
+
+function allObservations() {
+  if (state.observations) return state.observations;
+  const evidence = state.data.days.flatMap((day) =>
+    (day.evidence_items || []).map((item) => ({
+      ...item,
+      recommended:
+        item.recommended ??
+        (day.selection?.recommendation_score !== undefined &&
+          Number(item.total_score || 0) >=
+          Number(
+            day.selection.recommendation_score,
+          )),
+      recommendation_score: day.selection?.recommendation_score,
+      minimum_score: day.selection?.minimum_score,
+      snapshot_date: day.date,
+      // The moment this day's scan ran, which is what a release's age is
+      // measured against (issue #332).
+      snapshot_generated_at: day.generated_at,
+      observation_kind: "evidence",
+    })),
+  );
+  const attention = state.data.days.flatMap((day) =>
+    day.attention.observations.map((item) => ({
+      ...item,
+      snapshot_date: day.date,
+      snapshot_generated_at: day.generated_at,
+      artifact_urls: item.primary_artifact_url ? [item.primary_artifact_url] : [],
+      organizations: item.producer ? [item.producer] : [],
+      observation_kind: "attention",
+    })),
+  );
+  state.observations = [...evidence, ...attention].sort((a, b) => {
+    const dateOrder = String(b.snapshot_date).localeCompare(String(a.snapshot_date));
+    if (dateOrder) return dateOrder;
+    // A release outranks every non-release from the same day, whatever the
+    // priority score says, and a fresher release outranks an older one.
+    // Priority measures how well a benchmark is documented -- artifacts,
+    // openness, size -- and a benchmark published today has had no time to
+    // accumulate any of it, while a repository that merely took a commit has
+    // had months. Ranking the day purely by score therefore buries the one
+    // thing a reader opens this page to find: on 2026-08-24 the top eight rows
+    // were all `updated` and the highest-scoring actual release sat at rank
+    // nine (issue #332). Scored recency orders within each tier, then priority
+    // breaks ties; a quality signal is not a substitute for recency.
+    const releaseOrder = releaseRank(a) - releaseRank(b);
+    if (releaseOrder) return releaseOrder;
+    const recencyOrder = Number(b.recency_score || 0) - Number(a.recency_score || 0);
+    if (recencyOrder) return recencyOrder;
+    const scoreOrder = Number(b.total_score || 0) - Number(a.total_score || 0);
+    if (scoreOrder) return scoreOrder;
+    // Attention rows carry no priority, so within a day they order by the
+    // event timestamp the row displays, keeping the visible order consistent
+    // with the "Sort: Date ↓" caption.
+    return String(eventTimestamp(b)).localeCompare(String(eventTimestamp(a)));
+  });
+  return state.observations;
+}
+
+// All dates is a record finder, not a replay of every overlapping crawl
+// window. Keep the newest matching sighting for each source record there while
+// leaving individual daily scans untouched. Source stays in the key because
+// two independent providers can describe the same identifier without being
+// interchangeable evidence; attention uses its producer-assigned observation
+// ID when available for the same reason.
+function observationRecordKey(item) {
+  if (item.observation_kind === "attention") {
+    return `attention\u0000${item.observation_id || `${item.source}\u0000${item.source_id}`}`;
+  }
+  return `evidence\u0000${item.source}\u0000${item.source_id}`;
+}
+
+function latestObservationsByRecord(observations) {
+  const latest = new Map();
+  observations.forEach((item) => {
+    const key = observationRecordKey(item);
+    const current = latest.get(key);
+    if (!current || String(item.snapshot_date) > String(current.snapshot_date)) {
+      latest.set(key, item);
+    }
+  });
+  return observations.filter((item) => latest.get(observationRecordKey(item)) === item);
+}
+
+function populateSelect(target, values, label, selected) {
+  replaceChildren(target, [
+    option("", `All ${label}`),
+    ...values.map((value) => option(value, value.replaceAll("_", " "), value === selected)),
+  ]);
+}
+
+function syncFilters() {
+  const observations = allObservations();
+  populateSelect(
+    byId("kind-filter"),
+    state.data.facets.kinds,
+    "kinds",
+    state.kind,
+  );
+  populateSelect(
+    byId("category-filter"),
+    [...new Set(observations.flatMap((item) => item.categories || []))].sort(),
+    "categories",
+    state.category,
+  );
+  populateSelect(
+    byId("source-filter"),
+    [...new Set(observations.map((item) => item.source))].sort(),
+    "sources",
+    state.source,
+  );
+  populateSelect(
+    byId("organization-filter"),
+    [
+      ...new Set(
+        observations.flatMap((item) => item.organizations || []),
+      ),
+    ].sort(),
+    "organizations",
+    state.organization,
+  );
+  populateSelect(
+    byId("event-filter"),
+    [...new Set(observations.map((item) => item.event_kind))].sort(),
+    "events",
+    state.event,
+  );
+  byId("search-filter").value = state.q;
+}
+
+// The trigger badge counts the secondary filters currently narrowing the
+// list, so the drawer is discoverable without opening it.
+function updateFiltersCount() {
+  const active = [
+    state.kind,
+    state.category,
+    state.source,
+    state.organization,
+    state.event,
+  ].filter(Boolean).length;
+  byId("filters-count").textContent = `(${active})`;
+}
+
+function closeFiltersDrawer() {
+  const drawer = byId("filters-drawer");
+  if (!drawer.hidden) {
+    drawer.hidden = true;
+    byId("filters-toggle").setAttribute("aria-expanded", "false");
+  }
+}
+
+function filteredObservations() {
+  const query = state.q.trim().toLowerCase();
+  const sourceLower = state.source.trim().toLowerCase();
+  const range = todayDateRange();
+  const matches = allObservations().filter((item) => {
+    const haystack = `${item.title} ${item.summary} ${item.source}`.toLowerCase();
+    return (
+      (state.todayDate === "all" || (range
+        ? item.snapshot_date >= range.start && item.snapshot_date <= range.end
+        : item.snapshot_date === state.todayDate)) &&
+      (!state.kind || item.observation_kind === state.kind) &&
+      (!state.category || (item.categories || []).includes(state.category)) &&
+      (!state.source || item.source.toLowerCase() === sourceLower) &&
+      (!state.organization || (item.organizations || []).includes(state.organization)) &&
+      (!state.event || item.event_kind === state.event) &&
+      (!query || haystack.includes(query))
+    );
+  });
+  return todayIsMultiDate() ? latestObservationsByRecord(matches) : matches;
+}
+
+// Generated utility pages ship their sheet already open so it is useful before
+// JavaScript or data arrives. An `open` dialog is non-modal; calling showModal()
+// on it throws InvalidStateError. Remove only the generated marker, promote the
+// same dialog synchronously, and leave its seeded children untouched until the
+// normal renderer is ready to replace them.
+function promoteSeededDialog(dialog) {
+  if (!dialog?.open || !dialog.hasAttribute("data-seed")) return;
+  dialog.removeAttribute("open");
+  dialog.removeAttribute("data-seed");
+  dialog.showModal();
+}
+
+function showModalDialog(dialog) {
+  promoteSeededDialog(dialog);
+  if (!dialog.open) dialog.showModal();
+}
+
+let rubricOwnsHistoryEntry = false;
+
+// When a record is supplied, the rubric is rendered with that record's own
+// component scores beside each weight, so the reader can see the arithmetic
+// that produced the total rather than a generic description of it.
+// versionOverride opens a specific rubric version (e.g. from /rubric/?version=1
+// deep link) without implying a record's own scores are being shown.
+function openRubric(item = null, versionOverride = null, updateUrl = true) {
+  if (updateUrl) viewNavigationSequence += 1;
+  const data = versionOverride
+    ? state.data?.rubrics?.[String(versionOverride)] || rubricFor(item)
+    : rubricFor(item);
+  const dialog = byId("rubric-dialog");
+  if (!data) return;
+  clearFrontierPointSelection();
+  const max = Number(data.score_max) || 4;
+  const components = data.components || [];
+  const contribution = (component) =>
+    Number(item?.[`${component.key}_score`] || 0) * Number(component.weight || 0);
+
+  // Two rubrics are in circulation on different scales (v1 tops out at 4, v2 at
+  // 100). A dialog that says only "0 to 4" leaves a reader who has read the
+  // README's 0-100 rubric unable to tell whether the number is wrong or simply
+  // older, so the version is named rather than implied.
+  const version = Number(data.scoring_version) || 1;
+  const current = Number(state.data?.rubric?.scoring_version) || version;
+  const isLegacy = version !== current;
+  closeOtherSheets("rubric-dialog");
+  state.contact = false;
+  state.cite = false;
+  state.cli = false;
+  state.rubric = isLegacy ? String(version) : "current";
+  rubricOwnsHistoryEntry = updateUrl;
+  syncNavState();
+  applyCurrentSeo();
+  if (updateUrl) writeUrl("push");
+  const header = [
+    element("p", {
+      className: "detail-source",
+      text: `${t("Scoring rubric v")}${version}${isLegacy ? t(" · superseded") : t(" · current")}`,
+    }),
+    element("h2", {
+      className: "detail-title rubric-title",
+      text: t("How priority is scored"),
+      attrs: { id: "rubric-title" },
+    }),
+    element("p", {
+      className: "detail-summary",
+      text:
+        `${t("Priority is the weighted mean of four components, each measured on a 0 to")} ${max.toFixed(2)} ` +
+        t("scale. Every number below is read from the same definition the pipeline applies."),
+    }),
+    ...(isLegacy
+      ? [
+          element("p", {
+            className: "discovery-note",
+            text:
+              (item
+                ? `${t("This record was scored by rubric v")}${version}${t(" on a")} 0 ${t("to")} ${max.toFixed(2)} scale. `
+                : `${t("Rubric v")}${version}${t(" scored records on")} 0 ${t("to")} ${max.toFixed(2)} scale. `) +
+              `${t("The current rubric is v")}${current}${t(" on a")} 0 ${t("to")} ` +
+              `${(Number(state.data?.rubric?.score_max) || 100).toFixed(2)} scale. ${t("Scores from the")} ` +
+              t("two versions are not directly comparable, and past records are not rescored."),
+          }),
+        ]
+      : []),
+    element("p", { className: "rubric-formula", text: data.formula }),
+  ];
+
+  if (item) {
+    header.push(
+      element("div", { className: "rubric-worked" }, [
+        element("strong", { text: `${t("This record scores")} ${Number(item.total_score || 0).toFixed(2)}` }),
+        element("p", {
+          text: components
+            .map(
+              (component) =>
+                `${component.weight.toFixed(2)} x ${Number(
+                  item[`${component.key}_score`] || 0,
+                ).toFixed(2)} ${component.label.toLowerCase()}`,
+            )
+            .join("  +  "),
+        }),
+      ]),
+    );
+  }
+
+  const componentSections = components.map((component) =>
+    element("section", { className: "rubric-component" }, [
+      element("div", { className: "rubric-component-head" }, [
+        element("h3", { text: component.label }),
+        element("span", {
+          className: "rubric-weight",
+          text: `${t("weight")} ${component.weight.toFixed(2)}`,
+        }),
+      ]),
+      element("p", { text: component.summary }),
+      element(
+        "ul",
+        { className: "rubric-bands" },
+        (component.bands || []).map((band) => element("li", { text: band })),
+      ),
+      item
+        ? element("p", { className: "rubric-contribution" }, [
+            element("span", {
+              text:
+                `${t("Scored")} ${Number(item[`${component.key}_score`] || 0).toFixed(2)}` +
+                ` · ${t("contributes")} ${contribution(component).toFixed(2)} ${t("to the total")}`,
+            }),
+          ])
+        : null,
+    ]),
+  );
+
+  const limits =
+    (data.limits || []).length
+      ? element("section", { className: "rubric-limits" }, [
+          element("h3", { text: t("What this score does not claim") }),
+          element(
+            "ul",
+            {},
+            data.limits.map((limit) => element("li", { text: limit })),
+          ),
+        ])
+      : null;
+
+  // Selection policy belongs to the record's scan, not its shared scoring
+  // rubric version. Older v2 records were genuinely filtered at 40, while new
+  // v2 records retain everything eligible and use 40 only as the
+  // recommendation marker.
+  const selectedDay = dailySnapshot();
+  const recommendationScore = item
+    ? item.recommendation_score
+    : selectedDay?.selection?.recommendation_score;
+  const historicalMinimum = recommendationScore === undefined
+    ? item
+      ? item.minimum_score
+      : selectedDay?.selection?.minimum_score
+    : undefined;
+  const cutoff =
+    recommendationScore !== undefined && recommendationScore !== null
+      ? element("p", {
+          className: "discovery-note",
+          text:
+            `${t("Every record matching at least one taxonomy category is retained. A score of")} ` +
+            `${Number(recommendationScore).toFixed(2)} ${t(
+              "or above marks the item as recommended; it does not control inclusion. Watchlisted artifacts are also retained.",
+            )}`,
+        })
+      : historicalMinimum !== undefined && historicalMinimum !== null
+        ? element("p", {
+            className: "discovery-note",
+            text:
+              `${t("This historical scan used")} ${Number(historicalMinimum).toFixed(2)} ${t("as")} ` +
+              t("an inclusion cutoff. Records below it were not retained."),
+          })
+        : null;
+
+  replaceChildren(byId("rubric-content"), [
+    ...header,
+    ...componentSections,
+    limits,
+    cutoff,
+    element("div", { className: "detail-links" }, [
+      element("a", {
+        className: "secondary-link",
+        text: "Read the scoring code ↗",
+        attrs: {
+          href: "https://github.com/ktwu01/benchmark-radar/blob/main/src/benchmark_radar/rubric.py",
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+      }),
+    ]),
+  ]);
+  showModalDialog(dialog);
+}
+
+function expandedRecord(item, teaser) {
+  const isAttention = item.observation_kind === "attention";
+  const primaryArtifact = item.primary_artifact_url || item.artifact_urls?.[0];
+  const sourceFacts = recordFactEntries(item);
+  const sourceDates = recordDateEntries(item);
+  const scoreEntries = isAttention
+    ? [
+        [
+          t(item.source === "Hacker News" ? "HN points" : "Activity points"),
+          Number(item.metrics?.points || 0).toLocaleString(),
+        ],
+        [t("Comments"), Number(item.metrics?.comments || 0).toLocaleString()],
+        [t("Submissions"), Number(item.metrics?.submissions ?? 1).toLocaleString()],
+        [t("Published"), formatDate(item.published_at, { dateStyle: "medium" })],
+      ]
+    : [
+        [t("Priority"), Number(item.total_score || 0).toFixed(2)],
+        [t("Relevance"), Number(item.relevance_score || 0).toFixed(2)],
+        [t("Evidence"), Number(item.evidence_score || 0).toFixed(2)],
+        [t("Recency"), Number(item.recency_score || 0).toFixed(2)],
+        // Adoption is weighted into the total, so hiding it here left the
+        // four shown components unable to explain the priority above them.
+        [t("Adoption"), Number(item.adoption_score || 0).toFixed(2)],
+        ...sourceDates,
+        ...sourceFacts,
+      ];
+  const rationale = element(
+    "ul",
+    { className: "rationale-list" },
+    (item.rationale || []).map((reason) => element("li", { text: reason })),
+  );
+  const attentionNotice = isAttention
+    ? element("div", { className: "attention-notice" }, [
+        element("strong", { text: t("Not quality-scored") }),
+        element("p", {
+          text: "This is a public attention signal. Its activity is shown separately from scientific evidence and priority.",
+        }),
+      ])
+    : null;
+  const supporting =
+    isAttention && item.supporting_observations?.length
+      ? element("section", { className: "supporting-signals" }, [
+          element("h3", { text: "Supporting submissions" }),
+          element(
+            "ul",
+            {},
+            item.supporting_observations.map((record) =>
+              element("li", {}, [
+                element("a", {
+                  text: `${record.source || item.source} #${record.source_id}`,
+                  attrs: {
+                    href: safeHttpUrl(record.url),
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                  },
+                }),
+                element("span", {
+                  text: `${formatDate(record.published_at, { dateStyle: "medium" })} · ${metricLabel(record.metrics?.points, "point")} · ${metricLabel(record.metrics?.comments, "comment")}`,
+                }),
+              ]),
+            ),
+          ),
+        ])
+      : null;
+  const links = element("div", { className: "detail-links" }, [
+    ...(isAttention && safeHttpUrl(primaryArtifact)
+      ? [
+          element("a", {
+            className: "primary-link",
+            text: t("Open primary artifact ↗"),
+            attrs: {
+              href: safeHttpUrl(primaryArtifact),
+              target: "_blank",
+              rel: "noopener noreferrer",
+            },
+          }),
+        ]
+      : []),
+    element("a", {
+      className: isAttention ? "secondary-link" : "primary-link",
+      text: isAttention
+        ? t("Open public discussion ↗")
+        : item.source === "Hugging Face"
+          ? t("Read full card ↗")
+          : t("Open primary source ↗"),
+      attrs: { href: safeHttpUrl(item.url), target: "_blank", rel: "noopener noreferrer" },
+    }),
+  ]);
+  const categoryLine = (item.categories || []).length
+    ? (item.categories || []).map(titleCase).join(" · ")
+    : t("uncategorized");
+  return element("div", { className: "record-detail" }, [
+    element("p", {
+      className: "detail-source",
+      text:
+        `${item.source} · ${eventVerb(item)} · ${categoryLine}` +
+        `${item.watchlist ? ` · ★ ${item.watchlist}` : ""} · ${item.snapshot_date}`,
+    }),
+    element("p", {
+      className: item.summary ? "detail-summary" : "detail-summary signal-nodesc",
+      text: item.summary
+        ? teaser
+          ? summaryRemainder(item.summary, teaser) || t("No further description beyond the preview above.")
+          : item.summary
+        : t("No description published at the source."),
+    }),
+    attentionNotice,
+    element(
+      "dl",
+      { className: "detail-grid" },
+      scoreEntries.map(([label, value]) => definition(label, value)),
+    ),
+    element("h3", { text: t("Why surfaced") }),
+    rationale,
+    supporting,
+    isAttention
+      ? element("p", {
+          className: "discovery-note",
+          text:
+            `${t("Producer discovered")} ${formatDate(item.discovered_at, { dateStyle: "medium", timeStyle: "short" })} UTC · ` +
+            `${t("Radar first observed")} ${formatDate(item.observed_at, { dateStyle: "medium", timeStyle: "short" })} UTC`,
+        })
+      : null,
+    links,
+  ]);
+}
+
+function mapFilterFor(entity) {
+  state.q = "";
+  state.kind = "evidence";
+  state.category = "";
+  state.source = "";
+  state.organization = "";
+  state.event = "";
+  if (entity.type === "artifact") {
+    state.q = entity.label;
+    state.todayDate = entity.last_seen_at;
+  } else if (entity.type === "topic") {
+    state.category = entity.id.replace(/^topic:/, "");
+  } else if (entity.type === "source") {
+    state.source = entity.label;
+  } else if (entity.type === "organization") {
+    state.organization = entity.label;
+  }
+}
+
+function selectMapNode(entity, relatedEntities) {
+  state.entity = entity.id;
+  mapFilterFor(entity);
+  const typeLabel = {
+    artifact: t("item"),
+    topic: t("topic"),
+    source: t("source"),
+    organization: t("organization"),
+  }[entity.type] || entity.type;
+  const topicAggregate = (state.data.corpus.aggregates.topics || []).find(
+    (entry) => `topic:${entry.topic}` === entity.id,
+  );
+  const stats = [
+    definition(t("Kind"), typeLabel),
+    definition(t("First found"), formatDate(entity.first_seen_at, { dateStyle: "medium" })),
+    definition(t("Last found"), formatDate(entity.last_seen_at, { dateStyle: "medium" })),
+    definition(t("Days it appeared"), Number(entity.seen_days?.length || 0).toLocaleString()),
+    ...(entity.type === "artifact"
+      ? [
+          definition(t("Times found"), Number(entity.observation_count || 0).toLocaleString()),
+          definition(
+            t("Latest priority score"),
+            entity.latest_score === null || entity.latest_score === undefined
+              ? t("not scored")
+              : Number(entity.latest_score).toFixed(2),
+          ),
+        ]
+      : []),
+    ...(topicAggregate
+      ? [
+          definition(t("Items"), topicAggregate.entity_count),
+          definition(t("Sources"), topicAggregate.source_breadth),
+          definition(
+            `${t("Change over")} ${
+              state.data.corpus.aggregates.observed_window_days ??
+              state.data.corpus.aggregates.window_days
+            } ${t("days")}`,
+            topicAggregate.velocity === null
+              ? t("not enough earlier data")
+              : `${topicAggregate.velocity >= 0 ? "+" : ""}${topicAggregate.velocity}/day`,
+          ),
+        ]
+      : []),
+  ];
+  const viewResults = element("button", {
+    className: "primary-link map-view-results",
+    text: t("View matching observations →"),
+    attrs: { type: "button" },
+  });
+  viewResults.addEventListener("click", () => {
+    setView("today");
+    renderToday();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  replaceChildren(byId("map-detail"), [
+    element("p", { className: "eyebrow", text: t("Selected") }),
+    element("h2", { text: entity.label }),
+    element("p", {
+      text:
+        entity.type === "artifact"
+          ? "Today is now ready to show this item."
+          : `Today is now filtered by this ${typeLabel}.`,
+    }),
+    element("dl", {}, stats),
+    relatedEntities.length
+      ? element("p", {
+          className: "discovery-note",
+          text: `${t("Also connected to")} ${relatedEntities
+            .slice(0, 8)
+            .map((related) => related.label)
+            .join(", ")}${relatedEntities.length > 8 ? "…" : ""}`,
+        })
+      : null,
+    viewResults,
+    safeHttpUrl(entity.url)
+      ? element("a", {
+          className: "primary-link",
+          text: t("Open primary source ↗"),
+          attrs: {
+            href: safeHttpUrl(entity.url),
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+        })
+      : null,
+  ]);
+  writeUrl("push");
+}
+
+function rankedCounts(values, limit = 6) {
+  return Object.entries(values || {})
+    .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0) || a[0].localeCompare(b[0]))
+    .slice(0, limit);
+}
+
+// Rows are `[label, value]`, or `[label, value, detail]` where detail is an
+// array of `[name, url]` pairs naming the records the count is made of. A row
+// with a detail becomes a disclosure; a row without one stays a plain line, so
+// the Trend Map's callers are unaffected.
+//
+// The point is that a summary count should be checkable. "OpenAI: 5 cards" is a
+// claim about five specific documents, and a reader who cannot see which five
+// has to take the number on faith.
+function insightDetailList(detail) {
+  return element(
+    "ul",
+    { className: "insight-detail-list" },
+    detail.map(([name, url]) =>
+      element("li", {}, [
+        safeHttpUrl(url)
+          ? element("a", {
+              className: "adopter-link",
+              text: name,
+              attrs: { href: safeHttpUrl(url), target: "_blank", rel: "noopener noreferrer" },
+            })
+          : element("span", { text: name }),
+      ]),
+    ),
+  );
+}
+
+function mapInsightCard(title, entries, emptyText) {
+  return element("article", { className: "map-insight-card" }, [
+    element("h2", { text: title }),
+    entries.length
+      ? element(
+          "ul",
+          {},
+          entries.map(([label, value, detail]) =>
+            detail && detail.length
+              ? element("li", { className: "insight-row-expandable" }, [
+                  element("details", {}, [
+                    element("summary", {}, [
+                      element("span", { text: label }),
+                      element("strong", { text: value }),
+                    ]),
+                    insightDetailList(detail),
+                  ]),
+                ])
+              : element("li", {}, [
+                  element("span", { text: label }),
+                  element("strong", { text: value }),
+                ]),
+          ),
+        )
+      : element("p", { text: emptyText }),
+  ]);
+}
+
+function renderMapInsights(corpus) {
+  const aggregates = corpus.aggregates || {};
+  const entityTypes = aggregates.entity_types || {};
+  const topicEntries = (aggregates.topics || [])
+    .sort(
+      (a, b) =>
+        Number(b.entity_count || 0) - Number(a.entity_count || 0) ||
+        a.topic.localeCompare(b.topic),
+    )
+    .map((topic) => [
+      ({
+        agentic: t("AI agents"),
+        benchmark: t("benchmarks"),
+        dataset: t("datasets"),
+        evaluation: t("evaluations"),
+        data_quality: t("data quality"),
+      }[topic.topic] || topic.topic.replaceAll("_", " ")),
+      `${Number(topic.entity_count || 0).toLocaleString()} ${t("items")} · ${metricLabel(
+        topic.source_breadth,
+        "source",
+      )}`,
+    ]);
+  const sourceEntries = rankedCounts(aggregates.sources).map(([source, count]) => [
+    source,
+    `${Number(count || 0).toLocaleString()} ${t("times found")}`,
+  ]);
+  const organizationEntries = rankedCounts(aggregates.organizations).map(
+    ([organization, count]) => [
+      organization,
+      `${Number(count || 0).toLocaleString()} ${t("times found")}`,
+    ],
+  );
+  const coverageEntries = [
+    [t("Items"), Number(entityTypes.artifact || 0).toLocaleString()],
+    [t("Organizations"), Number(entityTypes.organization || 0).toLocaleString()],
+    [t("Authors"), Number(entityTypes.person || 0).toLocaleString()],
+    [t("Sources"), Number(entityTypes.source || 0).toLocaleString()],
+    [t("Topics"), Number(entityTypes.topic || 0).toLocaleString()],
+  ];
+  replaceChildren(byId("map-insights"), [
+    mapInsightCard(t("At a glance"), coverageEntries, t("Nothing found yet.")),
+    mapInsightCard(t("What it is about"), topicEntries, t("No topics yet.")),
+    mapInsightCard(t("Where we found it"), sourceEntries, t("No sources yet.")),
+    mapInsightCard(
+      t("Who appears most"),
+      organizationEntries,
+      t("No organizations yet."),
+    ),
+  ]);
+}
+
+// --- Source-document coverage ----------------------------------------------
+// Each cited document counts once per benchmark, regardless of source or the
+// number of score rows it contains. Score values retain their own protocols.
+
+// Cut points for the benchmark release-date filter. Chosen as era boundaries
+// rather than rolling windows so a bookmarked URL keeps meaning the same thing
+// next month: "?lera=2026" is always "released in 2026", never "the last N
+// months". A benchmark with no recorded release date is excluded by any era
+// filter, which is the honest outcome -- it cannot be placed on the timeline.
+// "Released in 2026" is bounded at both ends. An open-ended lower bound would
+// silently absorb 2027 benchmarks the moment one is added, contradicting both
+// the label and the permalink promise. "2025 or later" says "or later" and is
+// therefore correctly open-ended.
+const LEADERBOARD_ERAS = [
+  { value: "2026", label: "Released in 2026", from: "2026-01-01", to: "2027-01-01" },
+  { value: "2025", label: "Released 2025 or later", from: "2025-01-01" },
+  { value: "pre2024", label: "Released before 2024", to: "2024-01-01" },
+  // A benchmark with no release date is excluded by every dated era above, so
+  // without this option it would be unreachable from the era control entirely
+  // (issue #292). An era filter is a claim about dates, and "we do not know
+  // this one's date" is an answer a reader has to be able to ask for.
+  { value: "undated", label: "No release date recorded", undated: true },
+];
+
+// The document audit uses the catalog's citation edges from every source.
+// This projection keeps the existing table widgets; it never adds another corpus.
+const documentBoards = new WeakMap();
+function catalogDocumentBoard() {
+  const registry = state.catalogDocuments;
+  if (!registry) return null;
+  if (documentBoards.has(registry)) return documentBoards.get(registry);
+  const documents = registry.documents.map((doc) => ({
+    ...doc, model_card_id: doc.id, model: doc.title,
+    organization: doc.organization || catalogSourceMeta(doc.source).name,
+    url: doc.source_url, reported_benchmarks: doc.benchmarks,
+    benchmark_count: doc.benchmarks.length,
+  }));
+  const byId = new Map(documents.map((doc) => [doc.id, doc]));
+  const entries = registry.entries.map((entry) => ({
+    ...entry, card_count: entry.document_count,
+    organizations: entry.organizations.map((org) => catalogSourceMeta(org).name),
+    adoption_share: registry.document_count ? entry.document_count / registry.document_count : 0,
+    adopters: entry.document_ids.map((id) => byId.get(id)),
+  }));
+  const board = {
+    ...registry, entries, model_cards: documents, model_card_count: registry.document_count,
+    organizations: Object.fromEntries(Object.entries(registry.organizations).map(([org, count]) => [catalogSourceMeta(org).name, count])),
+    organization_count: Object.keys(registry.organizations).length,
+  };
+  documentBoards.set(registry, board);
+  return board;
+}
+
+function leaderboardEntries() {
+  const board = catalogDocumentBoard();
+  if (!board) return [];
+  const query = state.lq.trim().toLowerCase();
+  const era = LEADERBOARD_ERAS.find((candidate) => candidate.value === state.lera);
+  return (board.entries || []).filter((entry) => {
+    if (state.ldomain && entry.domain !== state.ldomain) return false;
+    if (state.lorg && !(entry.organizations || []).includes(state.lorg)) return false;
+    if (era?.undated) {
+      if (entry.released) return false;
+    } else if (era) {
+      // ISO dates compare correctly as strings, so no Date parsing is needed
+      // and no timezone can shift a benchmark across a year boundary.
+      if (!entry.released) return false;
+      if (era.from && entry.released < era.from) return false;
+      if (era.to && entry.released >= era.to) return false;
+    }
+    if (!query) return true;
+    const haystack = [entry.name, entry.benchmark_id, ...(entry.aliases || [])]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(query);
+  });
+}
+
+function adoptionBar(entry, maxCount) {
+  // The 2% floor keeps a single-card benchmark from rendering as an empty
+  // track, but it must not apply to a zero: a visible bar beside a count of 0
+  // contradicts the number it is supposed to encode.
+  const width =
+    maxCount && entry.card_count
+      ? Math.max(2, Math.round((entry.card_count / maxCount) * 100))
+      : 0;
+  return element(
+    "div",
+    {
+      className: "adoption-bar",
+      attrs: {
+        role: "img",
+        "aria-label": `${metricLabel(entry.card_count, "source document")} of ${metricLabel(
+          state.catalogDocuments?.document_count || 0,
+          "source document",
+        )}`,
+      },
+    },
+    [
+      element("span", {
+        className: "adoption-bar-fill",
+        attrs: { style: `width: ${width}%` },
+      }),
+    ],
+  );
+}
+
+function frontierEvents(entry) {
+  const seenOrganizations = new Set();
+  return (entry.adopters || [])
+    .filter((adopter) => adopter.published)
+    .sort(
+      (a, b) =>
+        a.published.localeCompare(b.published) ||
+        a.organization.localeCompare(b.organization) ||
+        a.model.localeCompare(b.model),
+    )
+    .map((adopter) => {
+      // `advances` still feeds the leaderboard's new-instruments disclosure.
+      // The running total that went with it was the staircase's y value and has
+      // no reader now, so it is not carried.
+      const advances = !seenOrganizations.has(adopter.organization);
+      seenOrganizations.add(adopter.organization);
+      return { ...adopter, advances };
+    });
+}
+
+function isNewBenchmark(entry, board) {
+  if (!entry.released) return false;
+  const latestPublished = (board.model_cards || [])
+    .map((card) => card.published)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  if (!latestPublished) return false;
+  const cutoff = new Date(`${latestPublished}T00:00:00Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 548);
+  return new Date(`${entry.released}T00:00:00Z`) >= cutoff;
+}
+
+function frontierAdvances(entry) {
+  return frontierEvents(entry).filter((event) => event.advances);
+}
+
+function frontierDefaultEntry(board) {
+  return saturationRows()[0];
+}
+
+const BENCHMARK_TASK_SHAPES = {
+  apex_agents: {
+    provenance: "Source-paraphrased task shape",
+    title: "Cross-application professional deliverable",
+    example:
+      "Produce a professional work product across supplied files and applications for an investment-banking, consulting, or legal workflow.",
+    scenario:
+      "Complete a long-horizon assignment authored by investment bankers, management consultants, or corporate lawyers while navigating realistic files and tools.",
+    artifact:
+      "A professional deliverable graded against task-specific rubrics, reference outputs, files, and metadata.",
+  },
+  mcp_atlas: {
+    provenance: "Source-paraphrased task shape",
+    title: "Cross-server tool orchestration",
+    example:
+      "Investigate an open-source project's repository and official domain, then calculate the difference between two dates using the available repository and WHOIS tools.",
+    scenario:
+      "Infer the needed tools from a natural-language request, then orchestrate three to six calls across real MCP servers without being told which tools to use.",
+    artifact:
+      "A grounded answer scored against independently verifiable claims, with the tool trajectory retained for diagnostics.",
+  },
+  frontiercode: {
+    provenance: "Source-paraphrased task shape",
+    title: "Maintainer-grade production code change",
+    example:
+      "Implement a concise maintainer request in a production repository while following its testing, linting, style, and scope guidance.",
+    scenario:
+      "Infer maintainer intent from a deliberately concise task description and the repository's own contribution guidelines.",
+    artifact:
+      "A mergeable pull request graded for correctness, test quality, scope discipline, style, and codebase standards.",
+  },
+};
+
+const TASK_SHAPES = {
+  agent: {
+    title: "Multi-step professional workflow",
+    scenario:
+      "Work through a realistic task that may require research, document handling, and tool calls before producing a graded deliverable.",
+    artifact: "A final artifact plus the trajectory used to create it.",
+  },
+  coding_agent: {
+    title: "Repository-level software task",
+    scenario:
+      "Inspect an existing codebase, diagnose a reported problem, edit the implementation, and satisfy executable checks.",
+    artifact: "A code patch evaluated by tests and task-specific criteria.",
+  },
+  tool_use: {
+    title: "Tool-selection episode",
+    scenario:
+      "Choose among available tools, form valid calls, combine returned evidence, and answer the user without inventing results.",
+    artifact: "A tool-call trace and grounded final response.",
+  },
+  computer_use: {
+    title: "Interactive computer task",
+    scenario:
+      "Navigate a visual interface, inspect changing state, and complete a goal through observable clicks and typed actions.",
+    artifact: "A successful end state with an auditable interaction trace.",
+  },
+  coding: {
+    title: "Executable programming problem",
+    scenario:
+      "Write or repair a program from a specification while accounting for hidden cases and runtime constraints.",
+    artifact: "Source code scored against executable tests.",
+  },
+  reasoning: {
+    title: "Structured reasoning question",
+    scenario:
+      "Resolve a question whose answer requires several linked deductions rather than direct factual recall.",
+    artifact: "A selected or generated answer, sometimes with a rationale.",
+  },
+  math: {
+    title: "Competition-style mathematics problem",
+    scenario:
+      "Derive a numerical or symbolic answer from a compact problem statement and verify the final result.",
+    artifact: "A final answer, with evaluation focused on correctness.",
+  },
+  long_context: {
+    title: "Long-document retrieval task",
+    scenario:
+      "Locate and connect evidence distributed across a long input while resisting nearby but irrelevant details.",
+    artifact: "An answer grounded in the supplied context.",
+  },
+  multimodal: {
+    title: "Visual-language question",
+    scenario:
+      "Inspect an image or document together with text and answer using evidence that is not available in either modality alone.",
+    artifact: "A grounded textual answer or structured prediction.",
+  },
+  science: {
+    title: "Scientific problem-solving task",
+    scenario:
+      "Apply domain knowledge and quantitative reasoning to a research-style question with a checkable answer.",
+    artifact: "A conclusion supported by calculations or scientific evidence.",
+  },
+  knowledge: {
+    title: "Broad-knowledge question",
+    scenario:
+      "Answer a question spanning academic and general domains while separating known facts from plausible distractors.",
+    artifact: "A selected or short generated answer.",
+  },
+  instruction_following: {
+    title: "Constraint-following prompt",
+    scenario:
+      "Produce a useful response while satisfying explicit format, content, and exclusion constraints at the same time.",
+    artifact: "A response graded for both usefulness and constraint compliance.",
+  },
+};
+
+function taskShape(entry) {
+  return (
+    BENCHMARK_TASK_SHAPES[entry.benchmark_id] || TASK_SHAPES[entry.domain] || {
+      title: `${entry.domain.replaceAll("_", " ")} evaluation task`,
+      scenario:
+        "Complete a domain-specific prompt under the benchmark's published protocol and return the requested output.",
+      artifact: "An answer or artifact evaluated by the benchmark's own metric.",
+    }
+  );
+}
+
+// Search the complete benchmark catalog through the same record contract.
+//
+// One row per source record, never per merged group. Two sources describing the
+// same benchmark stay two labelled rows until identity.yml says otherwise under
+// human review, since a wrong merge is invisible to a reader and two labelled
+// duplicates are not.
+const BENCHMARK_SEARCH_LIMIT = 50;
+
+let benchmarkIndexPromise = null;
+
+function loadBenchmarkIndex() {
+  if (!benchmarkIndexPromise) {
+    // Revalidate on page load so newly recovered dates reach the figure.
+    // The promise still shares one request across all views in this page.
+    benchmarkIndexPromise = fetch("/benchmark-radar-zh24/data/benchmark-index.json", { cache: "no-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (!Array.isArray(payload.benchmarks)) throw new Error("Invalid benchmark catalog");
+        state.catalogDocuments = payload.document_registry || null;
+        state.benchmarkTaxonomy = payload.benchmark_taxonomy || null;
+        state.dimensionTaxonomy = payload.project_dimension_taxonomy || null;
+        return payload.benchmarks;
+      })
+      .catch(() => null);
+  }
+  return benchmarkIndexPromise;
+}
+
+function foldName(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+// The site ranks the catalog with QueryService's lexical algorithm, so a task
+// described only in a record's prose is found here as it is by the CLI (#710).
+function searchBenchmarkIndex(records, query) {
+  return searchCatalog(records, query);
+}
+
+// Slugs that contain every query word. The search also keeps candidates that
+// share only one word, as QueryService does; a status line must not call those
+// matches (QueryService reports them as partial_candidates_only).
+let fullMatchCache = { records: null, query: "", slugs: new Set() };
+function fullMatchSlugs(records, query) {
+  if (fullMatchCache.records !== records || fullMatchCache.query !== query) {
+    const slugs = new Set(searchCatalogMatches(records, query)
+      .filter((match) => !match.missing.length).map((match) => match.record.slug));
+    fullMatchCache = { records, query, slugs };
+  }
+  return fullMatchCache.slugs;
+}
+
+// "12 match every word · 30 share only some", or nothing when every candidate
+// is a full match.
+function partialMatchNote(rows, query, idOf) {
+  if (!query || !rows.length) return "";
+  const full = fullMatchSlugs(state.benchmarkIndex || [], query);
+  const fullCount = rows.filter((row) => full.has(idOf(row))).length;
+  if (fullCount === rows.length) return "";
+  return fullCount
+    ? t("{full} match every word · {partial} share only some", {
+      full: fullCount.toLocaleString(), partial: (rows.length - fullCount).toLocaleString(),
+    })
+    : t("No benchmark matches every word; these share only some");
+}
+
+// Openness is a three-state answer and `unknown` is the common one. It renders
+// as a neutral chip, never a warning: the reader is being told what we know,
+// not that something is wrong with the benchmark.
+function opennessChip(status) {
+  const label = {
+    open: t("open"),
+    restricted: t("restricted"),
+    unknown: t("openness not established"),
+  }[status] || t("openness not established");
+  return element("span", {
+    className: `benchmark-openness benchmark-openness-${status || "unknown"}`,
+    text: label,
+  });
+}
+
+function benchmarkResultRow(record, { navigate = false, inert = false } = {}) {
+  // The name is the scanning target, and the count is the measure. Publisher,
+  // size, openness and the source chip printed on every row -- three of them
+  // as "not established" on most crawled records -- so a reader scanned past
+  // four grey fields to reach the next name (issue #298).
+  //
+  // Those fields still exist on the record and are still searchable; the
+  // detail panel is where a reader who wants them asks for them.
+  // The source is printed only on these rows. Elsewhere it was noise on every
+  // record (issue #298); here it is the fact that separates two rows carrying
+  // the same name, so it is the one thing the reader needs.
+  const facts = record.score_count
+    ? metricLabel(record.score_count, "reported score", "reported scores")
+    : t("no scores collected");
+  const button = element("button", {
+    className: "benchmark-result",
+    attrs: {
+      type: "button",
+      "aria-pressed": record.slug === state.lfrontier ? "true" : "false",
+    },
+  }, [
+    element("span", { className: "benchmark-result-name", text: record.name }),
+    // A count of collected numbers, never a quality signal: 239 rows means
+    // llm-stats collected 239 numbers, not that the benchmark is better.
+    element("span", {
+      className: "benchmark-result-facts",
+      text: `${catalogSourceMeta(record.source).name} · ${facts}`,
+    }),
+  ]);
+  if (inert) {
+    button.disabled = true;
+    return button;
+  }
+  button.addEventListener("click", () => {
+    selectFrontier(record.slug);
+    if (navigate) {
+      // setView toggles visibility and the URL; it does not draw. On a first
+      // visit Saturation has never rendered, so switching to it without
+      // this leaves the reader on an empty panel.
+      setView("saturation");
+      renderSaturation();
+      return;
+    }
+    renderBenchmarkSearch();
+    renderAdoptionFrontier(catalogDocumentBoard());
+    writeUrl("push");
+  });
+  return button;
+}
+
+// Each row keeps its source identity. The score cutoff decides membership;
+// recorded numeric observations determine order, without a source preference.
+function scoreSourceLabel(source) {
+  return t(catalogSourceMeta(source).name);
+}
+
+function scoreCutoff(value) {
+  // Steps of 10 from 10 to 100, where 100 keeps every scored benchmark.
+  // Range is checked before snapping, so an out-of-range value falls back
+  // rather than rounding itself into the valid band.
+  const raw = Number(value);
+  if (!Number.isFinite(raw) || raw < 10 || raw > 100) return 70;
+  return Math.round(raw / 10) * 10;
+}
+
+function matchesScoreFilter(summary) {
+  return matchesScoreCutoff(summary, state.lscore);
+}
+
+function scoreBrowseRows(cutoff = state.lscore) {
+  return scorePopulation(state.benchmarkIndex || [])
+    .filter((row) => !matchesScoreCutoff(row.summary, 100) || matchesScoreCutoff(row.summary, cutoff))
+    .sort((a, b) => (b.summary?.numeric_count || 0) - (a.summary?.numeric_count || 0)
+      || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+function saturationRows() {
+  const matches = benchmarkQueryIds();
+  // Search is a lookup across the whole catalog. It temporarily bypasses the
+  // browsing cutoff without changing the shared slider value.
+  const rows = scoreBrowseRows(matches || state.benchmarkModel ? 100 : state.lscore)
+    .filter((row) => (!state.benchmarkType || benchmarkTypeIds(row.id).includes(state.benchmarkType))
+      && (!state.benchmarkDimension || dimensionMatches(dimensionIndex().bySlug.get(row.id),
+        state.benchmarkDimension, state.benchmarkDimensionEvidence)));
+  // A query lists results in search rank. The search keeps weak candidates that
+  // share one query word (#710), so browse order would put an unrelated scored
+  // benchmark above the description match the reader was looking for.
+  const rank = matches ? new Map([...matches].map((id, index) => [id, index])) : null;
+  const named = rank ? rows.filter((row) => rank.has(row.id)).sort((a, b) => rank.get(a.id) - rank.get(b.id)) : rows;
+  if (!state.benchmarkModel) return named;
+  const needle = foldName(state.benchmarkModel);
+  if (!needle) return [];
+  const index = new Map((state.benchmarkIndex || []).map((record) => [record.slug, record]));
+  return named.filter((row) => (index.get(row.id)?.scored_models || [])
+    .some((model) => foldName(model.name).includes(needle)))
+    .sort((a, b) => (latestMatchingModel(index.get(b.id), needle)?.date || "")
+      .localeCompare(latestMatchingModel(index.get(a.id), needle)?.date || "") || a.name.localeCompare(b.name));
+}
+
+function latestMatchingModel(record, needle) {
+  return (record?.scored_models || [])
+    .filter((model) => foldName(model.name).includes(needle))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))[0];
+}
+
+function scoreRankingRows() {
+  return scoreBrowseRows(100)
+    .filter((row) => (row.date === null || row.date >= SKYLINE_START_DATE) && matchesScoreCutoff(row.summary, 100))
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+function scoreSummaryLabel(summary) {
+  if (!Number.isFinite(summary?.display_max)) return t("No score reported");
+  const value = summary.display_max.toLocaleString("en", { maximumFractionDigits: 1 });
+  const unit = summary.unit === "percent" ? "%" : summary.unit ? ` ${summary.unit}` : "";
+  return `${value}${unit}`;
+}
+
+function scoreBrowseResultRow(row) {
+  const record = (state.benchmarkIndex || []).find((item) => item.slug === row.id);
+  const needle = foldName(state.benchmarkModel);
+  const matchedModel = needle ? latestMatchingModel(record, needle) : null;
+  const button = element("button", {
+    className: "benchmark-result score-browse-result",
+    attrs: { type: "button", "aria-pressed": row.id === state.lfrontier ? "true" : "false" },
+  }, [
+    element("span", { className: "benchmark-result-name", text: row.name }),
+    element("span", { className: "benchmark-result-facts", text: [scoreSourceLabel(row.source),
+      row.date ? `${t(benchmarkDateLabel(row))} ${formatDate(row.date, { dateStyle: "medium" })}` : t("Date unknown"),
+      matchesScoreCutoff(row.summary, 100) ? "" : t("No score reported"),
+      benchmarkTypeIds(row.id).map(benchmarkTypeLabel).join(" / "),
+      dimensionResultLabel(record),
+      matchedModel ? `${matchedModel.name}${matchedModel.date ? ` · ${t(matchedModel.date_precision === "model_announcement" ? "Model release" : "Document published")} ${formatDate(matchedModel.date, { dateStyle: "medium" })}` : ""}` : "",
+    ].filter(Boolean).join(" · ") }),
+  ]);
+  button.addEventListener("click", () => {
+    openSaturation(row.id);
+  });
+  return button;
+}
+
+function setScoreFilter(value) {
+  state.lscore = scoreCutoff(value);
+  syncScoreFilters();
+  if (state.view === "saturation") {
+    if (!state.benchmarkQuery) {
+      state.benchmarkVisibleLimit = BENCHMARK_SEARCH_LIMIT;
+      // An explicit selection keeps its complete history outside the cutoff.
+      if (!state.lfrontierExplicit) state.lfrontier = "";
+      renderSaturation();
+    }
+  } else {
+    renderBenchmarkSkyline();
+  }
+  writeUrl();
+}
+
+function syncScoreFilters(value = state.lscore) {
+  for (const view of ["leaderboard", "saturation"]) {
+    byId(`${view}-score-filter`).value = value;
+    byId(`${view}-score-value`).textContent = value >= 100 ? t("All") : value;
+  }
+}
+
+function renderScoreSelectionNote() {
+  const item = scorePopulation(state.benchmarkIndex || []).find((row) => row.id === state.lfrontier);
+  const summary = item?.summary;
+  const outside = Boolean(state.lfrontierExplicit && item
+    && !saturationRows().some((row) => row.id === item.id));
+  const note = byId("frontier-filter-note");
+  note.hidden = !outside;
+  note.textContent = outside ? t("Outside current filter") : "";
+  const highest = byId("frontier-highest-score");
+  highest.hidden = !summary?.numeric_count;
+  highest.textContent = summary?.numeric_count ? scoreSummaryLabel(summary) : "";
+}
+
+function renderScoreRanking(rows) {
+  const visible = rows.slice(0, state.scoreRankingExpanded ? BENCHMARK_SEARCH_LIMIT : 5);
+  const maximum = rows[0]?.summary?.numeric_count || 1;
+  replaceChildren(byId("score-ranking-list"), visible.map((row) => {
+    const button = element("button", {
+      className: "score-ranking-link",
+      attrs: { type: "button", "aria-pressed": row.id === state.lfrontier ? "true" : "false" },
+    }, [
+      element("span", { text: row.name }),
+      element("small", { text: `${scoreSourceLabel(row.source)} · ${scoreSummaryLabel(row.summary)}` }),
+    ]);
+    button.addEventListener("click", () => {
+      openSaturation(row.id);
+    });
+    return element("li", { className: "leaderboard-top-row" }, [
+      element("span", { className: "leaderboard-top-rank", text: String(row.rank).padStart(2, "0") }),
+      element("span", { className: "leaderboard-top-name" }, [button]),
+      element("span", { className: "leaderboard-top-bar" }, [
+        element("span", { className: "leaderboard-top-bar-fill", attrs: { style: `width:${((row.summary?.numeric_count || 0) / maximum * 100).toFixed(1)}%` } }),
+      ]),
+      element("span", { className: "leaderboard-top-count", text: row.summary?.numeric_count ? metricLabel(row.summary.numeric_count, "data point") : t("No score reported") }),
+    ]);
+  }));
+  const more = byId("score-ranking-more");
+  more.hidden = rows.length <= 5;
+  more.textContent = t(state.scoreRankingExpanded ? "Show top 5" : "Show more");
+  byId("score-ranking-empty").hidden = rows.length > 0;
+}
+
+function benchmarkQueryIds() {
+  return state.benchmarkQuery ? new Set(
+    searchBenchmarkIndex(state.benchmarkIndex || [], state.benchmarkQuery).map((record) => record.slug),
+  ) : null;
+}
+
+// Types are generated once by the shared Python taxonomy. The browser never
+// guesses categories from names or descriptions, or substitutes a smaller corpus.
+let benchmarkTypesCache = { records: null, bySlug: new Map(), counts: new Map() };
+function benchmarkTypeIndex() {
+  if (benchmarkTypesCache.records !== state.benchmarkIndex) {
+    const bySlug = new Map();
+    const counts = new Map();
+    for (const record of state.benchmarkIndex || []) {
+      const types = record.benchmark_types || [];
+      bySlug.set(record.slug, types);
+      for (const id of types) counts.set(id, (counts.get(id) || 0) + 1);
+    }
+    benchmarkTypesCache = { records: state.benchmarkIndex, bySlug, counts };
+  }
+  return benchmarkTypesCache;
+}
+
+function benchmarkTypeIds(slug) {
+  return benchmarkTypeIndex().bySlug.get(slug) || [];
+}
+
+function benchmarkTypeLabel(id) {
+  const kind = state.benchmarkTaxonomy?.types?.find((item) => item.id === id);
+  return kind?.[getLang()] || kind?.en || id;
+}
+
+function renderBenchmarkTypes() {
+  const select = byId("benchmark-type-filter");
+  if (!select) return;
+  const types = state.benchmarkTaxonomy?.types || [];
+  const counts = benchmarkTypeIndex().counts;
+  const option = (value, text) => element("option", { text, attrs: { value } });
+  const options = [option("", types.length
+    ? `${t("All benchmark types")} (${(state.benchmarkIndex || []).length.toLocaleString()})`
+    : t("Type classification unavailable"))];
+  options.push(...types.map((kind) => option(kind.id,
+    `${benchmarkTypeLabel(kind.id)} (${(counts.get(kind.id) || 0).toLocaleString()})`)));
+  if (state.benchmarkType && !types.some((kind) => kind.id === state.benchmarkType)) {
+    options.push(option(state.benchmarkType, `${t("Unknown benchmark type")}: ${state.benchmarkType}`));
+  }
+  replaceChildren(select, options);
+  select.value = state.benchmarkType;
+  select.disabled = !types.length;
+}
+
+let projectDimensionCache = { records: null, value: buildDimensionIndex([]) };
+function dimensionIndex() {
+  if (projectDimensionCache.records !== state.benchmarkIndex) {
+    projectDimensionCache = { records: state.benchmarkIndex,
+      value: buildDimensionIndex(state.benchmarkIndex || []) };
+  }
+  return projectDimensionCache.value;
+}
+
+function dimensionDefinition(id) {
+  return state.dimensionTaxonomy?.dimensions?.find((item) => item.id === id);
+}
+
+function dimensionLabel(id) {
+  const definition = dimensionDefinition(id);
+  return definition?.[getLang()] || definition?.en || id;
+}
+
+function dimensionResultLabel(record) {
+  const matches = (record?.project_dimensions || []).filter((match) =>
+    state.benchmarkDimension ? match.id === state.benchmarkDimension : match.status === "supported");
+  return matches.slice(0, 2).map((match) => `${dimensionLabel(match.id)}${match.status === "candidate"
+    ? ` (${t("Candidate; needs review")})` : ""}`).join(" / ");
+}
+
+function selectProjectDimension(id) {
+  state.benchmarkDimension = id;
+  state.benchmarkVisibleLimit = BENCHMARK_SEARCH_LIMIT;
+  state.lfrontierExplicit = false;
+  state.lfrontier = "";
+  renderSaturation();
+  writeUrl();
+}
+
+function renderProjectDimensions() {
+  const select = byId("benchmark-dimension-filter");
+  if (!select) return;
+  const definitions = state.dimensionTaxonomy?.dimensions || [];
+  const { counts, unmappedAll, unmappedSupported } = dimensionIndex();
+  const includeCandidates = state.benchmarkDimensionEvidence === "all";
+  const countFor = (id) => counts.get(id) || { supported: 0, candidate: 0, scored: 0 };
+  const option = (value, text) => element("option", { text, attrs: { value } });
+  const options = [option("", `${t("All project dimensions")} (${(state.benchmarkIndex || []).length.toLocaleString()})`)];
+  const cards = [];
+  for (const group of ["llm", "vlm", "alm"]) {
+    const members = definitions.filter((item) => item.group === group);
+    const label = getLang() === "zh" ? members[0]?.group_zh || group.toUpperCase() : group.toUpperCase();
+    const optgroup = element("optgroup", { attrs: { label } });
+    for (const item of members) {
+      const count = countFor(item.id);
+      optgroup.append(option(item.id, `${dimensionLabel(item.id)} (${(count.supported + (includeCandidates ? count.candidate : 0)).toLocaleString()})`));
+    }
+    options.push(optgroup);
+    cards.push(element("section", { className: "project-dimension-group" }, [
+      element("h3", { text: label }),
+      ...members.map((item) => {
+        const count = countFor(item.id);
+        const button = element("button", { className: "project-dimension-button",
+          attrs: { type: "button", "data-project-dimension": item.id,
+            "aria-pressed": String(state.benchmarkDimension === item.id), title: item.definition } }, [
+          element("span", { text: dimensionLabel(item.id) }),
+          element("small", { text: t("{supported} supported · {candidate} candidates", count) }),
+        ]);
+        button.addEventListener("click", () => selectProjectDimension(item.id));
+        return button;
+      }),
+    ]));
+  }
+  options.push(option("unmapped", `${t("No matching dimension")} (${(includeCandidates ? unmappedAll : unmappedSupported).toLocaleString()})`));
+  if (state.benchmarkDimension && state.benchmarkDimension !== "unmapped"
+      && !definitions.some((item) => item.id === state.benchmarkDimension)) {
+    options.push(option(state.benchmarkDimension, `${t("Unknown project dimension")}: ${state.benchmarkDimension}`));
+  }
+  replaceChildren(select, options);
+  select.value = state.benchmarkDimension;
+  select.disabled = !definitions.length;
+  byId("benchmark-dimension-evidence").value = state.benchmarkDimensionEvidence;
+  byId("benchmark-dimension-evidence").disabled = !definitions.length;
+  const overview = byId("project-dimensions-overview");
+  overview.hidden = !definitions.length;
+  byId("project-dimensions-summary").textContent = t("{covered} / {total} dimensions have explicit metadata evidence", {
+    covered: definitions.filter((item) => countFor(item.id).supported > 0).length,
+    total: definitions.length,
+  });
+  replaceChildren(byId("project-dimensions-grid"), cards);
+}
+
+function catalogDimensionBlock(detail) {
+  const record = dimensionIndex().bySlug.get(detail.slug);
+  const matches = record?.project_dimensions || [];
+  return element("section", { className: "catalog-block" }, [
+    element("h3", { text: t("Project dimensions") }),
+    element("p", { className: "section-note", text: t("dimensions.evidence.note") }),
+    ...(!matches.length ? [element("p", { text: t("No matching dimension") })] : []),
+    ...matches.map((match) => {
+      const definition = dimensionDefinition(match.id);
+      const details = element("details", { className: "dimension-evidence" }, [
+        element("summary", { text: `${dimensionLabel(match.id)} · ${t(match.status === "supported"
+          ? "Supported by metadata" : "Candidate; needs review")}` }),
+        element("p", { text: `${t("Original project definition")}: ${definition?.definition || ""}` }),
+        element("p", { text: match.note }),
+        element("p", { text: `${t("Suggested metric (not a reported score)")}: ${definition?.metric_guidance || ""}` }),
+        ...match.evidence.map((evidence) => element("blockquote", {}, [
+          element("p", { text: evidence.context || evidence.quote }),
+          safeHttpUrl(evidence.source_url) ? element("a", { text: t("Source evidence"),
+            attrs: { href: safeHttpUrl(evidence.source_url), target: "_blank", rel: "noopener noreferrer" } }) : null,
+        ])),
+      ]);
+      details.open = state.benchmarkDimension === match.id;
+      return details;
+    }),
+  ]);
+}
+
+function renderBenchmarkSearch() {
+  const container = byId("benchmark-search-results");
+  const status = byId("benchmark-search-status");
+  if (!container || !status || !state.data) return;
+  byId("benchmark-search-input").value = state.benchmarkQuery;
+  byId("benchmark-model-input").value = state.benchmarkModel;
+  renderBenchmarkTypes();
+  renderProjectDimensions();
+  const rows = saturationRows();
+  const shown = rows.slice(0, state.benchmarkVisibleLimit);
+  replaceChildren(container, shown.map(scoreBrowseResultRow));
+  const loading = !state.benchmarkIndexLoaded;
+  const failed = state.benchmarkIndexLoaded && !state.benchmarkIndex;
+  const coverage = loading ? t("Still checking the benchmark registry…")
+    : failed ? t("The benchmark catalog could not be loaded.") : "";
+  status.textContent = [t("{shown} of {total} matches")
+    .replace("{shown}", shown.length.toLocaleString())
+    .replace("{total}", rows.length.toLocaleString()),
+    partialMatchNote(rows, state.benchmarkQuery, (row) => row.id),
+    state.benchmarkQuery || state.benchmarkModel ? t("Searching all benchmarks (score cutoff paused)") : "", coverage].filter(Boolean).join(" · ");
+  if (!rows.length) {
+    container.append(element("p", { className: "empty-state", text: loading
+      ? t("Loading benchmark details…") : t("No benchmarks match these filters.") }));
+    if (!state.benchmarkQuery && !state.benchmarkModel && state.lscore < 100) {
+      const all = element("button", { className: "clear-button", text: t("All"), attrs: { type: "button" } });
+      all.addEventListener("click", () => setScoreFilter(100));
+      container.append(all);
+    }
+  }
+  const more = byId("benchmark-search-more");
+  more.hidden = shown.length >= rows.length;
+}
+
+function skylineChart(model, cutoff) {
+  const geometry = skylineGeometry(model.cohort);
+  const { maximum, project, timeFraction, quarters } = geometry;
+  const datedRows = model.rows.filter((row) => row.date !== null);
+  const datedPending = model.pending.filter((row) => row.date !== null);
+  const hasUndatedScores = model.undated.some((row) => row.plotScore !== null);
+  const scoreY = (score) => 580 - score * 5;
+  const scoreLayout = skylineScoreLanes(model.all.filter((row) => row.date === null && row.plotScore !== null), scoreY);
+  const undatedLeft = hasUndatedScores ? geometry.width + 30 : 45;
+  const undatedWidth = hasUndatedScores ? Math.max(400, scoreLayout.lanes * 9 + 30) : geometry.width - 90;
+  const width = hasUndatedScores ? undatedLeft + undatedWidth + 30 : geometry.width;
+  const mainHeight = hasUndatedScores ? Math.max(640, geometry.height) : geometry.height;
+  const dateX = (time) => project(timeFraction(time), 0)[0];
+  const pendingGroups = [
+    ["Other score scales", datedPending],
+  ].filter(([, rows]) => rows.length).map(([heading, records]) => {
+    // Allocate against the unsliced cohort, so dragging the cutoff cannot move
+    // surviving benchmarks. Only Y is stacked; X always remains the exact date.
+    const candidates = model.cohort.filter((row) => row.plotScore === null);
+    const layout = skylineDateLanes(candidates, dateX);
+    const ids = new Set(records.map((row) => row.id));
+    return { heading, records, points: layout.points.filter(({ row }) => ids.has(row.id)),
+      height: 92 + layout.lanes * 12 };
+  });
+  const undatedPending = [
+    ["Other score scales", model.undated.filter((row) => row.plotScore === null)],
+  ].filter(([, rows]) => rows.length);
+  const unknownColumns = Math.floor(undatedWidth / 12);
+  const datedBottom = mainHeight + pendingGroups.reduce((sum, group) => sum + group.height, 0);
+  const undatedTop = hasUndatedScores ? mainHeight : datedBottom + 32;
+  const height = Math.max(datedBottom,
+    undatedPending.length ? undatedTop + undatedPending.reduce((sum, [, rows]) => sum + 70 + Math.ceil(rows.length / unknownColumns) * 12, 0) : 0);
+  const points = (vertices) => vertices.map((point) => point.map((v) => v.toFixed(2)).join(",")).join(" ");
+  const line = (a, b, className) => svgElement("line", {
+    x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: className,
+  });
+  const textAt = (position, text, className = "skyline-tick", anchor = "middle") => svgElement("text", {
+    x: position[0], y: position[1], class: className, "text-anchor": anchor,
+  }, text);
+  const axisArrow = (from, to, axis) => {
+    const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const dx = (to[0] - from[0]) / length, dy = (to[1] - from[1]) / length;
+    const group = svgElement("g", { "data-axis": axis, "aria-hidden": "true" });
+    group.append(line(from, to, "skyline-axis"), svgElement("polygon", {
+      class: "skyline-axis-arrowhead", points: points([to,
+        [to[0] - dx * 9 - dy * 4, to[1] - dy * 9 + dx * 4],
+        [to[0] - dx * 9 + dy * 4, to[1] - dy * 9 - dx * 4],
+      ]),
+    }));
+    return group;
+  };
+  const countRows = (row) => [
+    { label: t("Models with reported scores"), value: row.modelCount === null ? t("Not recorded") : row.modelCount.toLocaleString() },
+    { label: t("Source documents"), value: row.documentCount === null ? t("Not recorded") : row.documentCount.toLocaleString() },
+  ];
+  const dateRows = (row) => {
+    const rows = [{ label: t(benchmarkDateLabel(row)), value: formatDate(row.date) }];
+    if (row.dateReference) {
+      const basis = row.dateBasis === "first_score" ? "Dated LLM score"
+        : ({ paper_first_version: "Paper first version", paper_publication: "Introducing paper" }[row.dateReference.basis] || "Public release");
+      rows.push({ label: t("Date evidence"), value: t(basis) });
+    }
+    return rows;
+  };
+  const svg = svgElement("svg", {
+    viewBox: `0 0 ${width} ${height}`, role: "group",
+    class: hasUndatedScores ? "skyline-has-undated" : "",
+    "aria-label": t("Benchmark Frontier: {n} individual benchmarks from all sources. Dated benchmarks run left to right from 2024. Undated benchmarks remain visible by score. Gold rings mark the measured Pareto frontier.", { n: model.visible.length }),
+  });
+  svg.append(svgElement("polygon", {
+    class: "skyline-floor", points: points([project(0, 0), project(1, 0), project(1, 100), project(0, 100)]),
+  }), svgElement("polygon", {
+    class: "skyline-wall", points: points([project(0, 0), project(0, 100), project(0, 100, maximum), project(0, 0, maximum)]),
+  }));
+  const countUnknown = (fraction, score) => {
+    const base = project(fraction, score);
+    return [base[0], base[1] + 18];
+  };
+  if (datedRows.some((row) => row.heightCount === null)) {
+    svg.append(svgElement("polygon", {
+      class: "skyline-unknown-plane", points: points([countUnknown(0, 0), countUnknown(1, 0),
+        countUnknown(1, 100), countUnknown(0, 100)]),
+    }));
+  }
+  const actualTip = (row) => row.heightCount === null ? countUnknown(timeFraction(row.time), row.plotScore)
+    : project(timeFraction(row.time), row.plotScore, row.heightCount);
+  const caps = skylineCapPositions(model.cohort.filter((row) => row.plotScore !== null), actualTip, (row, [x, y]) => {
+    if (row.heightCount !== null) return x >= 110 && x <= geometry.width - 100 && y >= 30 && y <= project(0, 0)[1];
+    // Unknown counts stay on their own time × score plane. Spacing must not
+    // lift these points into the measured count dimension or onto the axes.
+    const front = countUnknown(0, 0), back = countUnknown(0, 100);
+    const score = 100 * (front[1] - y) / (front[1] - back[1]);
+    return score >= 0 && score <= 100 && x >= project(0, score)[0] && x <= project(1, score)[0];
+  });
+  // A translucent cutting plane stays on the full 0–100 score axis.
+  if (cutoff < 100) {
+    svg.append(svgElement("polygon", {
+      class: "skyline-slice", points: points([project(0, cutoff), project(1, cutoff),
+        project(1, cutoff, maximum), project(0, cutoff, maximum)]),
+    }), line(project(0, cutoff), project(1, cutoff), "skyline-slice-edge"));
+    const label = project(1, cutoff);
+    svg.append(textAt([label[0] + 12, label[1] - 12], `< ${cutoff}`, "skyline-slice-label", "start"));
+  }
+  for (let score = 0; score <= 100; score += 20) {
+    svg.append(line(project(0, score), project(1, score), "skyline-grid"),
+      line(project(0, score), project(0, score, maximum), "skyline-grid"));
+    const right = project(1, score), left = project(0, score);
+    svg.append(textAt([right[0] + 20, right[1] + 5], String(score), "skyline-tick", "start"),
+      textAt([left[0] - 14, left[1] + 23], String(score), "skyline-tick skyline-score-tick-left", "end"));
+  }
+  const roundCounts = [0];
+  for (let magnitude = 1; magnitude <= maximum; magnitude *= 10) {
+    roundCounts.push(magnitude, 2 * magnitude, 5 * magnitude);
+  }
+  const countTicks = [...new Set([...roundCounts, maximum])]
+    .filter((count) => count <= maximum).sort((a, b) => a - b);
+  let lastTickY = Infinity;
+  for (const count of countTicks) {
+    const wall = project(0, 100, count);
+    if (lastTickY - wall[1] < 19 && count !== maximum) continue;
+    // Avoid a final maximum tick crowding a nearby round-number tick.
+    if (count !== maximum && project(0, 100, count)[1] - project(0, 100, maximum)[1] < 19) continue;
+    svg.append(line(project(0, 0, count), wall, "skyline-grid"),
+      textAt([wall[0] - 14, wall[1] + 5], count.toLocaleString(), "skyline-tick skyline-count-tick", "end"));
+    lastTickY = wall[1];
+  }
+  svg.append(axisArrow(project(0, 100), project(0, 100, maximum), model.heightMetric),
+    axisArrow(project(0, 0), project(0, 100), "score"),
+    line(project(0, 0), project(1, 0), "skyline-axis"),
+    line(project(1, 0), project(1, 100), "skyline-axis"));
+  for (const { time, year, quarter } of quarters) {
+    const fraction = timeFraction(time);
+    const front = project(fraction, 0);
+    svg.append(line(front, project(fraction, 100), "skyline-grid"),
+      textAt([front[0], front[1] + 42], quarter === 1 ? String(year) : `Q${quarter}`,
+        quarter === 1 ? "skyline-tick skyline-year" : "skyline-quarter"));
+  }
+  svg.append(textAt([730, 631], t("Release date / first LLM score →"), "skyline-axis-title"),
+    textAt([70, 392], t("Reported score"), "skyline-axis-title"),
+    textAt([70, 413], t("0–100")),
+    textAt([95, 24], t("Pareto side view"), "skyline-axis-title", "start"),
+    svgElement("text", { x: 25, y: 175, transform: "rotate(-90 25 175)",
+      class: "skyline-axis-title", "text-anchor": "middle" }, t(model.heightLabel)));
+  // This path lives only on the score/count wall: no time ordering is implied.
+  const steps = skylineFrontierSteps(model.comparable);
+  if (steps.length) svg.append(svgElement("polyline", {
+    class: "skyline-pareto-path", points: points(steps.map((row) => project(0, row.score, row.count))),
+  }));
+  // Preserve all known coordinates in the side view. Hollow projections carry
+  // the same scale qualification as their skyline points and cannot turn gold.
+  for (const row of datedRows.filter((row) => row.heightCount !== null)) {
+    const wall = project(0, row.plotScore, row.heightCount);
+    svg.append(svgElement("circle", {
+      cx: wall[0], cy: wall[1], r: row.pareto ? 4.5 : 3,
+      "data-projection-for": row.id, "aria-hidden": "true",
+      class: `skyline-projection skyline-domain-${row.domain.toLowerCase()}${row.pareto ? " is-pareto" : ""}${row.score === null ? " is-unverified" : ""}`,
+    }));
+  }
+  const labels = [];
+  const labelPositions = new Map();
+  for (const row of datedRows.filter((row) => row.pareto).sort((a, b) => a.score - b.score || a.id.localeCompare(b.id))) {
+    const tip = caps.get(row.id);
+    const labelWidth = Math.min(245, row.name.length * 7.4);
+    const left = Math.min(geometry.width - labelWidth - 12, tip[0] + 12);
+    let top = tip[1] - 14;
+    while (labels.some((box) => left < box.right && left + labelWidth > box.left && Math.abs(top - box.top) < 20)) top -= 22;
+    labels.push({ left, right: left + labelWidth, top });
+    labelPositions.set(row.id, [left, top]);
+  }
+  // Paint distant stems first. Identical positions retain distinct focus targets.
+  const rows = [...datedRows].sort((a, b) => b.plotScore - a.plotScore || a.time - b.time || a.id.localeCompare(b.id));
+  const labelLayer = svgElement("g", { class: "skyline-labels", "aria-hidden": "true" });
+  for (const row of rows) {
+    const x = timeFraction(row.time);
+    const foot = project(x, row.plotScore);
+    const measured = row.heightCount !== null;
+    const tip = actualTip(row);
+    const cap = caps.get(row.id);
+    const comparable = row.score !== null && measured;
+    const scoreLabel = row.score === null ? t("Source-reported score") : t("Highest score");
+    const label = labelPositions.get(row.id) || [Math.min(geometry.width - 255, cap[0] + 12), cap[1] - 14];
+    const group = svgElement("g", {
+      class: `skyline-point skyline-domain-${row.domain.toLowerCase()}${row.pareto ? " is-pareto" : ""}${!measured || row.score === null ? " is-unverified" : ""}`,
+      tabindex: "0", role: "button", "aria-pressed": "false", "data-frontier-point": "", "data-benchmark-id": row.id,
+      "data-score-basis": row.score === null ? "source-reported" : "normalized",
+      "data-document-count": row.documentCount === null ? "unknown" : row.documentCount,
+      "data-model-count": row.modelCount === null ? "unknown" : row.modelCount,
+      "data-height-count": measured ? row.heightCount : "unknown",
+      "data-benchmark-date": row.date, "data-date-basis": row.dateBasis,
+      "aria-label": `${row.name}. ${scoreLabel}: ${row.plotScore.toLocaleString("en", { maximumFractionDigits: 2 })}. ${t(model.heightLabel)}: ${measured ? row.heightCount.toLocaleString() : t("Not recorded")}. ${t(benchmarkDateLabel(row))}: ${row.date}. ${row.pareto ? t("Pareto frontier") : ""}`,
+    });
+    const dateFoot = project(x, 0);
+    group.append(line(tip, foot, "skyline-date-guide"), line(foot, dateFoot, "skyline-date-guide"),
+      textAt([dateFoot[0], dateFoot[1] + 64], row.date, "skyline-date-label"));
+    if (measured) {
+      const wall = project(0, row.plotScore, row.heightCount);
+      group.append(line(tip, wall, "skyline-guide"),
+        svgElement("circle", { cx: wall[0], cy: wall[1], r: 6, class: "skyline-guide-tip" }));
+    }
+    if (measured) group.append(line(foot, tip, "skyline-stem skyline-mark"),
+      svgElement("circle", { cx: foot[0], cy: foot[1], r: 2, class: "skyline-foot skyline-mark" }));
+    if (Math.hypot(cap[0] - tip[0], cap[1] - tip[1]) > .01) group.append(
+      line(tip, cap, "skyline-cap-connector skyline-guide"),
+      svgElement("circle", { cx: tip[0], cy: tip[1], r: 1.8, class: "skyline-foot skyline-mark" }));
+    group.append(svgElement("circle", { cx: cap[0], cy: cap[1], r: measured ? 5 : 3.6, class: "skyline-cap skyline-mark", "data-frontier-anchor": "" }),
+      svgElement("circle", { cx: cap[0], cy: cap[1], r: 10, class: "skyline-ring" }));
+    const name = textAt(label, shorten(row.name, 34), "skyline-label", "start");
+    const leader = line(cap, [label[0] - 3, label[1] - 4], "skyline-label-leader");
+    if (row.pareto) labelLayer.append(leader, name);
+    else group.append(name);
+    makeFrontierPointInteractive(group, {
+      kind: row.pareto ? t("Pareto frontier") : scoreSourceLabel(row.source), title: row.name,
+      rows: [
+        { label: scoreLabel, value: `${row.plotScore.toLocaleString("en", { maximumFractionDigits: 2 })}${row.score === null ? "" : " / 100"}` },
+        ...(row.score === null ? [
+          { label: t("Score scale"), value: t("Not verified for comparison") },
+          { label: t("Original score"), value: String(row.rawScore) },
+        ] : []),
+        ...(row.inverted ? [{ label: t("Original score"), value: `${row.rawScore}% · ${t("lower is better")}` }] : []),
+        ...countRows(row),
+        ...dateRows(row),
+        { label: t("Domain"), value: t(row.domain) },
+        ...(comparable ? [
+          { label: t("Metric"), value: row.metric || t("Unknown") },
+          { label: t("Instrument"), value: row.instrument || t("Unknown") },
+          { label: t("Protocol"), value: row.protocol || t("Unknown") },
+          { label: t("Score reported"), value: row.reportedAt ? formatDate(row.reportedAt) : t("Unknown") },
+        ] : []),
+        { label: t("Source"), value: row.sourceId || scoreSourceLabel(row.source) },
+      ], url: row.dateReference?.source_url || row.sourceUrl,
+      urlLabel: row.dateReference ? t("Open date source ↗") : null,
+    });
+    svg.append(group);
+  }
+  svg.append(labelLayer);
+  // Missing dates never hide a scored benchmark. This score profile is part
+  // of the main SVG, visible by default; horizontal spacing makes no date claim.
+  const undatedMark = (row, x, y, scored) => {
+    const group = svgElement("g", {
+      class: `${scored ? "skyline-point is-unverified" : "skyline-pending-point"} skyline-undated-point skyline-domain-${row.domain.toLowerCase()}`,
+      tabindex: "0", role: "button", "aria-pressed": "false", "data-frontier-point": "", "data-benchmark-id": row.id,
+      "data-date-basis": "unknown", "data-score-basis": row.score === null ? "source-reported" : "normalized",
+      "data-document-count": row.documentCount === null ? "unknown" : row.documentCount,
+      "data-model-count": row.modelCount === null ? "unknown" : row.modelCount,
+      "data-height-count": row.heightCount === null ? "unknown" : row.heightCount,
+      "aria-label": `${row.name}. ${t("Date unknown")}. ${scoreSourceLabel(row.source)}. ${scored ? `${t("Highest score")}: ${row.plotScore}` : t("No comparable score")}.`,
+    });
+    group.append(svgElement("circle", { cx: x, cy: y, r: 3.5,
+      class: scored ? "skyline-cap skyline-mark" : "skyline-pending-cap", "data-frontier-anchor": "" }),
+    textAt([Math.min(width - 245, x + 10), y - 12], shorten(row.name, 34), "skyline-label", "start"));
+    makeFrontierPointInteractive(group, {
+      kind: scoreSourceLabel(row.source), title: row.name,
+      rows: [
+        { label: t("Highest score"), value: Number.isFinite(row.displayScore)
+          ? `${row.displayScore.toLocaleString("en", { maximumFractionDigits: 2 })}${row.summary?.unit === "percent" ? "%" : ""}` : t("No score reported") },
+        { label: t("Benchmark date"), value: t("Not recorded") },
+        ...countRows(row),
+        { label: t("Score scale"), value: row.score === null ? t("Not verified for comparison") : "0–100" },
+        ...(Number.isFinite(row.rawScore) ? [{ label: t("Original score"), value: String(row.rawScore) }] : []),
+        { label: t("Domain"), value: t(row.domain) },
+      ], url: row.sourceUrl,
+    });
+    return group;
+  };
+  if (hasUndatedScores) {
+    svg.append(line([undatedLeft - 40, 22], [undatedLeft - 40, height - 20], "skyline-panel-divider"),
+      textAt([undatedLeft, 34], t("Date unknown · {n} benchmarks", { n: model.undated.length.toLocaleString() }), "skyline-axis-title", "start"));
+    for (let score = 0; score <= 100; score += 20) {
+      svg.append(line([undatedLeft, scoreY(score)], [undatedLeft + undatedWidth, scoreY(score)], "skyline-grid"),
+        textAt([undatedLeft - 10, scoreY(score) + 4], String(score), "skyline-quarter", "end"));
+    }
+    if (cutoff < 100) svg.append(line([undatedLeft, scoreY(cutoff)], [undatedLeft + undatedWidth, scoreY(cutoff)], "skyline-slice-edge"),
+      textAt([undatedLeft + undatedWidth, scoreY(cutoff) - 9], `< ${cutoff}`, "skyline-slice-label", "end"));
+    const ids = new Set(model.undated.map((row) => row.id));
+    for (const { row, y, lane } of scoreLayout.points) {
+      if (!ids.has(row.id)) continue;
+      const offset = lane === 0 ? 0 : Math.ceil(lane / 2) * (lane % 2 ? 1 : -1) * 9;
+      svg.append(undatedMark(row, undatedLeft + undatedWidth / 2 + offset, y, true));
+    }
+    svg.append(textAt([undatedLeft + undatedWidth / 2, 613], t("Highest reported score · 0–100"), "skyline-axis-title"));
+  }
+  if (undatedPending.length) {
+    let unknownY = undatedTop;
+    if (!hasUndatedScores) svg.append(textAt([undatedLeft, unknownY - 24],
+      t("Date unknown · {n} benchmarks", { n: model.undated.length.toLocaleString() }), "skyline-axis-title", "start"));
+    for (const [heading, records] of undatedPending) {
+      svg.append(textAt([undatedLeft, unknownY], `${t(heading)} · ${records.length.toLocaleString()}`, "skyline-axis-title", "start"));
+      records.sort((a, b) => a.id.localeCompare(b.id)).forEach((row, index) =>
+        svg.append(undatedMark(row, undatedLeft + 6 + index % unknownColumns * 12,
+          unknownY + 25 + Math.floor(index / unknownColumns) * 12, false)));
+      unknownY += 70 + Math.ceil(records.length / unknownColumns) * 12;
+    }
+  }
+  // One dot per benchmark at its exact date; stacked dots share nearby dates,
+  // never a fabricated score. No alphabetical packing into calendar bins.
+  let pendingY = mainHeight;
+  for (const { heading, records, points: datedPoints, height: groupHeight } of pendingGroups) {
+    svg.append(textAt([45, pendingY], `${t(heading)} · ${records.length.toLocaleString()}`, "skyline-axis-title", "start"));
+    for (const { time, year, quarter } of quarters) {
+      const x = dateX(time);
+      svg.append(line([x, pendingY + 57], [x, pendingY + groupHeight - 28], "skyline-grid"),
+        textAt([x, pendingY + 49], quarter === 1 ? String(year) : `Q${quarter}`,
+          quarter === 1 ? "skyline-tick skyline-year" : "skyline-quarter"));
+    }
+    for (const { row, x: cx, lane } of datedPoints) {
+      const cy = pendingY + 67 + lane * 12;
+      const group = svgElement("g", {
+        class: `skyline-pending-point skyline-domain-${row.domain.toLowerCase()}${row.pareto ? " is-pareto" : ""}`,
+        tabindex: "0", role: "button", "aria-pressed": "false", "data-frontier-point": "", "data-benchmark-id": row.id,
+        "data-benchmark-date": row.date, "data-date-basis": row.dateBasis,
+        "aria-label": `${row.name}. ${row.date}. ${scoreSourceLabel(row.source)}. ${t(heading)}.`,
+      });
+      group.append(svgElement("circle", {
+        cx, cy, r: 4, class: "skyline-pending-cap", "data-frontier-anchor": "",
+      }), line([cx, cy], [cx, pendingY + 55], "skyline-date-guide"),
+      textAt([Math.min(width - 255, cx + 12), cy - 10], shorten(row.name, 34), "skyline-label", "start"));
+      if (row.pareto) group.append(svgElement("circle", { cx, cy, r: 6, class: "skyline-ring" }));
+      makeFrontierPointInteractive(group, {
+        kind: scoreSourceLabel(row.source), title: row.name,
+        rows: [
+          { label: t("Highest score"), value: Number.isFinite(row.displayScore)
+            ? `${row.displayScore.toLocaleString("en", { maximumFractionDigits: 2 })}${row.summary?.unit === "percent" ? "%" : ""}` : t("No score reported") },
+          ...countRows(row),
+          { label: t("Score scale"), value: row.score === null ? t("Not verified for comparison") : "0–100" },
+          ...dateRows(row),
+          { label: t("Domain"), value: t(row.domain) },
+        ], url: row.dateReference?.source_url || row.sourceUrl,
+        urlLabel: row.dateReference ? t("Open date source ↗") : null,
+      });
+      svg.append(group);
+    }
+    pendingY += groupHeight;
+  }
+  return svg;
+}
+
+function skylineLegend() {
+  return element("ul", { className: "skyline-legend" }, [
+    ...Object.keys(SKYLINE_DOMAINS).map((domain) => element("li", {
+      className: `skyline-domain-${domain.toLowerCase()}`,
+    }, [element("span", { className: "skyline-swatch", attrs: { "aria-hidden": "true" } }), element("span", { text: t(domain) })])),
+    element("li", {}, [element("span", { className: "skyline-swatch skyline-swatch-pareto", attrs: { "aria-hidden": "true" } }), element("span", { text: t("Pareto frontier") })]),
+    element("li", {}, [element("span", { className: "skyline-swatch skyline-swatch-unknown", attrs: { "aria-hidden": "true" } }), element("span", { text: t("Count or score scale unverified") })]),
+    element("li", {}, [element("span", { className: "skyline-swatch skyline-swatch-proxy", attrs: { "aria-hidden": "true" } }), element("span", { text: t("First score date uses model release") })]),
+  ]);
+}
+
+function enableSkylineKeyboard(svg) {
+  const points = [...svg.querySelectorAll("[data-frontier-point]")].sort((a, b) =>
+    (a.getAttribute("data-benchmark-date") || "9999").localeCompare(b.getAttribute("data-benchmark-date") || "9999")
+    || a.getAttribute("data-benchmark-id").localeCompare(b.getAttribute("data-benchmark-id")));
+  points.forEach((point, index) => point.setAttribute("tabindex", index === 0 ? "0" : "-1"));
+  svg.addEventListener("focusin", (event) => {
+    const active = event.target.closest("[data-frontier-point]");
+    if (active) points.forEach((point) => point.setAttribute("tabindex", point === active ? "0" : "-1"));
+  });
+  svg.addEventListener("keydown", (event) => {
+    const point = event.target.closest("[data-frontier-point]");
+    if (!point) return;
+    let index = points.indexOf(point);
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") index += 1;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") index -= 1;
+    else if (event.key === "Home") index = 0;
+    else if (event.key === "End") index = points.length - 1;
+    else return;
+    event.preventDefault();
+    points[(index + points.length) % points.length]?.focus();
+  });
+}
+
+function renderBenchmarkSkyline(cutoff = state.lscore) {
+  const host = byId("benchmark-skyline-chart");
+  if (!host) return;
+  byId("benchmark-skyline-height").value = state.lheight;
+  // Do not briefly present the small registry as the whole population while
+  // the catalog is loading, or turn a failed load into a plausible tiny chart.
+  if (!state.benchmarkIndex) {
+    const message = t(state.benchmarkIndexLoaded ? "Full benchmark catalog could not be loaded." : "Loading all benchmark sources…");
+    replaceChildren(host, [element("p", { className: "empty-state", text: message })]);
+    byId("benchmark-skyline-count").textContent = "";
+    byId("benchmark-skyline-note").textContent = "";
+    return;
+  }
+  // Selection in another chart survives a slider preview.
+  if (host.contains(selectedFrontierPoint) || host.contains(describedFrontierPoint)) clearFrontierPointSelection();
+  const model = skylineModel(state.benchmarkIndex, cutoff, null, state.lheight);
+  const svg = skylineChart(model, cutoff);
+  const sourceCounts = [...new Set(model.all.map((row) => row.source))].map((source) =>
+    `${scoreSourceLabel(source)}: ${model.visible.filter((row) => row.source === source).length.toLocaleString()} / ${model.all.filter((row) => row.source === source).length.toLocaleString()}`);
+  const measured = model.visible.filter((row) => row.heightCount !== null).length;
+  const heightCoverage = t("Height recorded for {measured} of {visible} shown benchmarks", {
+    measured: measured.toLocaleString(), visible: model.visible.length.toLocaleString(),
+  });
+  const heightBasis = model.heightMetric === "documents"
+    ? t("Distinct cited documents, including model reports and registry pages")
+    : t("Distinct models within each source; configurations may have separate IDs");
+  const contents = [svg];
+  if (!model.visible.length) contents.push(element("p", { className: "empty-state skyline-empty", text: t("No benchmarks match these filters.") }));
+  contents.push(frontierTooltip());
+  replaceChildren(host, contents);
+  replaceChildren(byId("benchmark-skyline-legend"), [skylineLegend()]);
+  byId("benchmark-skyline-sources").textContent = `${t("Shown / corpus")}: ${sourceCounts.join(" · ")}`;
+  byId("benchmark-skyline-coverage").textContent = `${heightCoverage} · ${heightBasis}`;
+  byId("benchmark-skyline-pareto").textContent = t("Pareto: {p} of {n} benchmarks with verified score scales and a recorded height count. Unverified scales do not enter the frontier.", {
+    p: model.comparable.filter((row) => row.pareto).length, n: model.comparable.length,
+  });
+  enableFrontierTouchTargets(svg);
+  enableSkylineKeyboard(svg);
+  byId("benchmark-skyline-count").textContent = t("{visible} of {n} benchmarks shown · {s} sources in corpus", {
+    visible: model.visible.length.toLocaleString(), n: model.population.toLocaleString(), s: model.sources,
+  });
+  byId("benchmark-skyline-note").textContent = t("{unscored} without scores excluded · {older} before 2024 · {hidden} hidden by score", {
+    unscored: model.unscored.toLocaleString(), older: model.beforeStart.toLocaleString(),
+    hidden: (model.hidden - model.beforeStart - model.unscored).toLocaleString(),
+  });
+}
+
+function initBenchmarkSearch() {
+  const input = byId("benchmark-search-input");
+  if (!input || input.dataset.bound === "1") return;
+  input.dataset.bound = "1";
+  const onInput = debounce(() => {
+    state.benchmarkQuery = input.value.trim();
+    state.benchmarkVisibleLimit = BENCHMARK_SEARCH_LIMIT;
+    renderSaturation();
+    writeUrl();
+  });
+  input.addEventListener("input", onInput);
+  byId("benchmark-dimension-filter")?.addEventListener("change", (event) => {
+    selectProjectDimension(event.target.value);
+  });
+  byId("benchmark-dimension-evidence")?.addEventListener("change", (event) => {
+    state.benchmarkDimensionEvidence = event.target.value;
+    selectProjectDimension(state.benchmarkDimension);
+  });
+  byId("benchmark-type-filter")?.addEventListener("change", (event) => {
+    state.benchmarkType = event.target.value;
+    state.benchmarkVisibleLimit = BENCHMARK_SEARCH_LIMIT;
+    state.lfrontierExplicit = false;
+    state.lfrontier = "";
+    renderSaturation();
+    writeUrl();
+  });
+  const modelInput = byId("benchmark-model-input");
+  modelInput.addEventListener("input", debounce(() => {
+    state.benchmarkModel = modelInput.value.trim();
+    state.benchmarkVisibleLimit = BENCHMARK_SEARCH_LIMIT;
+    renderSaturation();
+    writeUrl();
+  }));
+  loadBenchmarkIndex().then((records) => {
+    // Loading and failure remain explicit; no source-specific fallback corpus.
+    state.benchmarkIndex = records;
+    state.benchmarkIndexLoaded = true;
+    // A ?lfrontier=<slug> permalink can only resolve once the index fetch has
+    // settled either way: a resolved index confirms the slug, a failed one
+    // turns the panel's loading state into an explicit unavailability note
+    // (see renderAdoptionFrontier).
+    // Rebuild the document counts and navigation after the common index loads.
+    if (state.view === "leaderboard") renderLeaderboard();
+    if (state.view === "saturation") renderSaturation();
+  });
+}
+
+// --- Catalog detail ---------------------------------------------------------
+// All source records, including model reports, resolve through this index and
+// shard contract. The source does not select a different chart or fallback.
+
+// A shard is fetched on selection and cached for the rest of the session,
+// keyed by slug. Payloads are tens of kilobytes and a session opens a handful,
+// so the cache is never evicted (display plan step 7).
+const benchmarkShardCache = new Map();
+
+function loadBenchmarkShard(slug) {
+  if (!benchmarkShardCache.has(slug)) {
+    benchmarkShardCache.set(
+      slug,
+      fetch(`/benchmark-radar-zh24/data/benchmarks/${slug}.json`, { cache: "no-cache" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .catch(() => null),
+    );
+  }
+  return benchmarkShardCache.get(slug);
+}
+
+// What each source actually recorded, stated next to its name on the table
+// rather than in a footnote. llm-stats rows are vendor-announced numbers with
+// no protocol and no evaluation date (AUDIT.md section 1); the label says so
+// where the numbers are read.
+const CATALOG_SOURCE_META = {
+  model_reports: {
+    name: "Model reports",
+    noteKey: "Scores and citations from model reports. Each score keeps its document, test version, protocol and publication date.",
+    emptyKey: "No numeric scores recorded for this benchmark.",
+  },
+  llm_stats: {
+    name: "LLM Stats",
+    noteKey:
+      // "No date is recorded" was false and was the complaint in issue #269:
+      // every one of the 5,544 rows carries one. What is missing is a date for
+      // the measurement -- the date recorded is the model's own release -- and
+      // that is the distinction worth stating. Higher values are better within
+      // each LLM Stats benchmark; the x axis remains the model release date.
+      "Self-reported scores collected by LLM Stats. Higher values are better. No evaluation protocol is recorded, and the only date is each model's own release, not when the score was measured. The line links successive reported highs by model release; it is not an evaluation-time trend.",
+    emptyKey: "LLM Stats recorded no scores for this benchmark.",
+  },
+  opencompass_hub: {
+    name: "OpenCompass Hub",
+    noteKey:
+      "Scores embedded in the OpenCompass hub card. Column meaning varies from card to card, and rows are listed in the source's own order.",
+    emptyKey: "The OpenCompass hub card records no scores for this benchmark.",
+  },
+  claire_radar: {
+    name: "Claire Radar",
+    noteKey: "Metadata imported from Claire Radar. Review status and original evidence remain attached to the source record.",
+    emptyKey: "Claire Radar recorded no scores for this benchmark.",
+  },
+  artificial_analysis: {
+    name: "Artificial Analysis",
+    noteKey:
+      // The one source here that ran the tests itself, so unlike the other
+      // two it can say how it measured. That is worth stating plainly: the
+      // reader is being told these numbers came from one lab's own runs, and
+      // the date is still the model's release rather than the test date. No
+      // sentence about the method version: the crawl records none, so the
+      // registry's silence rule applies here exactly as it does to LLM Stats.
+      "Scores measured by Artificial Analysis running the test itself, not numbers reported by the model makers. Higher values are better. The date shown is each model's own release date, not the day the test was run.",
+    emptyKey: "Artificial Analysis recorded no scores for this benchmark.",
+  },
+};
+
+function catalogSourceMeta(source) {
+  return (
+    CATALOG_SOURCE_META[source] || {
+      name: source,
+      noteKey: "Scores as recorded by this source, in the source's own order.",
+      emptyKey: "This source recorded no scores for this benchmark.",
+    }
+  );
+}
+
+// The publisher field carries an explicit role because the crawled value is
+// not automatically "who made it": OpenCompass publishOrg names whoever
+// published the hub card, which is frequently not the benchmark's creator
+// (AUDIT.md section 2). The role is printed next to the name so the
+// attribution is never stronger than the evidence.
+function publisherRoleLabel(role) {
+  return (
+    {
+      hub_publisher: t("published the hub card"),
+      paper_org: t("organization behind the paper"),
+      maintainer: t("maintainer"),
+    }[role] || role
+  );
+}
+
+function artifactKindLabel(kind) {
+  return (
+    {
+      paper: t("Paper"),
+      repo: t("Code repository"),
+      dataset: t("Dataset"),
+      site: t("Project site"),
+    }[kind] || kind
+  );
+}
+
+function catalogFactList(facts) {
+  return element(
+    "dl",
+    { className: "catalog-facts" },
+    facts.flatMap(([name, value]) => [
+      element("dt", { text: name }),
+      element("dd", { text: value }),
+    ]),
+  );
+}
+
+// One block per question the reader came with. Every field renders, and an
+// empty one says "not established" instead of disappearing: hiding an empty
+// field reads as "not applicable", and whether these facts are known is
+// precisely the reader's question (display plan step 4).
+// A record with no identity of its own may show a reviewed equivalent's
+// (issue #262): llm-stats carries the scores and the OpenCompass card carries
+// the publisher, artifacts and dates. When it does, the borrowed values are
+// never presented as this source's own -- this note names the donor card and
+// the review, so "Anthropic" reads as "from the OpenCompass card", not "from
+// LLM Stats".
+function catalogInheritanceNote(detail) {
+  const inheritance = detail.identity_inheritance;
+  if (!inheritance) return null;
+  const sourceName = catalogSourceMeta(inheritance.donor_source).name;
+  return element("p", {
+    className: "catalog-inherited",
+    text: t(
+      "Identity below comes from the {source} card after review matched it to the same benchmark; scores are unchanged.",
+      { source: sourceName },
+    ),
+  });
+}
+
+function catalogIdentityBlock(detail) {
+  const publisher = detail.publisher;
+  const description = l10nProse(detail.description?.en, detail.description?.zh);
+  const provenance = detail.provenance || {};
+  const importer = catalogSourceMeta(detail.source).name;
+  const originalEvidence = safeHttpUrl(provenance.source_url);
+  const artifacts = (detail.artifacts || []).filter((artifact) =>
+    safeHttpUrl(artifact.url),
+  );
+  return element("section", { className: "catalog-block" }, [
+    element("h3", { text: t("Identity") }),
+    // Crawled descriptions are third-party text. They only ever go through
+    // text(), which sets textContent, so markup in the crawl can never execute.
+    element("p", {
+      className: "catalog-description",
+      text: description || t("description not established"),
+    }),
+    catalogInheritanceNote(detail),
+    catalogFactList([
+      [t("Benchmark type"), benchmarkTypeIds(detail.slug).map(benchmarkTypeLabel).join(" / ") || t("Type classification unavailable")],
+      [t("Source category labels"), (detail.categories || []).join(" · ") || t("uncategorized")],
+      [
+        t("Publisher"),
+        publisher?.name
+          ? `${publisher.name} (${publisherRoleLabel(publisher.role)})`
+          : t("publisher not established"),
+      ],
+      [
+        t("Released"),
+        detail.released
+          ? formatDate(detail.released, { dateStyle: "medium" })
+          : t("release date not established"),
+      ],
+      [t("Modality"), detail.modality || t("modality not established")],
+      [t("Importer"), importer],
+      ...(provenance.review_state
+        ? [[t("Review status"), provenance.review_state]]
+        : []),
+    ]),
+    originalEvidence
+      ? element("p", { className: "catalog-basis" }, [
+          element("span", { text: `${t("Original evidence")}: ` }),
+          element("a", {
+            text: provenance.source_url,
+            attrs: {
+              href: originalEvidence,
+              target: "_blank",
+              rel: "noopener noreferrer",
+            },
+          }),
+        ])
+      : null,
+    artifacts.length
+      ? element(
+          "ul",
+          { className: "catalog-artifacts" },
+          artifacts.map((artifact) =>
+            element("li", {}, [
+              element("a", {
+                text: `${artifactKindLabel(artifact.kind)} · ${artifact.id || artifact.url}`,
+                attrs: {
+                  href: safeHttpUrl(artifact.url),
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                },
+              }),
+            ]),
+          ),
+        )
+      : element("p", {
+          className: "catalog-empty",
+          text: t("No paper, repository, dataset or site link established."),
+        }),
+  ]);
+}
+
+function catalogOpennessBlock(detail) {
+  const openness = detail.openness || {};
+  const evidence = (openness.evidence || []).filter((item) =>
+    safeHttpUrl(item.evidence_url),
+  );
+  return element("section", { className: "catalog-block" }, [
+    element("h3", { text: t("Openness") }),
+    element("p", { className: "catalog-openness-chip" }, [
+      opennessChip(openness.status),
+    ]),
+    // The basis is the reviewer's own note on how the status was decided, so
+    // it prints as evidence rather than being paraphrased away.
+    openness.basis
+      ? element("p", { className: "catalog-basis", text: openness.basis })
+      : null,
+    catalogFactList([
+      [t("Code licence"), openness.code_license || t("not established")],
+      [t("Data licence"), openness.data_license || t("not established")],
+    ]),
+    evidence.length
+      ? element(
+          "ul",
+          { className: "catalog-artifacts" },
+          evidence.map((item) =>
+            element("li", {}, [
+              element("a", {
+                text: item.locator || item.value || item.evidence_url,
+                attrs: {
+                  href: safeHttpUrl(item.evidence_url),
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                },
+              }),
+            ]),
+          ),
+        )
+      : element("p", {
+          className: "catalog-empty",
+          text: t("No openness evidence recorded."),
+        }),
+  ]);
+}
+
+function catalogSizesBlock(detail) {
+  const sizes = detail.sizes || [];
+  return element("section", { className: "catalog-block" }, [
+    element("h3", { text: t("Size") }),
+    sizes.length
+      ? element(
+          "ul",
+          { className: "catalog-sizes" },
+          sizes.map((size) =>
+            element("li", {}, [
+              element("span", {
+                text:
+                  `${Number(size.value).toLocaleString()} ${size.unit}` +
+                  (size.split ? ` · ${size.split} split` : "") +
+                  // A count with no idea what it counts is worse than no
+                  // number, so `unclear` is printed rather than smoothed over.
+                  (size.measures && size.measures !== "unclear"
+                    ? ` · ${t("counts the")} ${String(size.measures).replaceAll("_", " ")}`
+                    : ` · ${t("what it counts is unclear")}`),
+              }),
+              safeHttpUrl(size.evidence_url)
+                ? element("a", {
+                    className: "catalog-evidence-link",
+                    text: t("evidence ↗"),
+                    attrs: {
+                      href: safeHttpUrl(size.evidence_url),
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                    },
+                  })
+                : null,
+            ]),
+          ),
+        )
+      : element("p", { className: "catalog-empty", text: t("size not established") }),
+  ]);
+}
+
+// Each source record supplies its own series and observations through the shared contract.
+function catalogScoresBlock(shard) {
+  const bySource = shard.scores_by_source || {};
+  const sources = Object.keys(bySource).sort();
+  // No "Scores" heading: the panel title names the benchmark and the subline
+  // names the source and the count, so this said nothing the reader had not
+  // just read, and it was the top half of ~150px of dead space above the
+  // chart (issue #298).
+  return element("section", { className: "catalog-block" }, [
+    // Spread, not nesting: element() appends children verbatim, so a mapped
+    // array passed as one child would stringify into "[object HTMLDivElement]".
+    ...(sources.length
+      ? sources.map((source) => catalogSourceTable(source, bySource[source]))
+      : [element("p", { className: "catalog-empty", text: t("no scores collected") })]),
+  ]);
+}
+
+// The shared score figure uses each observation's recorded date and value.
+// Date precision distinguishes model release from document publication. The
+// display multiplier comes from the generated summary over all numeric rows;
+// changing display units cannot establish a percentage scale or a protocol.
+function catalogPlottedRows(payload) {
+  return (payload.rows || [])
+    .filter((row) => typeof row.value === "number" && Number.isFinite(row.value))
+    .filter((row) => Number.isFinite(dateValue(row.reported_date)))
+    .sort((a, b) => dateValue(a.reported_date) - dateValue(b.reported_date) || a.value - b.value);
+}
+
+function catalogDisplayFactor(series) {
+  // Generated from every numeric observation, including undated rows. The
+  // browser never infers a second scale from just the points it can plot.
+  return series?.score_summary?.display_multiplier ?? 1;
+}
+
+// Spread coincident glyphs horizontally; their score and date anchors stay fixed.
+function catalogScorePositions(rows, x, left, right) {
+  const groups = new Map();
+  for (const row of rows) {
+    const key = `${dateValue(row.reported_date)}|${row.value}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+  const positions = new Map();
+  for (const group of groups.values()) {
+    const dateX = x(dateValue(group[0].reported_date));
+    const gap = Math.min(28, (right - left) / Math.max(1, group.length - 1));
+    const width = (group.length - 1) * gap;
+    const start = Math.max(left, Math.min(dateX - width / 2, right - width));
+    group.forEach((row, index) => positions.set(row, { dateX, pointX: start + index * gap }));
+  }
+  return positions;
+}
+
+function catalogScoreChart(source, payload) {
+  const meta = catalogSourceMeta(source);
+  // A row whose value did not parse is in the table verbatim and out of the
+  // chart: a point can only be drawn at a position, and there is no honest
+  // position for a value that is not a number. A row with no parseable release
+  // date is out for the same reason once the axis is time: there is no honest
+  // x for it. Both exclusions are declared in the source's (i) note rather than
+  // left to be inferred from a count that does not add up.
+  // Sorted by date so the axis reads left to right in time. Ties broken by
+  // score so same-day releases land in a stable order rather than whatever
+  // order the crawl happened to return.
+  const plotted = catalogPlottedRows(payload);
+  if (!plotted.length) return null;
+
+  // Sorted for the band and the tick labels. `plotted` is in date order now, so
+  // its last element is the most recently released model, not the best score:
+  // reading the best off the end of the array is exactly the bug the date axis
+  // would introduce if these two orderings were conflated.
+  const values = plotted.map((row) => row.value).sort((a, b) => a - b);
+  const low = values[0];
+  const high = values[values.length - 1];
+  // Direction belongs to the normalized series contract. LLM Stats is
+  // higher-is-better; keeping the branch makes this renderer honest if another
+  // source later supplies a lower-is-better series.
+  const recordDirection =
+    payload.series?.direction || null;
+  const descends = recordDirection === "lower_is_better";
+  const bestRow = plotted.reduce((best, row) => {
+    const improves = descends ? row.value < best.value : row.value > best.value;
+    if (improves) return row;
+    if (row.value !== best.value) return best;
+    return (row.rank_in_source_response ?? Number.MAX_SAFE_INTEGER) <
+      (best.rank_in_source_response ?? Number.MAX_SAFE_INTEGER)
+      ? row
+      : best;
+  }, plotted[0]);
+  const bestValue = bestRow.value;
+  // Display only: `scoreY` and every geometry below still take raw values, so
+  // the plotted shape is identical whether or not the factor applies.
+  const factor = catalogDisplayFactor(payload.series);
+  const shown = (value) => Number((value * factor).toFixed(2));
+  const recordSetters = catalogRecordSetters(plotted, recordDirection);
+  const hasRecordPath = recordSetters.length >= 2;
+  const recordMarks = new Set(recordSetters.map((row) => row.obs_id));
+  const pad = Math.max((high - low) * 0.18, Math.abs(high) * 0.05, Number.EPSILON);
+  const band = { low: low - pad, high: high + pad };
+
+  // Same viewBox and margins as scoreTrackChart, so the two charts sit at the
+  // same visual scale wherever a reader compares them.
+  const narrow = typeof window !== "undefined" && window.innerWidth <= 760;
+  const width = narrow ? 520 : 920;
+  const scoreHeight = 480;
+  const margin = { top: 32, right: 20, bottom: 62, left: 68 };
+  const plotWidth = width - margin.left - margin.right;
+  const height = margin.top + scoreHeight + margin.bottom;
+  const scoreTop = margin.top;
+  // Positioned by date, so a cluster of releases in one month reads as a
+  // cluster rather than being spread evenly by rank. A field whose releases all
+  // land on one day has no interval to spread across, so its points are drawn
+  // at the left edge rather than at the midpoint of a range that does not exist.
+  const times = plotted.map((row) => dateValue(row.reported_date));
+  const firstTime = Math.min(...times);
+  const lastTime = Math.max(...times);
+  const span = lastTime - firstTime;
+  const x = (time) => (span > 0 ? margin.left + ((time - firstTime) / span) * plotWidth : margin.left);
+  const scoreY = (value) => {
+    if (band.high <= band.low) return scoreTop + scoreHeight / 2;
+    return scoreTop + scoreHeight - ((value - band.low) / (band.high - band.low)) * scoreHeight;
+  };
+
+  const svg = svgElement("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    role: "group",
+    "aria-label": t(
+      plotted.every((row) => row.date_precision === "model_announcement")
+        ? "{count} scores reported to {source}, placed at each model's release date, which is the only date recorded and is not when the score was measured. Best reported {best} by {model}, lowest observed {low}."
+        : "{count} scores from {source}, placed by document publication date. Best reported {best} by {model}, lowest observed {low}.",
+      {
+        count: plotted.length.toLocaleString(),
+        source: meta.name,
+        best: shown(bestValue),
+        model: bestRow.model_name || t("not recorded"),
+        low: shown(values[0]),
+      },
+    ),
+  });
+
+  // The band pads so points are not drawn on the frame, but the ticks label
+  // the real extremes. They used to print the padded bounds, so AIME 2025 --
+  // values 0.067 to 1.0 -- announced an axis from "-0.1" to "1.17": a negative
+  // score and a ceiling above anything observed, neither of which exists in
+  // the data (issue #269).
+  // Intermediate ticks so a point's height can be read rather than inferred
+  // (issue #298). Generated strictly inside [low, high]: the extremes are the
+  // real observed values, and a tick outside them would reintroduce exactly
+  // the padded-bound axis issue #269 removed ("-0.1" to "1.17" on AIME 2025).
+  const yTicks = [high, low];
+  if (high > low) {
+    for (const fraction of [0.25, 0.5, 0.75]) {
+      const value = low + (high - low) * fraction;
+      // Rounded for the label, then kept only if rounding left it inside the
+      // observed range and distinct from the extremes it sits between.
+      const rounded = Number(value.toFixed(2));
+      if (rounded > low && rounded < high && !yTicks.includes(rounded)) {
+        yTicks.push(rounded);
+      }
+    }
+  }
+  for (const value of yTicks) {
+    const gridY = scoreY(value);
+    svg.append(
+      svgElement("line", {
+        x1: margin.left,
+        y1: gridY,
+        x2: width - margin.right,
+        y2: gridY,
+        class: "frontier-grid",
+      }),
+    );
+    svg.append(
+      svgElement(
+        "text",
+        { x: margin.left - 12, y: gridY + 4, "text-anchor": "end", class: "frontier-tick" },
+        shown(value),
+      ),
+    );
+  }
+
+  // The old chart labeled one value "best" while refusing to draw successive
+  // records. That is why AIME 2025 showed 115 dots and no line. Direction now
+  // comes from the normalized series, and the path links the actual strict
+  // record dots directly. It remains a sequence by model release date, not an
+  // evaluation-time trend.
+  if (hasRecordPath) {
+    const clipId = `catalog-record-clip-${String(payload.series?.series_id || source).replace(
+      /[^a-z0-9_-]+/gi,
+      "-",
+    )}`;
+    const definitions = svgElement("defs");
+    const clip = svgElement("clipPath", { id: clipId });
+    clip.append(
+      svgElement("rect", {
+        x: margin.left,
+        y: scoreTop - 4,
+        width: plotWidth,
+        height: scoreHeight + 8,
+        class: "score-frontier-clip",
+      }),
+    );
+    definitions.append(clip);
+    svg.append(definitions);
+    svg.append(
+      svgElement("path", {
+        d: recordSetterPath(
+          recordSetters,
+          (row) => x(dateValue(row.reported_date)),
+          (row) => scoreY(row.value),
+        ),
+        class: "score-frontier-line",
+        fill: "none",
+        "clip-path": `url(#${clipId})`,
+      }),
+    );
+  }
+
+  const bestY = scoreY(bestValue);
+  svg.append(
+    svgElement("line", {
+      x1: margin.left,
+      y1: bestY,
+      x2: width - margin.right,
+      y2: bestY,
+      class: "score-best-line",
+    }),
+  );
+  // Attached to the left end of the reference line it annotates. Anchored at
+  // the far right it floated away from the rule and read as a stray number
+  // (issue #298).
+  svg.append(
+    svgElement(
+      "text",
+      { x: margin.left + 6, y: bestY - 6, "text-anchor": "start", class: "score-best-label" },
+      `${t("Best reported score:")} ${shown(bestValue)}`,
+    ),
+  );
+
+  const positions = catalogScorePositions(plotted, x, margin.left, width - margin.right);
+  for (const row of plotted) {
+    const { dateX, pointX } = positions.get(row);
+    const pointY = scoreY(row.value);
+    if (pointX !== dateX) {
+      svg.append(svgElement("line", {
+        x1: dateX, x2: pointX, y1: pointY, y2: pointY,
+        class: "score-tie-guide",
+      }));
+    }
+    const thirdParty = row.reported_by === "third_party";
+    const offTheLine = hasRecordPath && !recordMarks.has(row.obs_id);
+    // Reveal observations in chronological order for every source.
+    const group = svgElement("g", {
+      class: `score-point${offTheLine ? " score-point-dim" : ""}${
+        thirdParty ? " score-point-third-party" : ""
+      }`,
+      tabindex: "0",
+      role: "button",
+      "aria-pressed": "false",
+      "data-frontier-point": "",
+      style: `--reveal-delay:${frontierPointRevealDelay(pointX, margin, plotWidth)}ms`,
+      "aria-label":
+        `${row.model_name || t("not recorded")} ${t("by")} ${row.organization || t("not recorded")}` +
+        (row.measurement_kind === "benchmark_publisher_run"
+          ? `, ${t("Measured by")} ${row.measured_by}`
+          : thirdParty ? `, ${t("cited by")} ${meta.name}` : "") +
+        `. ${t("Click to pin record details")}.`,
+    });
+    const size = frontierPointSizes(offTheLine);
+    group.append(
+      svgElement("circle", { cx: pointX, cy: pointY, r: size.face, class: "score-point-face" }),
+    );
+    group.append(
+      modelGlyph(row.model_name, row.organization, pointX, pointY, size.glyph, "score-point-glyph"),
+    );
+    // Every source uses the same pinned details. Preserve optional protocols
+    // and label the date by its recorded precision.
+    makeFrontierPointInteractive(group, {
+      kind: t("Reported score"),
+      title: `${row.organization || t("not recorded")} · ${row.model_name || t("not recorded")}`,
+      rows: [
+        { label: t("Organization"), value: row.organization || t("not recorded") },
+        { label: t("Model"), value: row.model_name || t("not recorded") },
+        { label: t("Score as reported"), value: String(row.raw_value ?? row.value) },
+        ...(row.instrument ? [{ label: t("Instrument"), value: row.instrument }] : []),
+        ...(row.protocol ? [{ label: t("Protocol"), value: row.protocol }] : []),
+        ...(row.reported_date
+          ? [
+              {
+                label: t(row.date_precision === "model_announcement" ? "Date (model release)" : "Document publication date"),
+                value: formatDate(row.reported_date, { dateStyle: "medium" }),
+              },
+            ]
+          : []),
+        // Who produced the number, read off the row rather than assumed. This
+        // was hardcoded to "self reported" while llm-stats was the only source
+        // drawing points here, and every llm-stats row is a vendor's own claim.
+        // Artificial Analysis ran the test itself, so the same hardcoded label
+        // would tell the reader the opposite of what the row records.
+        ...(row.measured_by ? [{ label: t("Measured by"), value: row.measured_by }] : []),
+        { label: t("Listed by"), value: meta.name },
+        ...(row.measurement_kind === "benchmark_publisher_run"
+          ? [{ label: t("Reported by"), value: t("benchmark publisher") }]
+          : []),
+        ...(row.reported_by === "self_reported"
+          ? [{ label: t("Reported by"), value: t("self reported") }]
+          : []),
+      ],
+      url: row.source_url,
+    });
+    svg.append(group);
+  }
+  enableFrontierTouchTargets(svg);
+
+  // Endpoint ticks, matching the curated chart's axis. They label the real
+  // first and last release date rather than a padded range, for the same
+  // reason the score ticks do (issue #269).
+  if (span > 0) {
+    const endpoints = [
+      [margin.left, firstTime, "start"],
+      [margin.left + plotWidth, lastTime, "end"],
+    ];
+    for (const [tickX, time, anchor] of endpoints) {
+      svg.append(
+        svgElement(
+          "text",
+          { x: tickX, y: height - 26, "text-anchor": anchor, class: "frontier-tick" },
+          formatDate(new Date(time).toISOString().slice(0, 10), {
+            year: "numeric",
+            month: "short",
+          }),
+        ),
+      );
+    }
+    // Quarter boundaries between the endpoints, so a point's date can be read
+    // off the axis rather than interpolated (issue #298). Only quarters that
+    // fall strictly inside the observed span are drawn, and only where they
+    // clear the endpoint labels: the extremes stay the real first and last
+    // release date, never a rounded range.
+    const quarterGap = 46;
+    const first = new Date(firstTime);
+    const cursor = new Date(
+      Date.UTC(first.getUTCFullYear(), Math.ceil((first.getUTCMonth() + 1) / 3) * 3, 1),
+    );
+    while (cursor.getTime() < lastTime) {
+      const tickX = x(cursor.getTime());
+      if (
+        tickX - margin.left > quarterGap &&
+        margin.left + plotWidth - tickX > quarterGap
+      ) {
+        svg.append(
+          svgElement("line", {
+            x1: tickX,
+            y1: scoreTop + scoreHeight,
+            x2: tickX,
+            y2: scoreTop + scoreHeight + 5,
+            class: "frontier-grid",
+          }),
+        );
+        svg.append(
+          svgElement(
+            "text",
+            { x: tickX, y: height - 26, "text-anchor": "middle", class: "frontier-tick" },
+            formatDate(cursor.toISOString().slice(0, 10), {
+              year: "numeric",
+              month: "short",
+            }),
+          ),
+        );
+      }
+      cursor.setUTCMonth(cursor.getUTCMonth() + 3);
+    }
+  } else {
+    svg.append(svgElement("text", {
+      x: margin.left, y: height - 26, "text-anchor": "start", class: "frontier-tick",
+    }, formatDate(plotted[0].reported_date, { dateStyle: "medium" })));
+  }
+  svg.append(
+    svgElement(
+      "text",
+      {
+        x: margin.left + plotWidth / 2,
+        y: height - 7,
+        "text-anchor": "middle",
+        class: "frontier-axis-label",
+      },
+      // Says which date this is on the axis itself, not only in a tooltip a
+      // reader has to open. Nothing here records when any of these scores was
+      // actually measured; that qualification lives in the (i) note and the
+      // chart's aria-label, so the axis names the date and stops.
+      t(plotted.every((row) => row.date_precision === "model_announcement") ? "model release date" : "document publication date"),
+    ),
+  );
+  return svg;
+}
+
+function catalogSourceTable(source, payload) {
+  const meta = catalogSourceMeta(source);
+  const rows = payload.rows || [];
+  const series = payload.series || {};
+  const notes = [t(meta.noteKey)];
+  // A declared maximum that observed values exceed is a fact about the source,
+  // not a scale. Printed as a claim, used as nothing.
+  if (series.max_score_contradicted) {
+    notes.push(
+      t("The source declares a maximum of {max} but carries values above it, so that bound is not a scale.").replace(
+        "{max}",
+        String(series.declared_max),
+      ),
+    );
+  }
+  // Account for observations with no date in the shared information note.
+  const undated = (payload.rows || []).filter(
+    (row) =>
+      typeof row.value === "number" &&
+      Number.isFinite(row.value) &&
+      !Number.isFinite(dateValue(row.reported_date)),
+  ).length;
+  if (undated) {
+    notes.push(
+      t("{n} row(s) have no release date, so they carry no position on this axis and are not drawn.").replace(
+        "{n}",
+        undated.toLocaleString(),
+      ),
+    );
+  }
+  // Stated, not assumed. A reader comparing a tick against the source's own
+  // page has to be told the axis was multiplied, and by what (issue #341).
+  if (catalogDisplayFactor(series) !== 1) {
+    notes.push(
+      t(
+        "Every score in this series falls between 0 and 1, so the chart multiplies them by 100 to read as 0 to 100. That is a change of units only: it asserts no maximum, and each point's pinned card shows the number the source published.",
+      ),
+    );
+  }
+  const chart = catalogScoreChart(source, payload);
+  if (chart?.querySelector(".score-tie-guide")) {
+    notes.push(t("Tied markers are separated horizontally for selection; connectors lead to their recorded date. Score heights are unchanged."));
+  }
+  // Put the color key and the single provenance note below the figure.
+  return element("div", { className: "catalog-source" }, [
+    // frontier-chart's own layout class (position: relative, full-width svg)
+    // rather than a bespoke one: the pinned tooltip's positioning math reads
+    // its own parentElement as the clamp box, and reusing this class is what
+    // keeps pinned details within the chart's bounds.
+    chart
+      ? element("div", { className: "frontier-chart" }, [chart, frontierTooltip()])
+      : element("p", { className: "catalog-empty", text: t(meta.emptyKey) }),
+    element("div", { className: "figure-caption catalog-chart-notes" }, [
+      chart ? organizationLegend(catalogPlottedRows(payload)) : null,
+      infoDisclosure(notes.join(" ")),
+    ]),
+    catalogScoreResults(source, rows),
+  ]);
+}
+
+// The chart is useful for trends; the same observations need a readable route
+// on a phone, including scores with no date (which cannot appear on the axis).
+function catalogScoreResults(source, rows) {
+  if (!rows.length) return null;
+  const meta = catalogSourceMeta(source);
+  const ordered = rows.slice().sort((a, b) =>
+    String(b.reported_date || "").localeCompare(String(a.reported_date || "")) ||
+    String(a.model_name || "").localeCompare(String(b.model_name || "")) ||
+    String(a.obs_id || "").localeCompare(String(b.obs_id || "")));
+  return element("section", { className: "catalog-result-section" }, [
+    element("h3", { text: `${t("Reported benchmark scores")} · ${t(meta.name)} (${ordered.length.toLocaleString()})` }),
+    element("ol", { className: "catalog-result-list" }, ordered.map((row) =>
+      element("li", { className: "catalog-result" }, [
+        element("div", { className: "catalog-result-main" }, [
+          element("strong", { text: row.model_name || t("not recorded") }),
+          element("strong", { className: "catalog-result-value", text: String(row.raw_value ?? row.value ?? t("not recorded")) }),
+        ]),
+        element("p", { className: "catalog-result-meta", text: [
+          row.organization,
+          row.reported_date ? `${t(row.date_precision === "model_announcement" ? "model release date" : "Document publication date")} ${formatDate(row.reported_date, { dateStyle: "medium" })}` : t("Date unknown"),
+        ].filter(Boolean).join(" · ") }),
+        row.instrument || row.protocol ? element("p", { className: "catalog-result-meta", text: [row.instrument, row.protocol].filter(Boolean).join(" · ") }) : null,
+        safeHttpUrl(row.source_url) ? element("a", { className: "catalog-result-source", text: t("Open source record ↗"), attrs: {
+          href: safeHttpUrl(row.source_url), target: "_blank", rel: "noopener noreferrer",
+        } }) : null,
+      ]))),
+  ]);
+}
+
+// Identity siblings are cross-links, never merges: a variant points at a
+// related record the reader may have been looking for, and each link selects
+// that record's own shard rather than folding it into this one.
+function catalogSiblingsBlock(shard) {
+  const siblings = shard.siblings || [];
+  if (!siblings.length) return null;
+  const relationLabel = (relation) =>
+    ({
+      equivalent: t("same benchmark, other source"),
+      "variant:split_sibling": t("related split"),
+      "variant:framework_sibling": t("same framework"),
+      "variant:introduced_in": t("introduced in the same paper"),
+      "variant:of": t("has a related variant"),
+    })[relation] || String(relation).replaceAll("_", " ");
+  const items = siblings.map((sibling) => {
+    const link = element("button", {
+      className: "catalog-sibling-link",
+      text: sibling.name,
+      attrs: { type: "button" },
+    });
+    link.addEventListener("click", () => {
+      selectFrontier(sibling.slug);
+      renderAdoptionFrontier(catalogDocumentBoard());
+      writeUrl("push");
+    });
+    return element("li", {}, [
+      link,
+      element("span", {
+        className: "catalog-sibling-meta",
+        text: `${catalogSourceMeta(sibling.source).name} · ${relationLabel(sibling.relation)}`,
+      }),
+    ]);
+  });
+  return element("section", { className: "catalog-block" }, [
+    element("h3", { text: t("Related records") }),
+    element("ul", { className: "catalog-siblings" }, items),
+  ]);
+}
+
+function catalogDocumentsBlock(record) {
+  const documents = record.documents || [];
+  if (!documents.length) return null;
+  return element("section", { className: "catalog-block" }, [
+    element("h3", { text: t("Source documents") }),
+    element("ul", { className: "catalog-artifacts" }, documents.map((document) =>
+      element("li", {}, [element("a", {
+        text: document.title || catalogSourceMeta(document.source).name,
+        attrs: { href: safeHttpUrl(document.source_url), target: "_blank", rel: "noopener noreferrer" },
+      }), element("span", { className: "catalog-sibling-meta", text: [
+        catalogSourceMeta(document.source).name,
+        document.published ? formatDate(document.published, { dateStyle: "medium" }) : "",
+      ].filter(Boolean).join(" · ") })]),
+    )),
+  ]);
+}
+
+function catalogBenchmarkDetail(shard) {
+  const detail = shard.record || {};
+  // Scores first: it is the one block a reader came for on this panel (the
+  // adjacent curated chart is a saturation-over-time view, and this is its
+  // catalog-record counterpart), and it is the block most likely to have
+  // content -- identity, openness and size are frequently "not established".
+  return [
+    catalogScoresBlock(shard),
+    catalogDocumentsBlock(detail),
+    catalogIdentityBlock(detail),
+    catalogDimensionBlock(detail),
+    catalogOpennessBlock(detail),
+    catalogSizesBlock(detail),
+    catalogSiblingsBlock(shard),
+  ];
+}
+
+// The chart chrome only describes the curated score layer, so it is hidden
+// while an catalog record occupies the panel. Hiding is the honest direction
+// here: none of those elements could show anything but an empty state for a
+// record the curated registry does not track, and an empty chart reads as "no
+// score" where the truth is "not measured by this layer".
+const CANONICAL_FRONTIER_CHROME = [
+  "frontier-explainer-sub",
+  "frontier-legend",
+  "frontier-chart",
+  "frontier-org-key",
+  "frontier-score-readout",
+  "frontier-evidence",
+];
+
+function setCanonicalFrontierChrome(visible) {
+  for (const id of CANONICAL_FRONTIER_CHROME) {
+    const node = byId(id);
+    if (node) node.hidden = !visible;
+  }
+  const external = byId("frontier-catalog");
+  if (external) {
+    external.hidden = visible;
+    // Emptied, not just hidden. A crawled record's DOM carries its own
+    // tooltip and its own focusable points; left in place they stay in the
+    // tab order and in every document-wide query behind a `hidden` attribute
+    // that only affects painting (issue #261).
+    if (visible) replaceChildren(external, []);
+  }
+  // Catalog records replace the eyebrow with a source subline. Restore both
+  // pieces of title chrome when the picker returns to curated data; otherwise
+  // AIME kept saying "115 reported scores · LLM Stats" and "Scores over time"
+  // stayed hidden even though the chart and heading had switched layers.
+  if (visible) {
+    const eyebrow = byId("frontier-eyebrow");
+    if (eyebrow) eyebrow.hidden = false;
+    const subline = byId("frontier-subline");
+    if (subline) {
+      subline.textContent = "";
+      subline.hidden = true;
+    }
+  }
+}
+
+// The picker follows Saturation's browser, including the full-catalog search.
+function frontierPickerGroups(scored) {
+  return [[t("Browse all benchmarks"), scored.map((row) => [
+    row.id, `${row.name} · ${scoreSourceLabel(row.source)}`,
+  ])]];
+}
+
+function renderFrontierPicker(scored, selectedValue) {
+  replaceChildren(
+    byId("frontier-benchmark"),
+    frontierPickerGroups(scored).map(([label, rows]) =>
+      element(
+        "optgroup",
+        // The count is on the label because the groups are wildly uneven (59
+        // curated against several hundred crawled) and a reader scrolling a
+        // long list deserves to know how far the group runs.
+        { attrs: { label: `${label} (${rows.length.toLocaleString()})` } },
+        rows.map(([value, name]) => option(value, name, value === selectedValue)),
+      ),
+    ),
+  );
+  const picker = byId("frontier-benchmark");
+  if (selectedValue && ![...picker.options].some((row) => row.value === selectedValue)) {
+    const record = (state.benchmarkIndex || []).find((row) => row.slug === selectedValue);
+    picker.prepend(option(selectedValue, record?.name || selectedValue, true));
+  }
+  renderScoreSelectionNote();
+}
+
+// State the source and numeric observation count once, under the benchmark name.
+function catalogSubline(record, meta) {
+  const parts = [];
+  if (record.score_count) {
+    parts.push(metricLabel(record.score_count, "reported score", "reported scores"));
+  }
+  parts.push(meta.name);
+  return parts.join(" \u00b7 ");
+}
+
+function renderCatalogShell(
+  board,
+  scored,
+  { eyebrow, heading, badge, message, prependOption, subline },
+) {
+  clearFrontierPointSelection();
+  setCanonicalFrontierChrome(false);
+  // A shell replaces whatever chart was on screen, so no completion timer may
+  // spend a reveal the reader is no longer looking at.
+  drawnFrontierEntranceKey = null;
+  // An empty eyebrow or badge is hidden rather than rendered blank: a crawled
+  // record states its source once, on the subline, and repeating it in a
+  // non-interactive chip beside the title read as broken state (issue #298).
+  const eyebrowNode = byId("frontier-eyebrow");
+  eyebrowNode.textContent = eyebrow || "";
+  eyebrowNode.hidden = !eyebrow;
+  byId("frontier-heading").textContent = heading;
+  const stage = byId("frontier-stage");
+  stage.className = "frontier-stage";
+  stage.hidden = !badge;
+  stage.textContent = badge || "";
+  const sublineNode = byId("frontier-subline");
+  if (sublineNode) {
+    sublineNode.textContent = subline || "";
+    sublineNode.hidden = !subline;
+  }
+  const infoHost = byId("frontier-heading-info");
+  if (infoHost) replaceChildren(infoHost, []);
+  renderFrontierPicker(scored, state.lfrontier);
+  if (prependOption) {
+    const picker = byId("frontier-benchmark");
+    const [value, label] = prependOption;
+    const existing = [...picker.options].find((candidate) => candidate.value === value);
+    if (existing) existing.selected = true;
+    else picker.prepend(option(value, label, true));
+  }
+  replaceChildren(byId("frontier-catalog"), [
+    element("p", { className: "empty-state", text: message }),
+  ]);
+}
+
+// Superseded shard paints are dropped: if the same record is rendered twice
+// before its (cached) shard promise settles, only the latest call may paint,
+// or the second paint would clear the entrance class before the browser ever
+// drew the first frame.
+let catalogRenderSeq = 0;
+
+function renderCatalogBenchmark(board, scored, record) {
+  const meta = catalogSourceMeta(record.source);
+  // One title, one metadata line. The eyebrow ("Catalog catalog record") and
+  // the source badge both said what this line says, and the reader had to read
+  // three elements to learn one fact (issue #298).
+  renderCatalogShell(board, scored, {
+    eyebrow: "",
+    heading: record.name,
+    badge: "",
+    subline: catalogSubline(record, meta),
+    message: t("Loading benchmark details…"),
+  });
+  // Scored crawled records are in the picker already. An unscored one is not,
+  // and it is still reachable by search, so it is prepended as its own option:
+  // a <select> displaying a different benchmark than the one rendered would be
+  // lying about the state.
+  const picker = byId("frontier-benchmark");
+  const existing = [...picker.options].find((candidate) => candidate.value === record.slug);
+  if (existing) existing.selected = true;
+  else picker.prepend(option(record.slug, `${record.name} · ${meta.name}`, true));
+  const container = byId("frontier-catalog");
+  const renderToken = ++catalogRenderSeq;
+  loadBenchmarkShard(record.slug).then((shard) => {
+    // The reader may have moved on while the shard was on the wire; only paint
+    // if this record is still the selection -- and only if no newer render of
+    // this panel has superseded this callback.
+    if (state.lfrontier !== record.slug) return;
+    if (renderToken !== catalogRenderSeq) return;
+    if (!shard) {
+      // A failed shard fetch leaves the index row and the selection in place;
+      // only the panel reports the failure (display plan step 7).
+      replaceChildren(container, [
+        element("p", {
+          className: "empty-state",
+          text: t("Could not load details for this benchmark."),
+        }),
+      ]);
+      return;
+    }
+    // The entrance is keyed to arriving at this record; a re-render after an
+    // unrelated panel redraw does not replay it.
+    container.classList.toggle(
+      "score-chart-enter",
+      frontierShouldAnimate(`catalog:${record.slug}`),
+    );
+    replaceChildren(container, catalogBenchmarkDetail(shard));
+  });
+}
+
+// Entry points for a reader who has nothing in mind to type, ranked by how
+// many curated model cards report the benchmark. That ordering is the one
+// reading this registry is built to make, so the list needs no editorial
+// curation and no computed subheadings: "most reported" is both the rank and
+// the reason a name is worth trying.
+//
+// Every row is a curated benchmark, because `card_count` is a curated fact:
+// the crawled catalog records scores, not who chose to report them. The
+// crawled layer is not hidden by this, it is reached from the search box and
+// the picker, both of which cover all 679 scored crawled records alongside
+// these.
+const BENCHMARK_EXAMPLE_LIMIT = 20;
+
+function renderBenchmarkNavigator(board) {
+  initBenchmarkSearch();
+  renderBenchmarkSearch();
+  const host = byId("benchmark-shortlist");
+  const info = byId("benchmark-example-info");
+  if (info) replaceChildren(info, []);
+  if (host) replaceChildren(host, saturationRows().slice(0, 3).map(scoreBrowseResultRow));
+}
+
+function renderFrontierTaskPreview(entry) {
+  const shape = taskShape(entry);
+  replaceChildren(byId("frontier-task-preview"), [
+    element("p", {
+      className: "eyebrow",
+      text: shape.provenance || t("Representative task shape"),
+    }),
+    element("h3", { text: shape.title, attrs: { id: "frontier-task-heading" } }),
+    element("div", { className: "task-shape" }, [
+      shape.example ? element("span", { text: t("Paraphrased example") }) : null,
+      shape.example ? element("p", { text: shape.example }) : null,
+      element("span", { text: t("Scenario") }),
+      element("p", { text: shape.scenario }),
+      element("span", { text: t("Evaluated artifact") }),
+      element("p", { text: shape.artifact }),
+    ]),
+    element("p", {
+      className: "task-shape-note",
+      text: shape.provenance
+        ? t("Not a verbatim benchmark item. This description paraphrases the official source; open it for the exact tasks and scoring rules.")
+        : t("Not a verbatim benchmark item. This is an illustrative format based on the recorded domain; use the official source for the exact tasks and scoring rules."),
+    }),
+    entry.caveat
+      ? element("div", { className: "frontier-caveat" }, [
+          element("strong", { text: "Comparison caveat" }),
+          element("p", { text: entry.caveat }),
+        ])
+      : null,
+    safeHttpUrl(entry.url)
+      ? element("a", {
+          className: "frontier-source-link",
+          text: t("Open official benchmark source ↗"),
+          attrs: {
+            href: safeHttpUrl(entry.url),
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+        })
+      : null,
+  ]);
+}
+
+// --- Score progression (issue #91) ------------------------------------------
+//
+// The saturation half of the panel. `benchmark_score_progression` carries only
+// values read verbatim out of cited documents, grouped into series the join rule
+// permits a line through: identical instrument AND identical protocol. Anything
+// else stays an unconnected point, because two numbers taken under unstated and
+// possibly different conditions are not a measurement of change.
+//
+// Under that rule this corpus yields very few multi-date runs, and most are one
+// vendor reporting its own successive models. That is a real property of vendor
+// reporting rather than something to engineer around, so the chart draws what
+// exists and `evidence` states what it can support.
+
+function scoreRecord(benchmarkId) {
+  return state.data?.benchmark_score_progression?.benchmarks?.[benchmarkId] || null;
+}
+
+// Whether a record's points span any time at all. A chart headed "over time"
+// has to be drawn across at least two distinct dates; one date, or one point,
+// is a reading rather than a trajectory however it is plotted.
+function spansTime(record) {
+  if (!record || record.observation_count < 2) return false;
+  return Boolean(
+    record.first_reported_at &&
+      record.last_reported_at &&
+      record.first_reported_at !== record.last_reported_at,
+  );
+}
+
+// The plotted band for a score axis. Percent metrics are NOT drawn 0-100: every
+// value in this corpus sits in the upper half, so a full-height axis compresses
+// the interesting movement into a sliver. The band is padded around the observed
+// range instead, and the axis is labelled with its real bounds so a reader
+// cannot mistake a zoomed axis for a full one.
+// Link actual record-setting observations, and only those observations. A
+// staircase says the score continuously held between reports; extending it to
+// the chart edge says it still held after the last report. Neither statement is
+// in the data. A direct segment says only what this mark is meant to say:
+// reported record A was followed by reported record B.
+function recordSetterPath(points, xValue, yValue) {
+  if (points.length < 2) return "";
+  return points
+    .map((point, index) => `${index ? "L" : "M"} ${xValue(point)} ${yValue(point)}`)
+    .join(" ");
+}
+
+// Catalog rows have release dates rather than evaluation dates, so this is a
+// reported-record sequence by model release, not a measurement trend. Collapse
+// one date to its directional best, then retain strict record setters. Exact
+// ties prefer the source's better rank and finally its stable observation id.
+function catalogRecordSetters(rows, direction) {
+  if (!direction) return [];
+  const descends = direction === "lower_is_better";
+  const bestByDate = new Map();
+  for (const row of rows) {
+    const time = dateValue(row.reported_date);
+    const current = bestByDate.get(time);
+    const improves =
+      !current || (descends ? row.value < current.value : row.value > current.value);
+    const winsTie =
+      current &&
+      row.value === current.value &&
+      ((row.rank_in_source_response ?? Number.MAX_SAFE_INTEGER) <
+        (current.rank_in_source_response ?? Number.MAX_SAFE_INTEGER) ||
+        ((row.rank_in_source_response ?? Number.MAX_SAFE_INTEGER) ===
+          (current.rank_in_source_response ?? Number.MAX_SAFE_INTEGER) &&
+          String(row.obs_id || "") < String(current.obs_id || "")));
+    if (improves || winsTie) bestByDate.set(time, row);
+  }
+
+  const setters = [];
+  let best = null;
+  for (const row of [...bestByDate.values()].sort(
+    (a, b) => dateValue(a.reported_date) - dateValue(b.reported_date),
+  )) {
+    if (best === null || (descends ? row.value < best : row.value > best)) {
+      best = row.value;
+      setters.push(row);
+    }
+  }
+  return setters;
+}
+
+function scoreBand(record) {
+  const values = record.observations.map((observation) => observation.value);
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const pad = Math.max(2, (high - low) * 0.18);
+  const bound = record.saturation.bound;
+  return {
+    low: bound === null ? low - pad : Math.max(0, low - pad),
+    high: bound === null ? high + pad : Math.min(bound, high + pad),
+  };
+}
+
+function scoreReadout(entry, record) {
+  const saturation = record.saturation;
+  const historicalBest = record.historical_best_frontier?.points?.at(-1);
+  const evidence = record.evidence;
+  const rows = [
+    element("div", { className: "score-readout-figure" }, [
+      // "Best" ranks a field, and where the record holds one score there is no
+      // field to top. "Only charted score" says the same number without the
+      // implied competition it won, and is scoped to this chart on purpose:
+      // one score here is not a claim that nobody else ever published one.
+      element("span", {
+        text: record.observation_count === 1 ? t("Only charted score") : t("Best on record"),
+      }),
+      element("strong", {
+        text: `${historicalBest?.value ?? saturation.best_value}${record.unit === "percent" ? "%" : ""}`,
+      }),
+      element("small", {
+        text: `${historicalBest?.model ?? saturation.best_model} · ${historicalBest?.organization ?? saturation.best_organization} · ${formatDate(
+          historicalBest?.reported_at ?? saturation.best_reported_at,
+          { dateStyle: "medium" },
+        )}`,
+      }),
+    ]),
+  ];
+  if (saturation.headroom !== null) {
+    rows.push(
+      element("div", { className: "score-readout-figure" }, [
+        element("span", { text: t("Headroom left") }),
+        element("strong", { text: `${saturation.headroom}` }),
+        // On a lower-is-better metric the backend measures headroom to zero, not
+        // to `bound`. Naming the bound in both cases would print "10 points to
+        // the 100-point bound" for a score of 10, which is arithmetically false.
+        element("small", {
+          text:
+            record.direction === "lower_is_better"
+              ? t("points to zero, the floor of this metric")
+              : t("points to the {bound}-point bound of this metric", {
+                  bound: saturation.bound,
+                }),
+        }),
+      ]),
+    );
+  }
+  rows.push(
+    element("div", { className: "score-readout-figure" }, [
+      element("span", { text: t("Readable values") }),
+      element("strong", { text: String(record.observation_count) }),
+      // "comparable run" was jargon for a group of scores sharing an instrument
+      // AND a protocol, which is the only condition under which two numbers on
+      // this chart may be read against each other (issue #261). The count is
+      // worth showing and the term was not: a reader should not have to learn
+      // this project's vocabulary to know whether the values can be compared.
+      // metricLabel's default pluralizer appends "s" to the last word, which
+      // turned this into "0 set measured the same ways". The plural is passed
+      // explicitly so the noun, not the trailing adverb, takes the inflection.
+      element("small", {
+        text: `${metricLabel(record.dated_observation_count, "date")} · ${metricLabel(
+          record.comparable_series_count,
+          "set measured the same way",
+          "sets measured the same way",
+        )}`,
+      }),
+    ]),
+  );
+
+  return element("div", { className: "score-readout-inner" }, [
+    element("div", { className: "score-readout-figures" }, rows),
+    // Scores first, method second: the figures above are the numbers a reader
+    // came for, and the supports/does-not-support prose is the reasoning behind
+    // them. Collapsed by default so it stays one tap away rather than pushing
+    // the next benchmark's figures further down the page.
+    element("details", { className: `score-evidence score-evidence-${evidence.id}` }, [
+      element("summary", {}, [element("strong", { text: evidence.label })]),
+      element("p", {}, [
+        element("span", { className: "score-evidence-yes", text: t("Supports: ") }),
+        document.createTextNode(evidence.supports),
+      ]),
+      element("p", {}, [
+        element("span", { className: "score-evidence-no", text: t("Does not support: ") }),
+        document.createTextNode(evidence.does_not_support),
+      ]),
+    ]),
+    record.third_party_count
+      ? element("p", {
+          className: "score-readout-note",
+          // The verb has to agree with the count, not stay singular beside a
+          // pluralized noun ("4 values here is a third party...").
+          text: `${metricLabel(record.third_party_count, "value")} ${
+            record.third_party_count === 1 ? t("here is a third party") : t("here are third parties")
+          } ${t("quoting another vendor's figure, marked with a ring on the chart")}.`,
+        })
+      : null,
+  ]);
+}
+
+function renderScoreReadout(entry) {
+  const host = byId("frontier-score-readout");
+  if (!host) return;
+  const record = scoreRecord(entry.benchmark_id);
+  // Unreachable on the canonical path (the picker only lists scored benchmarks),
+  // but the message stays honest rather than naming a chart that does not draw.
+  if (!record) {
+    replaceChildren(host, [
+      element("p", {
+        className: "score-readout-empty",
+        text:
+          t("No score for this benchmark could be read verbatim from the cited documents. An absent value is not a zero and not a plateau."),
+      }),
+    ]);
+    return;
+  }
+  replaceChildren(host, [scoreReadout(entry, record)]);
+}
+
+let selectedFrontierPoint = null;
+let selectedFrontierDetails = null;
+let describedFrontierPoint = null;
+let selectedFrontierSourceVisited = false;
+
+// Each chart owns its tooltip. The curated panel mounts one inside
+// #frontier-chart and every crawled source block mounts another inside
+// #frontier-catalog, so a document-wide id is not an address: getElementById
+// returns the first match, #frontier-catalog sits above #frontier-chart in
+// index.html, and the curated chart's card ends up written into the crawled
+// chart's hidden node (issue #261 -- hover and click both looked dead because
+// they shared one lookup). The id is still unique per instance because
+// aria-describedby has to point at something, and `frontierTooltipFor` reads
+// the point's own chart rather than the document.
+let frontierTooltipSeq = 0;
+
+function frontierTooltip() {
+  const tooltip = element("div", {
+    className: "frontier-tooltip",
+    attrs: {
+      id: `frontier-tooltip-${++frontierTooltipSeq}`,
+      role: "tooltip",
+      hidden: "",
+      "aria-live": "polite",
+    },
+  });
+  tooltip.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && selectedFrontierPoint) {
+      event.preventDefault();
+      const point = selectedFrontierPoint;
+      point.focus();
+      clearFrontierPointSelection();
+      return;
+    }
+    if (event.key !== "Tab" || !event.target.matches(".frontier-tooltip-source")) return;
+    if (event.shiftKey) {
+      event.preventDefault();
+      selectedFrontierPoint?.focus();
+      return;
+    }
+    // Same reasoning as positionFrontierTooltip: walk from the tooltip's own
+    // parent rather than the curated chart's id, so Tab-to-next-point also
+    // works inside the crawled chart's copy of this tooltip.
+    const points = [...tooltip.parentElement.querySelectorAll("[data-frontier-point]")];
+    const next = points[points.indexOf(selectedFrontierPoint) + 1];
+    if (next) {
+      selectedFrontierSourceVisited = true;
+      event.target.setAttribute("tabindex", "-1");
+      event.preventDefault();
+      next.focus();
+    }
+  });
+  return tooltip;
+}
+
+// The tooltip belonging to the chart this point is drawn in. Falls back to a
+// document-wide lookup only for a detached node, which no live point is.
+function frontierTooltipFor(node) {
+  return node?.closest(".frontier-chart")?.querySelector(".frontier-tooltip") || null;
+}
+
+function frontierTooltipContent(details, pinned) {
+  return [
+    element("span", { className: "frontier-tooltip-kind", text: details.kind }),
+    element("strong", { className: "frontier-tooltip-title", text: details.title }),
+    element(
+      "dl",
+      { className: "frontier-tooltip-details" },
+      details.rows.flatMap(({ label, value }) => [
+        element("dt", { text: label }),
+        element("dd", { text: value }),
+      ]),
+    ),
+    pinned && safeHttpUrl(details.url)
+      ? element("a", {
+          className: "frontier-tooltip-source",
+          text: details.urlLabel || t("Open source record ↗"),
+          attrs: {
+            href: safeHttpUrl(details.url),
+            target: "_blank",
+            rel: "noopener noreferrer",
+            tabindex: selectedFrontierSourceVisited ? "-1" : "0",
+          },
+        })
+      : null,
+    element("span", {
+      className: "frontier-tooltip-hint",
+      text: pinned
+        ? t("Pinned · click the marker again or press Escape to close")
+        : t("Click the marker to pin these details"),
+    }),
+  ];
+}
+
+function positionFrontierTooltip(tooltip, group) {
+  // The host is wherever the tooltip actually lives, not a hardcoded id: the
+  // curated chart mounts it inside #frontier-chart, and the crawled chart
+  // mounts an identical instance inside #frontier-catalog so an external
+  // record's points get the same pinned card. Positioning math only needs a
+  // bounding box to clamp against, and the tooltip's own parent is that box.
+  const host = tooltip.parentElement;
+  if (!host) return;
+  const hostBox = host.getBoundingClientRect();
+  const pointBox = (group.querySelector("[data-frontier-anchor]") || group).getBoundingClientRect();
+  const gap = 10;
+  const centered = pointBox.left + pointBox.width / 2 - tooltip.offsetWidth / 2;
+  const viewportMaxLeft = Math.max(8, window.innerWidth - tooltip.offsetWidth - 8);
+  const minLeft = Math.max(8, Math.min(hostBox.left + 8, viewportMaxLeft));
+  const maxLeft = Math.max(
+    minLeft,
+    Math.min(hostBox.right - tooltip.offsetWidth - 8, viewportMaxLeft),
+  );
+  const left = Math.max(minLeft, Math.min(centered, maxLeft));
+  tooltip.style.left = `${left - hostBox.left + host.scrollLeft}px`;
+
+  const above = pointBox.top - tooltip.offsetHeight - gap;
+  const below = pointBox.bottom + gap;
+  const viewportMaxTop = Math.max(8, window.innerHeight - tooltip.offsetHeight - 8);
+  let top =
+    above >= 8
+      ? above
+      : below + tooltip.offsetHeight <= window.innerHeight - 8
+        ? below
+        : Math.max(8, Math.min(pointBox.top - tooltip.offsetHeight / 2, viewportMaxTop));
+  // The skyline scrolls horizontally on narrow screens; its tooltip must stay
+  // inside the scrollport rather than being clipped above the chart.
+  if (host.classList.contains("skyline-chart")) {
+    top = Math.max(hostBox.top + 8, Math.min(top, hostBox.bottom - tooltip.offsetHeight - 8));
+  }
+  tooltip.style.top = `${top - hostBox.top + host.scrollTop}px`;
+}
+
+function repositionFrontierTooltip() {
+  const tooltip = frontierTooltipFor(describedFrontierPoint);
+  if (!tooltip || tooltip.hidden || !describedFrontierPoint) return;
+  positionFrontierTooltip(tooltip, describedFrontierPoint);
+}
+
+function showFrontierTooltip(group, details, { pinned = false } = {}) {
+  const tooltip = frontierTooltipFor(group);
+  if (!tooltip) return;
+  replaceChildren(tooltip, frontierTooltipContent(details, pinned));
+  tooltip.hidden = false;
+  tooltip.classList.toggle("is-pinned", pinned);
+  tooltip.setAttribute("role", pinned ? "dialog" : "tooltip");
+  if (pinned) {
+    tooltip.setAttribute("aria-label", `${details.kind} details`);
+    tooltip.removeAttribute("aria-live");
+  } else {
+    tooltip.removeAttribute("aria-label");
+    tooltip.setAttribute("aria-live", "polite");
+  }
+  if (describedFrontierPoint && describedFrontierPoint !== group) {
+    describedFrontierPoint.removeAttribute("aria-describedby");
+  }
+  describedFrontierPoint = group;
+  group.setAttribute("aria-describedby", tooltip.id);
+  positionFrontierTooltip(tooltip, group);
+}
+
+function hideFrontierTooltip() {
+  const tooltip = frontierTooltipFor(describedFrontierPoint);
+  if (!tooltip) return;
+  tooltip.hidden = true;
+  tooltip.classList.remove("is-pinned");
+  describedFrontierPoint?.removeAttribute("aria-describedby");
+  describedFrontierPoint = null;
+}
+
+function clearFrontierPointSelection() {
+  if (selectedFrontierPoint) {
+    selectedFrontierPoint.classList.remove("is-selected");
+    selectedFrontierPoint.setAttribute("aria-pressed", "false");
+    selectedFrontierPoint.removeAttribute("aria-describedby");
+  }
+  selectedFrontierPoint = null;
+  selectedFrontierDetails = null;
+  selectedFrontierSourceVisited = false;
+  hideFrontierTooltip();
+}
+
+function restoreSelectedFrontierPoint() {
+  if (selectedFrontierPoint && selectedFrontierDetails) {
+    const tooltip = frontierTooltipFor(selectedFrontierPoint);
+    if (
+      tooltip?.classList.contains("is-pinned") &&
+      describedFrontierPoint === selectedFrontierPoint
+    ) {
+      return;
+    }
+    showFrontierTooltip(selectedFrontierPoint, selectedFrontierDetails, { pinned: true });
+  } else {
+    hideFrontierTooltip();
+  }
+}
+
+function makeFrontierPointInteractive(group, details) {
+  let hovered = false;
+  let focused = false;
+  const show = () => {
+    const tooltip = frontierTooltipFor(group);
+    if (
+      selectedFrontierPoint !== group &&
+      tooltip?.contains(document.activeElement)
+    ) {
+      return;
+    }
+    showFrontierTooltip(group, details, { pinned: selectedFrontierPoint === group });
+  };
+  group.addEventListener("pointerenter", () => {
+    hovered = true;
+    show();
+  });
+  group.addEventListener("pointerleave", () => {
+    hovered = false;
+    if (focused) show();
+    else restoreSelectedFrontierPoint();
+  });
+  group.addEventListener("focus", () => {
+    focused = true;
+    show();
+  });
+  group.addEventListener("blur", () => {
+    focused = false;
+    if (selectedFrontierPoint === group) {
+      restoreSelectedFrontierPoint();
+    } else if (hovered) {
+      show();
+    } else {
+      restoreSelectedFrontierPoint();
+    }
+  });
+  group.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (selectedFrontierPoint === group) {
+      clearFrontierPointSelection();
+      return;
+    }
+    clearFrontierPointSelection();
+    selectedFrontierPoint = group;
+    selectedFrontierDetails = details;
+    group.classList.add("is-selected");
+    group.setAttribute("aria-pressed", "true");
+    showFrontierTooltip(group, details, { pinned: true });
+    frontierTooltipFor(group)?.querySelector("a")?.focus();
+  });
+  group.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      group.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    } else if (
+      event.key === "Tab" &&
+      event.shiftKey &&
+      selectedFrontierPoint &&
+      selectedFrontierSourceVisited
+    ) {
+      const points = [
+        ...(frontierTooltipFor(group)?.parentElement?.querySelectorAll("[data-frontier-point]") ||
+          []),
+      ];
+      const next = points[points.indexOf(selectedFrontierPoint) + 1];
+      if (group === next) {
+        event.preventDefault();
+        selectedFrontierSourceVisited = false;
+        showFrontierTooltip(selectedFrontierPoint, selectedFrontierDetails, { pinned: true });
+        frontierTooltipFor(selectedFrontierPoint)?.querySelector("a")?.focus();
+      }
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      clearFrontierPointSelection();
+    }
+  });
+}
+
+// Dense runs cannot carry one independent 44px SVG rectangle per marker: those
+// rectangles overlap and the last one in paint order hides its neighbours. A
+// chart-level resolver gives every tap a 22px acquisition radius, then assigns an
+// overlap to the geometrically nearest visible mark instead of DOM paint order.
+function enableFrontierTouchTargets(svg) {
+  svg.addEventListener("click", (event) => {
+    // Keyboard activation dispatches a detail-0 click from the focused group and
+    // must keep that explicit target. Pointer-generated clicks are resolved by
+    // geometry even when their painted DOM target is a different overlapping mark.
+    if (event.detail === 0) return;
+    let nearest = null;
+    let nearestDistance = Infinity;
+    svg.querySelectorAll("[data-frontier-point]").forEach((group) => {
+      const box = (group.querySelector("[data-frontier-anchor]") || group).getBoundingClientRect();
+      const distance = Math.hypot(
+        event.clientX - (box.left + box.right) / 2,
+        event.clientY - (box.top + box.bottom) / 2,
+      );
+      if (distance < nearestDistance) {
+        nearest = group;
+        nearestDistance = distance;
+      }
+    });
+    const direct = event.target.closest("[data-frontier-point]");
+    if (nearest && nearestDistance <= 22 && nearest !== direct) {
+      event.preventDefault();
+      event.stopPropagation();
+      nearest.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+  }, true);
+}
+
+// A legend keyed to the marks actually on the chart. Only score marks remain:
+// the staircase and rug keys went with their bands, since a key describing
+// marks that are not on screen is worse than no key.
+function renderFrontierLegend(entry, record) {
+  const host = byId("frontier-legend");
+  if (!host) return;
+  const swatch = (className) => element("span", { className: `legend-swatch ${className}` });
+  const items = [];
+  if (record) {
+    // One phrase, not a label plus a restatement of the label. "Score read
+    // from a document / one value read verbatim from a cited document" said
+    // the same thing twice beside a single dot.
+    items.push(["legend-swatch-score", t("One score, copied from the report that published it"), ""]);
+  }
+  replaceChildren(
+    host,
+    items.map(([className, label, effect]) =>
+      element("span", { className: "frontier-legend-item" }, [
+        swatch(className),
+        element("strong", { text: label }),
+        element("span", { text: effect }),
+      ]),
+    ),
+  );
+}
+
+// The per-organization color key under the chart. Each organization with a
+// plotted score gets a small circular chip in its frontier color carrying its
+// brand glyph, so the reader can map a colored glyph on the chart back to a
+// name without hovering (issue #178, HLE/harbor style). Built from the score
+// record itself, whose observations are in date order: an organization whose
+// card carried no readable number is not keyed to a chart it does not appear
+// on.
+function organizationLegend(observations) {
+  const ordered = [];
+  const seen = new Set();
+  for (const observation of observations) {
+    if (!observation.organization) continue;
+    if (seen.has(observation.organization)) continue;
+    seen.add(observation.organization);
+    ordered.push(observation.organization);
+  }
+  return element(
+    "div",
+    { className: "frontier-org-key", attrs: { "aria-label": t("Reporting organization color key") } },
+    ordered.map((org) => {
+      const glyph = svgElement("svg", {
+        viewBox: "0 0 24 24",
+        class: "frontier-org-key-glyph",
+        "aria-hidden": "true",
+      });
+      for (const d of organizationIcon(org)) {
+        glyph.append(svgElement("path", { d, fill: "currentColor" }));
+      }
+      return element("span", { className: "frontier-org-key-item" }, [
+        element(
+          "span",
+          {
+            className: "frontier-org-key-chip",
+            attrs: { style: `background: ${organizationColor(org)}` },
+          },
+          [glyph],
+        ),
+        element("span", { className: "frontier-org-key-name", text: org }),
+      ]);
+    }),
+  );
+}
+
+function renderFrontierOrgKey(record) {
+  const host = byId("frontier-org-key");
+  if (host) replaceChildren(host, [organizationLegend(record?.observations || [])]);
+}
+
+// The saturation curve: every score read verbatim from a cited document, on a
+// publication-time axis. The adoption staircase that used to lead this chart
+// was retired: a staircase of who reported when answers a different question,
+// and the score track carries strictly more of what a reader came for. So the
+// score band now gets the full height the staircase, the card rug, and the
+// inter-band gaps vacated, and the only marks on the chart are the scores, the
+// connections the join rule permits, and the reading gap.
+// Entrance timing for the score charts (issue #312). The previous 900ms sweep
+// was over before the historical shape could be read. One 3.6s x-axis sweep
+// now drives both the clip that exposes the line and the date-derived point
+// delays, so a vertical step cannot make the line and its point drift apart.
+const FRONTIER_SWEEP_DELAY_MS = 180;
+const FRONTIER_SWEEP_MS = 3600;
+const FRONTIER_POINT_FADE_MS = 360;
+
+function frontierPointRevealDelay(pointX, margin, plotWidth) {
+  const fraction = Math.max(0, Math.min(1, (pointX - margin.left) / plotWidth));
+  return Math.round(FRONTIER_SWEEP_DELAY_MS + fraction * FRONTIER_SWEEP_MS);
+}
+
+// Point sizes for both score charts (issue #345). A record setter is drawn at
+// 1.5x, which is what carries the emphasis now: the readings off the line keep
+// their size and stay legible, and the line's own points step forward instead.
+// De-emphasis by fading alone had made the off-line points unreadable, and
+// making them smaller instead would have cost the same legibility a different
+// way -- a 14px brand glyph does not survive being shrunk.
+//
+// Shared by the curated and crawled charts so a reader who compares the two
+// figures is comparing marks of the same size.
+const FRONTIER_POINT_SIZES = {
+  record: { face: 13.5, glyph: 21 },
+  offTheLine: { face: 9, glyph: 14 },
+};
+
+function frontierPointSizes(offTheLine) {
+  return offTheLine ? FRONTIER_POINT_SIZES.offTheLine : FRONTIER_POINT_SIZES.record;
+}
+
+// The entrance plays when the reader arrives at a benchmark and runs to
+// completion before it is spent. The crawled catalog settling mid-reveal
+// re-renders this panel, and a key spent on first paint would cancel the very
+// reveal it was drawn for: same-selection repaints inside the window replay
+// the entrance from its start rather than cutting it off, and once the window
+// closes the selection counts as seen, so later repaints render finished.
+// The key commits only while Saturation is the visible view: a redraw
+// into a hidden panel must not spend an entrance the reader has yet to see.
+const FRONTIER_ENTRANCE_MS =
+  FRONTIER_SWEEP_DELAY_MS + FRONTIER_SWEEP_MS + FRONTIER_POINT_FADE_MS + 120;
+let completedFrontierEntranceKey = null;
+let frontierEntranceTimer = null;
+let drawnFrontierEntranceKey = null;
+
+function frontierShouldAnimate(key) {
+  if (state.view !== "saturation") return false;
+  // Remember what is actually on screen: the completion callback below may
+  // fire after the reader has moved to another benchmark.
+  drawnFrontierEntranceKey = key;
+  const done = completedFrontierEntranceKey === key;
+  if (!done) {
+    clearTimeout(frontierEntranceTimer);
+    const spendOrDefer = () => {
+      // Spending the entrance requires that it was seen to the end: a hidden
+      // tab defers its own completion, and a reader who navigated away -- to
+      // another view or another benchmark -- gets the reveal again on return.
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState !== "visible"
+      ) {
+        frontierEntranceTimer = setTimeout(spendOrDefer, FRONTIER_ENTRANCE_MS);
+        return;
+      }
+      if (state.view === "saturation" && drawnFrontierEntranceKey === key) {
+        completedFrontierEntranceKey = key;
+      }
+    };
+    frontierEntranceTimer = setTimeout(spendOrDefer, FRONTIER_ENTRANCE_MS);
+  }
+  return !done;
+}
+
+function scoreTrackChart(entry, board) {
+  const record = scoreRecord(entry.benchmark_id);
+  // Callers only ever select a benchmark that has a score record; this guard is
+  // for the defensive case, since a chart with no points reads as "scores went
+  // to zero here", which is worse than no chart.
+  if (!record) return null;
+  // This benchmark's own dated mentions are not drawn, but the newest one still
+  // bounds the reading-gap marker below: "still mentioned, nothing newer could
+  // be read" is a claim that needs the mention date. The registry-wide newest
+  // card is never consulted: an unrelated vendor's recent document is not
+  // evidence that this benchmark went unread (shipped Arena-Hard and Aider
+  // Polyglot have no adopter newer than their last score).
+  const lastMention = frontierEvents(entry).at(-1)?.published;
+  const startText = record.first_reported_at;
+  const endText = [lastMention, record.last_reported_at].filter(Boolean).sort().at(-1);
+  const start = new Date(`${startText}T00:00:00Z`).getTime();
+  const rawEnd = new Date(`${endText}T00:00:00Z`).getTime();
+  const end = Math.max(rawEnd, start + 86_400_000);
+  // A narrower viewBox on a narrow viewport. `width: 100%` scales height with
+  // width, so a 920-unit box at 390px CSS pixels rendered the whole chart about
+  // 90px tall and the marks became unreadable. Halving the coordinate width
+  // lets the same content scale up rather than being squashed; distorting the
+  // aspect ratio instead would stretch the axis text illegibly.
+  const narrow = typeof window !== "undefined" && window.innerWidth <= 760;
+  const width = narrow ? 520 : 920;
+  const band = scoreBand(record);
+  // 480 = the old staircase plot (276) plus the band gap (34), the card rug
+  // (26) and its gap (12), over the old 132-unit strip. The y-axis is zoomed to
+  // the observed range, so the vacated height is vertical resolution for the
+  // one thing about this band a reader must not misjudge.
+  const scoreHeight = 480;
+  // The left margin is wider than the site's other charts because the axis
+  // label is a metric name ("resolved", "pass@1") rather than a fixed word,
+  // and a 52px gutter clipped the longer ones at the viewBox edge.
+  const margin = { top: 32, right: 20, bottom: 62, left: 68 };
+  const plotWidth = width - margin.left - margin.right;
+  const height = margin.top + scoreHeight + margin.bottom;
+  const x = (date) =>
+    margin.left +
+    ((new Date(`${date}T00:00:00Z`).getTime() - start) / (end - start)) * plotWidth;
+  const scoreTop = margin.top;
+  // Better is always up. `direction` exists in the schema precisely so a metric
+  // where lower wins (an edit distance, an error rate) does not render its
+  // improvements as a downward slope; consulting it here is what makes the axis
+  // mean "better" rather than "larger".
+  const scoreDescends = record.direction === "lower_is_better";
+  const scoreY = (value) => {
+    if (band.high <= band.low) return scoreTop + scoreHeight / 2;
+    const fraction = (value - band.low) / (band.high - band.low);
+    const fromFloor = scoreDescends ? 1 - fraction : fraction;
+    return scoreTop + scoreHeight - fromFloor * scoreHeight;
+  };
+
+  const svg = svgElement("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    // A group rather than an image: image descendants are presentational in the
+    // accessibility tree, which would hide the interactive marker buttons.
+    role: "group",
+    "aria-label":
+      `${entry.name} scores over time. ${metricLabel(
+        record.observation_count,
+        "score read from a document",
+        "scores read from a document",
+      )} from ${formatDate(record.first_reported_at, { dateStyle: "medium" })} to ` +
+      `${formatDate(record.last_reported_at, { dateStyle: "medium" })}, best ` +
+      `${record.saturation.best_value}.`,
+  });
+
+  {
+    // Band bounds, not 0-100: every value in this corpus sits in the upper part
+    // of its scale, so the axis is zoomed and says so on both ticks.
+    for (const value of [band.high, band.low]) {
+      const yPosition = scoreY(value);
+      svg.append(
+        svgElement("line", {
+          x1: margin.left,
+          y1: yPosition,
+          x2: width - margin.right,
+          y2: yPosition,
+          class: "frontier-grid",
+        }),
+      );
+      svg.append(
+        svgElement(
+          "text",
+          {
+            x: margin.left - 12,
+            y: yPosition + 4,
+            "text-anchor": "end",
+            class: "frontier-tick",
+          },
+          Number(value.toFixed(1)),
+        ),
+      );
+    }
+
+    // No segment joins any two score points, in either layer.
+    //
+    // A shared instrument and protocol makes two numbers *comparable*. It does
+    // not make them a *series*, and a drawn segment asserts the second. On
+    // shipped GPQA Diamond the join rule connected DeepSeek-V4-Pro (90.1) to
+    // DeepSeek-V4-Flash (88.1) and drew a decline, when the later point is a
+    // smaller model rather than a regression over time; the cross-vendor pair
+    // (Gemma 4 31B to GLM-5.1) implied a trajectory between two systems that
+    // share nothing but a protocol string. Both are the same error the reading
+    // gap exists to prevent, and neither is fixable by restricting which pairs
+    // may join, because the defect is in the segment, not in the pairing.
+    //
+    // Comparability is still computed and still stated: it drives the paired
+    // comparison readout below the chart, which says in words what a pair of
+    // dates does and does not support. Words can carry that caveat; a line
+    // cannot.
+
+    // One normalized source of truth (issue #312): the backend selects strict
+    // record setters from every observation this chart renders. Protocol still
+    // governs the separate like-for-like comparison readout; it cannot make a
+    // visible 94.3 disappear from a benchmark-wide historical-best line.
+    const frontierPoints = record.historical_best_frontier?.points || [];
+    const frontierMarks = new Set(frontierPoints.map((point) => point.observation_id));
+    const hasRecordPath = frontierPoints.length >= 2;
+    if (hasRecordPath) {
+      // Reveal by x position, not SVG path length. Path distance changes with
+      // the size of each score jump, while point timing is based on date. A
+      // rectangular clip is one literal left-to-right time sweep shared by
+      // both marks.
+      const clipId = `historical-best-clip-${entry.benchmark_id.replace(/[^a-z0-9_-]+/gi, "-")}`;
+      const definitions = svgElement("defs");
+      const clip = svgElement("clipPath", { id: clipId });
+      clip.append(
+        svgElement("rect", {
+          x: margin.left,
+          y: scoreTop - 4,
+          width: plotWidth,
+          height: scoreHeight + 8,
+          class: "score-frontier-clip",
+        }),
+      );
+      definitions.append(clip);
+      svg.append(definitions);
+      svg.append(
+        svgElement("path", {
+          d: recordSetterPath(
+            frontierPoints,
+            (point) => x(point.reported_at),
+            (point) => scoreY(point.value),
+          ),
+          class: "score-frontier-line",
+          fill: "none",
+          "clip-path": `url(#${clipId})`,
+        }),
+      );
+    }
+
+    // The best-on-record marker. Drawn as a horizontal rule rather than a point
+    // because it is a fact about the whole corpus to date, not about one date.
+    const historicalBest = frontierPoints.at(-1);
+    const bestValue = historicalBest?.value ?? record.saturation.best_value;
+    const bestY = scoreY(bestValue);
+    svg.append(
+      svgElement("line", {
+        x1: margin.left,
+        y1: bestY,
+        x2: width - margin.right,
+        y2: bestY,
+        class: "score-best-line",
+      }),
+    );
+    svg.append(
+      svgElement(
+        "text",
+        { x: width - margin.right, y: bestY - 6, "text-anchor": "end", class: "score-best-label" },
+        `${t("best on record")} ${bestValue}`,
+      ),
+    );
+
+    for (const observation of record.observations) {
+      const source = (board.model_cards || []).find(
+        (card) => card.model_card_id === observation.source_id,
+      );
+      const sourceLabel = source
+        ? `${source.organization} · ${source.model} (${String(
+            source.document_type || t("model card"),
+          ).replaceAll("_", " ")})`
+        : observation.source_id.replaceAll("_", " ");
+      const pointX = x(observation.reported_at);
+      const pointY = scoreY(observation.value);
+      // "其他的点可以淡化" (issue #312): readings that are not part of the
+      // historical-best line recede behind it -- but only while there IS a
+      // normalized frontier. A chart lacking that payload keeps every point at
+      // full emphasis instead of implying membership the browser cannot know.
+      // Hover and focus restore a receded point, so de-emphasis never costs
+      // legibility. Membership uses the stable normalized observation id; no
+      // protocol key or floating-point reconstruction exists on this path.
+      const onFrontier = frontierMarks.has(observation.observation_id);
+      const offTheLine = hasRecordPath && !onFrontier;
+      // Entrance order follows the axis (issue #312): each point brightens
+      // while the drawing front crosses its date, so the reveal reads left to
+      // right the way the data does. The timing is shared with the crawled
+      // layer's chart so both figures reveal the same way.
+      const revealDelay = frontierPointRevealDelay(pointX, margin, plotWidth);
+      const group = svgElement("g", {
+        class: `score-point${
+          offTheLine ? " score-point-dim" : ""
+        }${observation.reported_by ? " score-point-third-party" : ""}`,
+        tabindex: "0",
+        role: "button",
+        "aria-pressed": "false",
+        "data-frontier-point": "",
+        style: `--reveal-delay:${revealDelay}ms`,
+        "aria-label":
+          `${observation.value} ${record.metric} ${t("by")} ${observation.model} ` +
+          `(${observation.organization}), ${formatDate(observation.reported_at, {
+            dateStyle: "medium",
+          })}, ${t("run conditions")} ${observation.protocol}` +
+          (observation.reported_by ? `, ${t("cited by")} ${observation.reported_by}` : "") +
+          `. ${t("Click to pin record details")}.`,
+      });
+      const size = frontierPointSizes(offTheLine);
+      group.append(
+        svgElement("circle", {
+          cx: pointX,
+          cy: pointY,
+          r: size.face,
+          class: "score-point-face",
+        }),
+      );
+      group.append(
+        modelGlyph(
+          observation.model,
+          observation.organization,
+          pointX,
+          pointY,
+          size.glyph,
+          "score-point-glyph",
+        ),
+      );
+      makeFrontierPointInteractive(group, {
+        kind: t("Score read from a document"),
+        title: `${observation.organization} · ${observation.model}`,
+        rows: [
+          { label: t("Organization"), value: observation.organization },
+          { label: t("Model"), value: observation.model },
+          {
+            label: t("Date"),
+            value: formatDate(observation.reported_at, { dateStyle: "medium" }),
+          },
+          {
+            label: t("Score"),
+            value: `${observation.value}${record.unit === "percent" ? "%" : ` ${record.unit}`} ${record.metric}`,
+          },
+          { label: t("Test variant"), value: observation.instrument },
+          { label: t("Run conditions"), value: observation.protocol },
+          { label: t("Source"), value: sourceLabel },
+          { label: t("Read from"), value: observation.read_from.replaceAll("_", " ") },
+          ...(observation.reported_by
+            ? [{ label: t("Cited by"), value: observation.reported_by }]
+            : []),
+        ],
+        url: source?.url,
+      });
+      svg.append(group);
+    }
+
+    // The reading gap. Scores in this corpus stop well before mentions do, and
+    // an unmarked flat tail is exactly what invites "saturated" as the
+    // explanation when "nothing newer could be read" is the actual one.
+    //
+    // Drawn on the plot floor, carrying no y-value. An earlier version put this
+    // line at the best-on-record height, which asserted that value at a date
+    // where nothing was recorded -- and on shipped data the best often predates
+    // the last observation (AIME, SWE-bench Verified, MMLU-Redux, IFEval), so it
+    // manufactured a flat tail out of missing data. That is the exact failure
+    // this marker exists to prevent, so the span is now purely horizontal: it
+    // says "no reading here", not "the reading stayed at N".
+    // Bounded by the newest dated mention of *this* benchmark, not by the newest
+    // card in the registry. An unrelated vendor's recent document is not evidence
+    // that this benchmark went unread: shipped Arena-Hard and Aider Polyglot have
+    // no adopter newer than their last score, so ending at the global date drew a
+    // long gap that nothing about those benchmarks supported.
+    const lastScoreX = x(record.last_reported_at);
+    const endX = x(
+      lastMention && lastMention > record.last_reported_at ? lastMention : record.last_reported_at,
+    );
+    if (endX - lastScoreX > 24) {
+      const floorY = scoreTop + scoreHeight;
+      svg.append(
+        svgElement("line", {
+          x1: lastScoreX,
+          y1: floorY,
+          x2: endX,
+          y2: floorY,
+          class: "score-gap-line",
+        }),
+      );
+      // Ticks at both ends so the span reads as a bounded interval on the time
+      // axis rather than as a series that happens to sit at the floor.
+      for (const edge of [lastScoreX, endX]) {
+        svg.append(
+          svgElement("line", {
+            x1: edge,
+            y1: floorY - 5,
+            x2: edge,
+            y2: floorY + 5,
+            class: "score-gap-line",
+          }),
+        );
+      }
+      // Centred on the span, except when the span runs to the end of the axis:
+      // a centred label there puts half its width past the right gutter and the
+      // viewBox clips it, which on shipped GPQA Diamond left the reader with
+      // "NO READABLE SCORE IN THI". Anchoring to the span's right end instead
+      // keeps the whole string inside without measuring text, which is not
+      // available on a detached SVG and would differ per locale anyway.
+      const gapReachesAxisEnd = endX >= margin.left + plotWidth - 1;
+      svg.append(
+        svgElement(
+          "text",
+          {
+            x: gapReachesAxisEnd ? endX : (lastScoreX + endX) / 2,
+            y: scoreTop + scoreHeight + 18,
+            "text-anchor": gapReachesAxisEnd ? "end" : "middle",
+            class: "score-gap-label",
+          },
+          t("no score read from a document in this window"),
+        ),
+      );
+    }
+
+    svg.append(
+      svgElement(
+        "text",
+        {
+          x: 17,
+          y: scoreTop + scoreHeight / 2,
+          transform: `rotate(-90 17 ${scoreTop + scoreHeight / 2})`,
+          "text-anchor": "middle",
+          class: "frontier-axis-label",
+        },
+        // The zoom marker is never dropped. An earlier version omitted it on
+        // narrow viewports and justified that by saying the readout states the
+        // band bounds -- it does not; the bounds appear only as the two axis
+        // ticks. Removing it left small screens with no indication that the axis
+        // is magnified, which is the one thing about this band a reader must not
+        // misjudge. Abbreviated instead, so it still fits the rotated label.
+        narrow ? `${record.metric} ${t("(zoom)")}` : `${record.metric} ${t("(zoomed)")}`,
+      ),
+    );
+  }
+
+  for (const [date, anchor] of [
+    [startText, "start"],
+    [endText, "end"],
+  ]) {
+    svg.append(
+      svgElement(
+        "text",
+        { x: x(date), y: height - 28, "text-anchor": anchor, class: "frontier-tick" },
+        formatDate(date, { month: "short", year: "numeric" }),
+      ),
+    );
+  }
+  svg.append(
+    svgElement(
+      "text",
+      { x: margin.left + plotWidth / 2, y: height - 7, "text-anchor": "middle", class: "frontier-axis-label" },
+      t("document publication date"),
+    ),
+  );
+  enableFrontierTouchTargets(svg);
+  return svg;
+}
+
+function clearAdoptionFrontier(message) {
+  clearFrontierPointSelection();
+  // Every caller of this is on the curated path, so the canonical chrome is
+  // restored here rather than at each call site: an external selection that
+  // hid it must not leave the next canonical render missing its chart blocks.
+  setCanonicalFrontierChrome(true);
+  // The empty state replaces any chart on screen, so a running completion
+  // timer must not spend its reveal.
+  drawnFrontierEntranceKey = null;
+  byId("frontier-eyebrow").textContent = t("Scores over time");
+  const stage = byId("frontier-stage");
+  stage.textContent = "";
+  // The badge only carries the source name on the catalog path; an empty one
+  // would render as a bare outline beside the picker.
+  stage.hidden = true;
+  replaceChildren(byId("frontier-task-preview"), []);
+  replaceChildren(byId("frontier-score-readout"), []);
+  replaceChildren(byId("frontier-legend"), []);
+  // The org color key is rendered only by the populated path; leaving a stale
+  // key from a previously selected benchmark behind an empty chart would
+  // present colors no marker carries.
+  replaceChildren(byId("frontier-org-key"), []);
+  replaceChildren(byId("frontier-chart"), [
+    element("p", { className: "empty-state", text: message }),
+  ]);
+}
+
+function renderAdoptionFrontier(board) {
+  const scored = saturationRows();
+  const defaultEntry = frontierDefaultEntry(board);
+  if (!state.lfrontierExplicit) state.lfrontier = defaultEntry?.id || "";
+  renderBenchmarkNavigator(board);
+  if (!state.benchmarkIndex) {
+    renderCatalogShell(board, scored, {
+      eyebrow: "", heading: state.lfrontier || t("Reported benchmark scores"), badge: "",
+      message: t(state.benchmarkIndexLoaded
+        ? "Full benchmark catalog could not be loaded." : "Loading benchmark details…"),
+    });
+    return;
+  }
+  if (!state.lfrontier) {
+    renderCatalogShell(board, scored, {
+      eyebrow: "", heading: t("Reported benchmark scores"), badge: "",
+      message: t("No benchmarks match these filters."),
+    });
+    return;
+  }
+  const record = state.benchmarkIndex.find((row) => row.slug === state.lfrontier);
+  if (record) {
+    renderCatalogBenchmark(board, scored, record);
+    return;
+  }
+  // Preserve unresolved links and say what failed. Never paint a different
+  // benchmark or fall back to a source-specific shortlist under this URL.
+  renderCatalogShell(board, scored, {
+    eyebrow: "", heading: state.lfrontier, badge: "",
+    prependOption: [state.lfrontier, state.lfrontier],
+    message: t("This benchmark is not in the loaded catalog."),
+  });
+}
+
+// --- Stated findings (issue #91) --------------------------------------------
+//
+// The issue's third point: the project kept adding charts while the real gap --
+// surfacing insight -- stayed open. Every sentence here is derived in Python by
+// `insights.build_insights`, where it is tested, rather than phrased in the
+// browser. This function only lays them out.
+//
+// A finding carries its own evidence line, and clicking one moves the chart to
+// the benchmark it is about, so a claim is never more than one interaction away
+// from the data behind it.
+
+const FINDING_LABELS = {
+  adopted_without_scores: "Adopted, unscored",
+  stale_scores: "Reading coverage",
+  closing_headroom: "Closing headroom",
+  fast_gain: "Fast gain",
+  third_party_only: "Third-party only",
+};
+
+function findingCard(finding, board) {
+  const children = [
+    element("div", { className: "finding-head" }, [
+      element("span", {
+        className: `finding-kind finding-kind-${finding.kind}`,
+        text: FINDING_LABELS[finding.kind] || finding.kind,
+      }),
+      element("h3", { text: finding.headline }),
+    ]),
+    element("p", { className: "finding-detail", text: finding.detail }),
+    element("p", { className: "finding-evidence" }, [
+      element("span", { text: "Evidence" }),
+      document.createTextNode(finding.evidence),
+    ]),
+  ];
+
+  // Corpus-scope findings carry no benchmark_id, so there is nothing to focus.
+  const target = finding.benchmark_id
+    ? (board.entries || []).find(
+        (entry) => entry.benchmark_id === finding.benchmark_id,
+      )
+    : null;
+  if (target) {
+    const jump = element("button", {
+      className: "secondary-link finding-jump",
+      text: `${t("Open")} ${target.name} ↑`,
+      attrs: { type: "button" },
+    });
+    jump.addEventListener("click", () => {
+      openSaturation(target.benchmark_id);
+      byId("adoption-frontier").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    children.push(jump);
+  }
+
+  return element("article", { className: "finding-card" }, children);
+}
+
+function renderBenchmarkFindings(board) {
+  const panel = byId("benchmark-findings");
+  if (!panel) return;
+  const insights = state.data?.benchmark_insights;
+  // Hidden entirely rather than shown empty. An empty findings panel reads as
+  // "we looked and the field is uneventful", which is a claim this corpus is not
+  // in a position to make.
+  if (!insights || !insights.findings?.length) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  byId("findings-count").textContent = metricLabel(insights.finding_count, "finding");
+  byId("findings-measures").textContent = insights.measures || "";
+  byId("findings-limits").textContent = `Does not measure: ${insights.does_not_measure}`;
+  replaceChildren(
+    byId("findings-list"),
+    insights.findings.map((finding) => findingCard(finding, board)),
+  );
+}
+
+function modelCardLabelCounts(board) {
+  const labelCounts = new Map();
+  for (const card of board.model_cards || []) {
+    const key = `${card.organization} · ${card.model}`;
+    labelCounts.set(key, (labelCounts.get(key) || 0) + 1);
+  }
+  return labelCounts;
+}
+
+function cardLabel(card, labelCounts) {
+  const base = `${card.organization} · ${card.model}`;
+  return labelCounts.get(base) > 1
+    ? `${base} (${String(card.document_type).replaceAll("_", " ")})`
+    : base;
+}
+
+function leaderboardRow(entry) {
+  const board = catalogDocumentBoard();
+  const maxCount = board.entries?.[0]?.card_count || 0;
+  const labelCounts = modelCardLabelCounts(board);
+  const header = element("summary", { className: "record-summary" }, [
+    element("span", {
+      className: "signal-rank",
+      text: String(entry.rank).padStart(2, "0"),
+    }),
+    element("div", { className: "record-heading" }, [
+      element("div", { className: "signal-meta" }, [
+        element("span", { text: entry.domain.replaceAll("_", " ") }),
+        // A benchmark in the registry that no curated card reports is a real
+        // observation, not an empty row: it says the benchmark is discussed
+        // without yet being adopted in vendor reporting. Say that, rather than
+        // showing a bare "0 organizations of 8".
+        entry.card_count
+          ? element("span", {
+              text: `${metricLabel(entry.organization_count, "organization")} of ${
+                board.organization_count
+              }`,
+            })
+          : element("span", { text: t("No source documents recorded") }),
+        // The instrument's own age, which the adoption count deliberately does
+        // not encode: a 2020 benchmark with 9 cards and a 2026 benchmark with 9
+        // cards are very different findings about vendor reporting.
+        entry.released
+          ? element("span", {
+              text: `released ${formatDate(entry.released, { dateStyle: "medium" })}`,
+            })
+          : null,
+      ]),
+      element("h3", { text: entry.name }),
+      // The caveat is part of the row, not a footnote. A ranking that puts a
+      // saturated benchmark near the top without saying so is misleading in
+      // exactly the direction issue #83 warns about.
+      entry.caveat ? element("p", { className: "signal-tldr", text: entry.caveat }) : null,
+    ]),
+    element("div", { className: "score" }, [
+      element("div", { className: "score-value" }, [
+        element("strong", { text: String(entry.card_count) }),
+        element("span", { text: `/ ${board.model_card_count}` }),
+      ]),
+      adoptionBar(entry, maxCount),
+      element("p", { className: "score-label", text: t("Source documents") }),
+    ]),
+  ]);
+
+  const adopters = element(
+    "ul",
+    { className: "adopter-list" },
+    (entry.adopters || []).map((adopter) =>
+      element("li", {}, [
+        // A plain text link, not the .primary-link call-to-action button: a
+        // twelve-row roster of dark blocks reads as twelve competing actions
+        // rather than as one list of sources.
+        element("a", {
+          className: "adopter-link",
+          text: cardLabel(adopter, labelCounts),
+          attrs: {
+            href: safeHttpUrl(adopter.url),
+            target: "_blank",
+            rel: "noopener noreferrer",
+          },
+        }),
+        element("span", {
+          className: "adopter-meta",
+          text: `${String(adopter.document_type).replaceAll("_", " ")}${
+            adopter.published ? ` · ${formatDate(adopter.published, { dateStyle: "medium" })}` : ""
+          }`,
+        }),
+      ]),
+    ),
+  );
+
+  const isNew = isNewBenchmark(entry, board);
+  if (isNew) {
+    header.querySelector(".signal-meta").prepend(
+      element("span", { className: "benchmark-new-badge", text: t("new benchmark") }),
+    );
+  }
+
+  // Documents and unscored records open the same detail as scored records.
+  const frontierButton = element("button", {
+        className: "secondary-link frontier-jump",
+        text: t("View benchmark details ↑"),
+        attrs: { type: "button" },
+      });
+  frontierButton?.addEventListener("click", () => {
+    openSaturation(entry.benchmark_id);
+    byId("adoption-frontier").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  return element("details", { className: `record-card${isNew ? " benchmark-new" : ""}` }, [
+    header,
+    element("div", { className: "record-detail" }, [
+      element("h3", { text: t("Reported by") }),
+      adopters,
+      frontierButton,
+      safeHttpUrl(entry.url)
+        ? element("a", {
+            className: "primary-link",
+            text: t("Benchmark home ↗"),
+            attrs: { href: safeHttpUrl(entry.url), target: "_blank", rel: "noopener noreferrer" },
+          })
+        : null,
+    ]),
+  ]);
+}
+
+function renderLeaderboardFilters(board) {
+  // Every domain present in the ranking, not board.domains: that summary counts
+  // only adopted benchmarks, so a domain whose benchmarks are all unadopted
+  // would be listed in the table with no way to filter to it.
+  const domains = [...new Set((board.entries || []).map((entry) => entry.domain))].sort();
+  replaceChildren(byId("leaderboard-domain"), [
+    option("", t("All domains"), !state.ldomain),
+    ...domains.map((domain) =>
+      option(domain, domain.replaceAll("_", " "), domain === state.ldomain),
+    ),
+  ]);
+  const organizations = Object.keys(board.organizations || {}).sort();
+  replaceChildren(byId("leaderboard-organization"), [
+    option("", t("All organizations"), !state.lorg),
+    ...organizations.map((organization) =>
+      option(organization, organization, organization === state.lorg),
+    ),
+  ]);
+  replaceChildren(byId("leaderboard-era"), [
+    option("", t("Any release date"), !state.lera),
+    ...LEADERBOARD_ERAS.map((era) => option(era.value, era.label, era.value === state.lera)),
+  ]);
+  if (byId("leaderboard-search").value !== state.lq) {
+    byId("leaderboard-search").value = state.lq;
+  }
+}
+
+// The page is named after this ranking, so it leads (issue #256). Five lines,
+// one measure, and nothing about how the number was computed: a reader who
+// wants only the ranking never has to read the methodology, and the full table
+// underneath still carries the filters and every remaining benchmark.
+//
+// `board.entries` arrives ranked by adoption_rank (model_cards.py), which
+// breaks card-count ties on organization count and then name. Re-sorting here
+// on card_count alone would disagree with entry.rank and print a row numbered
+// 05 in position 04, so the order is read, never recomputed.
+const LEADERBOARD_TOP_LIMIT = 5;
+
+function renderLeaderboardTop(board) {
+  const host = byId("leaderboard-top-list");
+  if (!host) return;
+  // The eyebrow, the h1, the deck and the "How to read this evidence" note all
+  // sat between the page title and the figure, saying four things about one
+  // ranking. They are one (i) beside the heading now: a reader who wants the
+  // caveat opens it, and a reader who wants the ranking sees the ranking.
+  const infoHost = byId("leaderboard-top-info");
+  if (infoHost) {
+    // `board.measures` is published data, not a string restated here. A reader
+    // who takes this order as a quality ranking draws the opposite of the
+    // intended conclusion, and the correction has to travel with the payload
+    // that produced the order rather than drift from it in the browser.
+    //
+    // Rebuilt rather than appended once: the published page ships this
+    // disclosure in its first response, and a seed that survived the render
+    // would stay in English after a switch to Chinese.
+    replaceChildren(infoHost, [
+      infoDisclosure(
+        [
+          board.measures,
+          t(
+            "Open the source-document list below to trace each count to its citations.",
+          ),
+        ]
+          .filter(Boolean)
+          .join(" "),
+      ),
+    ]);
+  }
+  const ranked = (board.entries || []).filter((entry) => entry.card_count > 0);
+  const entries = state.leaderboardTopExpanded ? ranked : ranked.slice(0, LEADERBOARD_TOP_LIMIT);
+  const more = byId("leaderboard-top-more");
+  // A registry where nothing is reported yet is a real state, not a bug, and
+  // five blank lines is a worse answer than saying so.
+  if (!entries.length) {
+    replaceChildren(host, [
+      element("li", {
+        className: "empty-state",
+        text: t("No source documents record a benchmark yet."),
+      }),
+    ]);
+    if (more) more.hidden = true;
+    return;
+  }
+  // Each row's bar is scaled against the top entry currently on screen, so the
+  // gap the reader is meant to see (e.g. GPQA Diamond vs. everything below it)
+  // stays visible whether five rows are shown or all of them are (issue #314).
+  const maxCount = Math.max(...entries.map((entry) => entry.card_count));
+  replaceChildren(
+    host,
+    entries.map((entry) =>
+      element("li", { className: "leaderboard-top-row" }, [
+        element("span", {
+          className: "leaderboard-top-rank",
+          text: String(entry.rank).padStart(2, "0"),
+        }),
+        element("span", { className: "leaderboard-top-name", text: entry.name }),
+        element("span", { className: "leaderboard-top-bar" }, [
+          element("span", {
+            className: "leaderboard-top-bar-fill",
+            attrs: { style: `width:${((entry.card_count / maxCount) * 100).toFixed(1)}%` },
+          }),
+        ]),
+        element("span", {
+          className: "leaderboard-top-count",
+          text: metricLabel(entry.card_count, "source document"),
+        }),
+      ]),
+    ),
+  );
+  if (more) {
+    more.hidden = ranked.length <= LEADERBOARD_TOP_LIMIT;
+    const label = state.leaderboardTopExpanded
+      ? `${t("Show top {n}").replace("{n}", String(LEADERBOARD_TOP_LIMIT))} ↑`
+      : `${t("Show all {n} benchmarks").replace("{n}", String(ranked.length))} ↓`;
+    more.textContent = label;
+    more.setAttribute("aria-label", label);
+  }
+}
+
+// --- Latest releases (issue #530) -------------------------------------------
+// The page opens on recently released benchmarks ranked by the attention they
+// are receiving now, printed from the pipeline's `latest_releases_leaderboard`
+// payload (release_leaderboard.py). Nothing is scored in the browser: rank,
+// components, coverage, confidence and method version arrive as published, so
+// what a reader sees is what the snapshot recorded.
+const LATEST_WINDOWS = ["7d", "30d", "90d"];
+const LATEST_WINDOW_DAYS = { "7d": 7, "30d": 30, "90d": 90 };
+// Order and wording follow the signals issue #530 names. Each component's
+// weight is read from the payload rather than restated here, so a re-weighted
+// method version prints its own numbers.
+const LATEST_SIGNALS = [
+  { key: "github_stars", label: "GitHub stars" },
+  { key: "hf_paper_upvotes", label: "Hugging Face paper upvotes" },
+  { key: "hf_dataset_downloads", label: "Hugging Face dataset downloads, last 30 days" },
+];
+// The adoption view's own filters. A permalink carrying one was written when
+// the page had no modes, and must keep opening the view it filtered.
+const LEADERBOARD_ADOPTION_PARAMS = ["lscore", "lheight", "lq", "ldomain", "lorg", "lera"];
+
+// The cutoff is shared with Saturation, whose every address carries it, so on
+// its own it marks the adoption mode only on a leaderboard address: a reader
+// coming back from /saturation/?lscore=60 has chosen no leaderboard mode. The
+// other filters are written by the adoption mode alone, wherever the address
+// was read from.
+function leaderboardModeFromParams(params, view = "leaderboard") {
+  const requested = params.get("lmode");
+  if (requested === "adoption" || requested === "latest") return requested;
+  const markers = view === "leaderboard"
+    ? LEADERBOARD_ADOPTION_PARAMS
+    : LEADERBOARD_ADOPTION_PARAMS.filter((key) => key !== "lscore");
+  return markers.some((key) => params.has(key)) ? "adoption" : "latest";
+}
+
+function latestReleasesPayload() {
+  return state.data?.latest_releases_leaderboard || null;
+}
+
+function latestReleasesDefaultWindow(payload = latestReleasesPayload()) {
+  return LATEST_WINDOWS.includes(payload?.default_window) ? payload.default_window : "30d";
+}
+
+function latestReleasesWindowKey() {
+  return LATEST_WINDOWS.includes(state.lwindow) ? state.lwindow : latestReleasesDefaultWindow();
+}
+
+function latestWindowLabel(windowKey) {
+  return t("{days} days", { days: LATEST_WINDOW_DAYS[windowKey] || windowKey });
+}
+
+// Null is "no signal", never zero. A stale reading keeps the day it was read,
+// so a run of failed collections cannot make an old counter look current; a
+// resource its source reports as gone says so instead of going quiet.
+function latestSignalText(component) {
+  const status = component?.status || "unknown";
+  const value = component?.value;
+  if (status === "unavailable") return t("unavailable");
+  if (value === null || value === undefined) return t("not observed");
+  const number = Number(value).toLocaleString();
+  if (status === "stale") {
+    return component.last_successful_date
+      ? t("{value} · stale since {date}", { value: number, date: component.last_successful_date })
+      : t("{value} · stale", { value: number });
+  }
+  // Anything the engine did not mark fresh keeps its number but says so. A
+  // connector counter reaches the payload as `unknown` carrying a real value
+  // (release_leaderboard._extract_fallback_metric), kept visible for audit and
+  // deliberately not promoted to fresh; printed bare it read as a fresh
+  // observation, which is the imputation issue #530 rules out.
+  if (status !== "fresh") {
+    return component.last_successful_date
+      ? t("{value} · unverified since {date}", {
+          value: number,
+          date: component.last_successful_date,
+        })
+      : t("{value} · unverified", { value: number });
+  }
+  return number;
+}
+
+// The normalized contribution the engine published for one component, which is
+// what the rank was actually computed from: log1p(value) / log1p(window max).
+// It is null whenever the raw value is absent or every reading in the window is
+// zero, and that is a state the row has to name. Printing nothing there would
+// leave a reader unable to tell a component that contributed zero from one the
+// engine never scored -- the same absent-is-not-zero rule the readings follow.
+function latestNormalizedText(component) {
+  const normalized = component?.normalized;
+  if (normalized === null || normalized === undefined) return t("not scored");
+  return Number(normalized).toFixed(2);
+}
+
+// Filtering the cohort the reader is looking at, by the names the row shows.
+// It narrows what is already loaded and never refetches: the window decides
+// which releases exist, the query only decides which of them are listed, so an
+// empty result is "nothing here matches", not "nothing was released".
+function latestReleasesMatches(entries, query) {
+  const needle = String(query || "").trim().toLowerCase();
+  if (!needle) return entries;
+  return entries.filter((entry) =>
+    `${entry.name || ""} ${entry.canonical_artifact_id || ""}`.toLowerCase().includes(needle),
+  );
+}
+
+// A window with nothing in it is a real state, not a broken page: say so and
+// point at a wider window (issue #530). A wider window the loaded payload does
+// not carry yet is still offered, since choosing it fetches the full corpus;
+// one that is loaded and empty is not, and past the widest window the
+// cumulative adoption view is the honest suggestion.
+function latestReleasesEmptyState(windowKey, payload) {
+  const wider = LATEST_WINDOWS.slice(LATEST_WINDOWS.indexOf(windowKey) + 1).filter((key) => {
+    const loaded = payload?.windows?.[key];
+    return !loaded || (loaded.entries || []).length > 0;
+  });
+  return {
+    message: t(
+      "No benchmark released in the last {days} days has a measurable attention signal yet.",
+      { days: LATEST_WINDOW_DAYS[windowKey] || windowKey },
+    ),
+    windows: wider,
+    adoption: wider.length === 0,
+  };
+}
+
+function latestReleasesWeights(entries) {
+  const weights = {};
+  for (const { key } of LATEST_SIGNALS) {
+    const published = entries.find((entry) => entry.components?.[key]?.weight !== undefined);
+    weights[key] = published ? Number(published.components[key].weight) : null;
+  }
+  return weights;
+}
+
+function latestReleasesMethodNote(payload, windowData) {
+  const weights = latestReleasesWeights(windowData.entries || []);
+  const signals = LATEST_SIGNALS.map(({ key, label }) =>
+    weights[key] === null ? t(label) : `${Math.round(weights[key] * 100)}% ${t(label)}`,
+  ).join(", ");
+  return t(
+    "Ranking {method}: {signals}, each normalized as log1p(value) / log1p(window maximum) and summed to a 0 to 100 score. A release is ranked only when enough of its weight comes from fresh, durable signals; the rest are listed with limited signals. Dataset downloads are a rolling 30-day figure, never a cumulative total. Stars come from the benchmark's own repository, never a parent framework. Window {start} to {end}, UTC.",
+    {
+      method: payload.method_version || "",
+      signals,
+      start: formatDate(windowData.window_start, { dateStyle: "medium" }),
+      end: formatDate(windowData.window_end, { dateStyle: "medium" }),
+    },
+  );
+}
+
+// One row per release: the rank line, and behind it every input the rank was
+// computed from, each with its status and a link to the resource it was read
+// from. A release the engine could not rank keeps its place in the list, with
+// the reason, rather than disappearing.
+function latestReleaseRow(entry, maxScore, open = new Set()) {
+  const ranked = entry.status === "ranked" && Boolean(entry.rank);
+  const artifact = String(entry.canonical_artifact_id || "");
+  const score = entry.score === null || entry.score === undefined ? null : Number(entry.score);
+  const confidence = String(entry.confidence || "").toLowerCase();
+  const width = score !== null && maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : "0";
+  const summary = element("summary", { className: "leaderboard-top-row latest-release-summary" }, [
+    ranked
+      ? element("span", { className: "leaderboard-top-rank", text: String(entry.rank).padStart(2, "0") })
+      : element("span", { className: "leaderboard-top-rank" }, [
+          element("span", { text: "—", attrs: { "aria-hidden": "true" } }),
+          element("span", { className: "visually-hidden", text: t("unranked") }),
+        ]),
+    element("span", { className: "leaderboard-top-name" }, [
+      element("span", { text: entry.name }),
+      entry.release_date
+        ? element("small", {
+            className: "latest-release-date",
+            text: `${t("released")} ${formatDate(entry.release_date, { dateStyle: "medium" })}`,
+          })
+        : null,
+    ]),
+    element("span", { className: "leaderboard-top-bar" }, [
+      element("span", {
+        className: `leaderboard-top-bar-fill${ranked ? "" : " latest-release-bar-limited"}`,
+        attrs: { style: `width:${width}%` },
+      }),
+    ]),
+    element("span", { className: "leaderboard-top-count" }, [
+      element("span", { text: score === null ? t("no score") : String(score) }),
+      confidence
+        ? element("span", {
+            className: `pill pill-confidence pill-confidence-${confidence}`,
+            text: t(confidence),
+          })
+        : null,
+    ]),
+  ]);
+  const signals = element(
+    "dl",
+    { className: "latest-release-signals" },
+    LATEST_SIGNALS.map(({ key, label }) => {
+      const component = entry.components?.[key] || {};
+      const url = safeHttpUrl(component.source_url);
+      return element("div", { className: "latest-release-signal" }, [
+        element("dt", { text: t(label) }),
+        element("dd", {}, [
+          element("span", { text: latestSignalText(component) }),
+          element("small", {
+            className: "latest-release-normalized",
+            text: `${t("normalized")} ${latestNormalizedText(component)}`,
+          }),
+          url
+            ? element("a", {
+                className: "latest-release-source",
+                text: t("source ↗"),
+                attrs: { href: url, target: "_blank", rel: "noopener noreferrer" },
+              })
+            : null,
+          component.weight !== undefined && component.weight !== null
+            ? element("small", {
+                className: "latest-release-weight",
+                text: `${t("weight")} ${Math.round(Number(component.weight) * 100)}%`,
+              })
+            : null,
+        ]),
+      ]);
+    }),
+  );
+  const meta = [
+    t("Coverage {coverage}", { coverage: Number(entry.coverage || 0).toFixed(2) }),
+    confidence ? `${t("confidence")} ${t(confidence)}` : "",
+    ranked ? "" : t("limited signals: not enough fresh durable signal to rank"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return element("li", { className: "latest-release" }, [
+    element("details", {
+      className: "latest-release-details",
+      attrs: { "data-artifact": artifact, open: open.has(artifact) ? "" : null },
+    }, [
+      summary,
+      element("div", { className: "latest-release-body" }, [
+        entry.purpose ? element("p", { className: "latest-release-purpose", text: entry.purpose }) : null,
+        signals,
+        element("p", { className: "latest-release-meta", text: meta }),
+      ]),
+    ]),
+  ]);
+}
+
+function renderLatestReleases() {
+  const host = byId("latest-releases-list");
+  if (!host) return;
+  const payload = latestReleasesPayload();
+  const windowKey = latestReleasesWindowKey();
+  document.querySelectorAll("[data-lwindow]").forEach((control) => {
+    if (control.hasAttribute("aria-pressed")) {
+      control.setAttribute("aria-pressed", String(control.dataset.lwindow === windowKey));
+    }
+  });
+  const windowLabel = byId("latest-releases-window");
+  if (windowLabel) windowLabel.textContent = `· ${latestWindowLabel(windowKey)}`;
+  const search = byId("latest-releases-search");
+  if (search && search.value !== state.lrq) search.value = state.lrq;
+  const empty = byId("latest-releases-empty");
+  const note = byId("latest-releases-note");
+  const info = byId("latest-releases-info");
+  const windowData = payload?.windows?.[windowKey];
+  if (!windowData) {
+    // The bootstrap payload carries the default window only (snapshots.py);
+    // a wider one arrives with the full corpus. Once that has loaded, a window
+    // still missing is not coming, and the reader is told so rather than left
+    // on a loading line; a failed fetch says the same, since the refresh
+    // control re-requests the corpus for this address.
+    replaceChildren(host, []);
+    if (info) replaceChildren(info, []);
+    if (note) note.textContent = "";
+    // Matches the stateNeedsFullData guard: the adoption view never reads a
+    // release window, so fetching the whole corpus to fill a hidden section
+    // is waste the guard exists to avoid.
+    const loading =
+      Boolean(payload) && !state.fullDataLoaded && state.lmode !== "adoption";
+    if (empty) {
+      empty.hidden = false;
+      if (!payload) {
+        empty.textContent = t("The latest releases ranking is not available in this build.");
+      } else if (loading) {
+        empty.textContent = t("Loading this window…");
+      } else {
+        replaceChildren(empty, [
+          document.createTextNode(
+            `${t("The {window} window is not in this build.", { window: latestWindowLabel(windowKey) })} `,
+          ),
+          ...LATEST_WINDOWS.filter((key) => payload.windows?.[key]).map((key) =>
+            element("button", {
+              className: "latest-releases-empty-action",
+              text: t("Try {window}", { window: latestWindowLabel(key) }),
+              attrs: { type: "button", "data-lwindow": key },
+            }),
+          ),
+        ]);
+      }
+    }
+    if (loading) {
+      ensureFullData()
+        .then(() => {
+          if (state.view === "leaderboard") renderLatestReleases();
+        })
+        .catch((error) => {
+          console.error(error);
+          if (state.view !== "leaderboard" || latestReleasesWindowKey() !== windowKey) return;
+          if (empty) empty.textContent = t("This window could not be loaded. Refresh to try again.");
+        });
+    }
+    return;
+  }
+  if (info) {
+    replaceChildren(
+      info,
+      windowData.window_start ? [infoDisclosure(latestReleasesMethodNote(payload, windowData))] : [],
+    );
+  }
+  const cohort = windowData.entries || [];
+  const entries = latestReleasesMatches(cohort, state.lrq);
+  if (cohort.length && !entries.length) {
+    // The window has releases; the query is what hid them. Offering a wider
+    // window here would be wrong, so the way out is clearing the search.
+    replaceChildren(host, []);
+    if (note) note.textContent = "";
+    if (empty) {
+      empty.hidden = false;
+      replaceChildren(empty, [
+        document.createTextNode(
+          `${t("No release in this window matches “{query}”.", { query: state.lrq.trim() })} `,
+        ),
+        element("button", {
+          className: "latest-releases-empty-action",
+          text: t("Clear the search"),
+          attrs: { type: "button", "data-lrq-clear": "" },
+        }),
+      ]);
+    }
+    return;
+  }
+  if (!entries.length) {
+    const suggestion = latestReleasesEmptyState(windowKey, payload);
+    replaceChildren(host, []);
+    if (note) note.textContent = "";
+    if (empty) {
+      empty.hidden = false;
+      replaceChildren(empty, [
+        document.createTextNode(`${suggestion.message} `),
+        ...suggestion.windows.map((key) =>
+          element("button", {
+            className: "latest-releases-empty-action",
+            text: t("Try {window}", { window: latestWindowLabel(key) }),
+            attrs: { type: "button", "data-lwindow": key },
+          }),
+        ),
+        suggestion.adoption
+          ? element("button", {
+              className: "latest-releases-empty-action",
+              text: t("See model-card adoption instead"),
+              attrs: { type: "button", "data-lmode": "adoption" },
+            })
+          : null,
+      ]);
+    }
+    return;
+  }
+  if (empty) empty.hidden = true;
+  const scores = entries.map((entry) => Number(entry.score)).filter((score) => Number.isFinite(score));
+  const maxScore = scores.length ? Math.max(...scores) : 0;
+  // A redraw (the catalog index landing, Refresh, Back) must not fold the
+  // signals a reader has just opened.
+  const open = new Set(
+    Array.from(host.querySelectorAll("details[open]"), (details) => details.dataset.artifact),
+  );
+  replaceChildren(
+    host,
+    entries.map((entry) => latestReleaseRow(entry, maxScore, open)),
+  );
+  if (note) {
+    // Two facts a reader needs before trusting a rank and which the payload
+    // already published without showing: how current the data is, and how much
+    // of the ranking weight was actually observed across the cohort. Without
+    // them the note says how many rows are ranked but not how well.
+    note.textContent = `${t(
+      "{ranked} of {total} releases in this window are ranked; the rest are listed with limited signals.",
+      {
+        ranked: Number(windowData.ranked_count || 0).toLocaleString(),
+        total: Number(windowData.total_cohort_count || 0).toLocaleString(),
+      },
+    )}${
+      entries.length === cohort.length
+        ? ""
+        : ` ${t("Showing {shown} that match “{query}”.", {
+            shown: Number(entries.length).toLocaleString(),
+            query: state.lrq.trim(),
+          })}`
+    } ${t("Data through {through} · average signal coverage {coverage}.", {
+      through: formatDate(windowData.window_end, { dateStyle: "medium" }),
+      coverage: `${Math.round(Number(windowData.signal_coverage || 0) * 100)}%`,
+    })}`;
+  }
+}
+
+// The two modes are one page: the adoption view keeps its markup, ids,
+// seeds and handlers, and is shown or hidden as a block.
+function syncLeaderboardMode() {
+  const latest = state.lmode !== "adoption";
+  const latestSection = byId("latest-releases");
+  const adoption = byId("leaderboard-adoption");
+  if (latestSection) latestSection.hidden = !latest;
+  if (adoption) adoption.hidden = latest;
+  document.querySelectorAll("[data-lmode]").forEach((control) => {
+    if (control.hasAttribute("aria-pressed")) {
+      control.setAttribute("aria-pressed", String(control.dataset.lmode === state.lmode));
+    }
+  });
+}
+
+function setLeaderboardMode(mode) {
+  const next = mode === "adoption" ? "adoption" : "latest";
+  if (next === state.lmode) return;
+  state.lmode = next;
+  renderLeaderboard();
+  writeUrl("push");
+}
+
+function setLatestWindow(windowKey) {
+  if (!LATEST_WINDOWS.includes(windowKey)) return;
+  state.lwindow = windowKey;
+  renderLatestReleases();
+  writeUrl();
+}
+
+function setLatestQuery(query) {
+  const next = String(query || "");
+  if (next === state.lrq) return;
+  state.lrq = next;
+  renderLatestReleases();
+  writeUrl();
+}
+
+// Keep navigation available so a catalog failure can explain itself on its own page.
+function syncLeaderboardNav() {
+  const navButton = document.querySelector('[data-view="leaderboard"]');
+  if (navButton) navButton.hidden = false;
+}
+
+function renderSaturation() {
+  syncScoreFilters();
+  renderAdoptionFrontier(catalogDocumentBoard());
+}
+
+function renderLeaderboard() {
+  syncLeaderboardMode();
+  renderLatestReleases();
+  initBenchmarkSearch();
+  syncScoreFilters();
+  renderBenchmarkSkyline();
+  renderScoreRanking(scoreRankingRows());
+  const board = catalogDocumentBoard();
+  syncLeaderboardNav();
+  if (!board) return;
+
+  byId("leaderboard-measures").textContent = board.measures || "";
+  renderLeaderboardTop(board);
+  renderLeaderboardFilters(board);
+  renderBenchmarkFindings(state.data.model_card_leaderboard);
+
+  const topEntries = (board.entries || []).filter((entry) => entry.card_count > 0);
+
+  const newEntries = (board.entries || []).filter((entry) => isNewBenchmark(entry, board));
+  const newSharedSignals = newEntries.filter((entry) => frontierAdvances(entry).length >= 3);
+  // Each registry-overview count is a claim about specific records, so every
+  // tile opens to the itemized evidence behind its number (issue #183). They
+  // are native <details>/<summary>: collapsed on load, visible by the marker,
+  // expandable and re-collapsible with the same control.
+  const labelCounts = modelCardLabelCounts(board);
+  const allCards = [...(board.model_cards || [])].sort(
+    (a, b) =>
+      Number(!a.published) - Number(!b.published) ||
+      (b.published || "").localeCompare(a.published || "") ||
+      String(a.organization).localeCompare(String(b.organization)) ||
+      String(a.model).localeCompare(String(b.model)),
+  );
+  const evidenceDisclosure = (stat, items, emptyText) =>
+    element("details", { className: "evidence-stat evidence-disclosure" }, [
+      element("summary", { className: "evidence-stat-summary" }, [
+        element("strong", { text: Number(stat.value || 0).toLocaleString() }),
+        element("span", { text: stat.label }),
+        element("small", { text: stat.detail }),
+      ]),
+      items.length
+        ? element("ul", { className: "evidence-detail-list" }, items)
+        : element("p", { className: "evidence-detail-empty", text: emptyText }),
+    ]);
+  const modelCardLine = (card) =>
+    element("li", {}, [
+      safeHttpUrl(card.url)
+        ? element("a", {
+            className: "adopter-link",
+            text: cardLabel(card, labelCounts),
+            attrs: { href: safeHttpUrl(card.url), target: "_blank", rel: "noopener noreferrer" },
+          })
+        : element("span", { className: "insight-item-name", text: cardLabel(card, labelCounts) }),
+      element("span", {
+        className: "insight-item-meta",
+        text: `${String(card.document_type).replaceAll("_", " ")}${
+          card.published ? ` · ${formatDate(card.published, { dateStyle: "medium" })}` : ""
+        }`,
+      }),
+    ]);
+  const benchmarkLine = (entry, meta) =>
+    element("li", {}, [
+      safeHttpUrl(entry.url)
+        ? element("a", {
+            className: "adopter-link",
+            text: entry.name,
+            attrs: { href: safeHttpUrl(entry.url), target: "_blank", rel: "noopener noreferrer" },
+          })
+        : element("span", { className: "insight-item-name", text: entry.name }),
+      meta
+        ? element("span", { className: "insight-item-meta", text: meta })
+        : entry.released
+          ? element("span", {
+              className: "insight-item-meta",
+              text: `${t("released")} ${formatDate(entry.released, { dateStyle: "medium" })}`,
+            })
+          : null,
+    ]);
+  // `board.domains` counts only adopted benchmarks, so it would understate the
+  // spread of everything tracked. Count the distinct domains across all
+  // entries, matching how the filter options are built, so the tracked tile's
+  // breadth claim never collides with the adopted-only figure.
+  const domainCount = new Set((board.entries || []).map((entry) => entry.domain)).size;
+  replaceChildren(byId("leaderboard-insights"), [
+    evidenceDisclosure(
+      {
+        value: board.model_card_count,
+        label: t("source documents"),
+        detail: t("Each source document counts once per benchmark record."),
+      },
+      allCards.map(modelCardLine),
+      t("No source documents in the registry yet."),
+    ),
+    evidenceDisclosure(
+      { value: board.organization_count, label: t("organizations"), detail: t("Publishers of the cited source documents.") },
+      Object.entries(board.organizations || {})
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([organization, count]) =>
+          element("li", {}, [
+            element("details", { className: "insight-nested" }, [
+              element("summary", { className: "insight-nested-summary" }, [
+                element("span", { className: "insight-item-name", text: organization }),
+                element("span", {
+                  className: "insight-item-meta",
+                  text: metricLabel(Number(count || 0), "source document"),
+                }),
+              ]),
+              element(
+                "ul",
+                { className: "evidence-detail-list" },
+                allCards
+                  .filter((card) => card.organization === organization)
+                  .map(modelCardLine),
+              ),
+            ]),
+          ]),
+        ),
+      "No organizations in the registry yet.",
+    ),
+    evidenceDisclosure(
+      {
+        value: board.benchmark_count,
+        label: t("Benchmarks tracked"),
+        detail:
+          t("across {domains}{listed}.", {
+            domains: metricLabel(domainCount, "domain"),
+            listed: board.entries.length ? ` · ${metricLabel(board.entries.length, "benchmark")} ${t("listed")}` : "",
+          }),
+      },
+      (board.entries || []).map((entry) =>
+        benchmarkLine(
+          entry,
+          entry.card_count ? metricLabel(entry.card_count, "source document") : t("not yet reported"),
+        ),
+      ),
+      "No benchmarks tracked yet.",
+    ),
+    evidenceDisclosure(
+      { value: topEntries.length, label: t("Benchmarks reported at least once"), detail: t("The subset a ranked row can speak to.") },
+      topEntries.map((entry) => benchmarkLine(entry, metricLabel(entry.card_count, "source document"))),
+      t("No source documents recorded yet."),
+    ),
+    element("details", { className: "evidence-thesis evidence-thesis-disclosure" }, [
+      element("summary", { className: "evidence-thesis-summary" }, [
+        element("strong", { text: t("New benchmarks") }),
+        element("span", {
+          text: t(" · {count} released in the newest 18-month window already appear across three or more dated organizations. Follow their trajectories before reading the raw rank.", {
+            count: metricLabel(newSharedSignals.length, "benchmark"),
+          }),
+        }),
+      ]),
+      element(
+        "ul",
+        { className: "evidence-detail-list" },
+        [...newSharedSignals]
+          .sort(
+            (a, b) =>
+              (b.released || "").localeCompare(a.released || "") ||
+              a.name.localeCompare(b.name),
+          )
+          .map((entry) => benchmarkLine(entry, metricLabel(entry.card_count, "source document"))),
+      ),
+    ]),
+  ]);
+
+  const entries = leaderboardEntries();
+  const filtersActive = Boolean(state.lq || state.ldomain || state.lorg || state.lera);
+  const visibleEntries =
+    filtersActive || state.leaderboardShowAll ? entries : entries.slice(0, 18);
+  byId("leaderboard-count").textContent = filtersActive
+    ? `${metricLabel(entries.length, "benchmark")} ${t("of")} ${board.entries.length}`
+    : `${visibleEntries.length} ${t("shown")} · ${board.entries.length} ${t("tracked")}`;
+  replaceChildren(
+    byId("leaderboard-list"),
+    visibleEntries.length
+      ? visibleEntries.map(leaderboardRow)
+      : [
+          element("p", {
+            className: "empty-state",
+            text: t("No benchmarks match these filters. Clear one or more filters to widen the view."),
+          }),
+        ],
+  );
+  const showAllButton = byId("leaderboard-show-all");
+  showAllButton.hidden = filtersActive || entries.length <= 18;
+  const showAllLabel = state.leaderboardShowAll
+    ? t("Show the first 18 benchmarks")
+    : t("Show all {count} benchmarks", { count: entries.length });
+  showAllButton.textContent = showAllLabel;
+  showAllButton.setAttribute("aria-label", showAllLabel);
+
+  const cards = board.model_cards || [];
+  byId("leaderboard-cards-count").textContent = metricLabel(cards.length, "document");
+  replaceChildren(byId("leaderboard-cards"), cards.map(modelCardRow));
+}
+
+// The reverse direction of the registry's dual link, rendered as a disclosure so
+// a reader can audit one card against its source document. The forward direction
+// (a benchmark, expanded to its adopters) answers "who reports this?"; this
+// answers "what did this card report?", which is the question you need when
+// checking our data against the ground-truth PDF or blog post. Both are built
+// from the same edge set in `adoption_rank`, so what is listed here is exactly
+// what that card contributes to every count in the table above.
+function modelCardRow(card) {
+  const benchmarks = card.reported_benchmarks || [];
+  // `record-summary-unranked` selects the three-column grid: these rows carry no
+  // rank number, unlike the ranked benchmark rows above.
+  const summary = element("summary", { className: "record-summary record-summary-unranked" }, [
+    element("div", { className: "record-heading" }, [
+      element("div", { className: "signal-meta" }, [
+        element("span", { text: card.organization }),
+        element("span", { text: String(card.document_type).replaceAll("_", " ") }),
+        element("span", {
+          text: card.published
+            ? formatDate(card.published, { dateStyle: "medium" })
+            : t("date unknown"),
+        }),
+      ]),
+      element("h3", { text: card.model }),
+    ]),
+    element("div", { className: "score" }, [
+      element("div", { className: "score-value" }, [
+        element("strong", { text: String(card.benchmark_count) }),
+      ]),
+      element("p", { className: "score-label", text: t("Benchmarks") }),
+    ]),
+  ]);
+
+  // Grouped by domain because that is how the source documents are laid out:
+  // a card's own tables are sectioned into reasoning, coding, agentic and
+  // multimodal blocks, so grouping the same way keeps a side-by-side check
+  // against the PDF a matter of reading down one column.
+  const byDomain = new Map();
+  for (const benchmark of benchmarks) {
+    if (!byDomain.has(benchmark.domain)) byDomain.set(benchmark.domain, []);
+    byDomain.get(benchmark.domain).push(benchmark);
+  }
+
+  const groups = [...byDomain.entries()].map(([domain, items]) =>
+    element("div", { className: "card-benchmark-group" }, [
+      element("h4", { text: domain.replaceAll("_", " ") }),
+      element(
+        "ul",
+        { className: "adopter-list" },
+        items.map((benchmark) =>
+          element("li", {}, [
+            safeHttpUrl(benchmark.url)
+              ? element("a", {
+                  className: "adopter-link",
+                  text: benchmark.name,
+                  attrs: {
+                    href: safeHttpUrl(benchmark.url),
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                  },
+                })
+              : element("span", { className: "adopter-link", text: benchmark.name }),
+            element("span", {
+              className: "adopter-meta",
+              text: benchmark.released
+                ? `${t("released")} ${formatDate(benchmark.released, { dateStyle: "medium" })}`
+                : t("release date unrecorded"),
+            }),
+          ]),
+        ),
+      ),
+    ]),
+  );
+
+  return element("details", { className: "record-card" }, [
+    summary,
+    element("div", { className: "record-detail" }, [
+      element("h3", { text: t("Benchmarks this document reports") }),
+      element("p", {
+        className: "section-note",
+        text: t("Each linked benchmark counts once for this document. Open its detail to inspect scores, protocols and citations."),
+      }),
+      ...groups,
+      element("a", {
+        className: "primary-link",
+        text: t("Open source document ↗"),
+        attrs: { href: safeHttpUrl(card.url), target: "_blank", rel: "noopener noreferrer" },
+      }),
+      card.retrieved_at
+        ? element("p", {
+            className: "adopter-meta",
+            text: `${t("Last checked on")} ${formatDate(card.retrieved_at, {
+              dateStyle: "medium",
+            })}`,
+          })
+        : null,
+    ]),
+  ]);
+}
+
+function renderTrendMap() {
+  if (!state.data) return;
+  const corpus = state.data.corpus;
+  if (!corpus) return;
+  const explorer = byId("relationship-explorer");
+  const entityTypes = corpus.aggregates?.entity_types || {};
+  const hasGraph = Array.isArray(corpus.entities);
+  const entityById = hasGraph
+    ? new Map(corpus.entities.map((entity) => [entity.id, entity]))
+    : new Map();
+  const selectedFromUrl = entityById.get(state.entity);
+
+  renderMapInsights(corpus);
+  byId("map-summary").textContent =
+    `${Number(entityTypes.artifact || 0).toLocaleString()} ${t("items")} · ` +
+    `${Number(entityTypes.organization || 0).toLocaleString()} ${t("organizations")} · ` +
+    `${Number(entityTypes.source || 0).toLocaleString()} ${t("sources")} · ` +
+    `${Number(entityTypes.topic || 0).toLocaleString()} ${t("topics")}`;
+
+  // A permalink to a node is an explicit request for the deep view. Otherwise
+  // keep the expensive, thousands-of-node canvas out of the DOM until the
+  // reader asks for it.
+  if (selectedFromUrl) explorer.open = true;
+  if (!explorer.dataset.renderBound) {
+    explorer.dataset.renderBound = "true";
+    explorer.addEventListener("toggle", () => {
+      if (explorer.open) {
+        if (!state.fullDataLoaded) {
+          ensureFullData()
+            .then(() => {
+              if (state.view === "map") renderTrendMap();
+            })
+            .catch((error) => console.error(error));
+          return;
+        }
+        renderTrendMap();
+      } else replaceChildren(byId("map-canvas"), []);
+    });
+  }
+  if (!explorer.open) {
+    replaceChildren(byId("map-canvas"), []);
+    return;
+  }
+  if (!hasGraph) {
+    replaceChildren(byId("map-canvas"), []);
+    return;
+  }
+
+  const artifacts = corpus.entities
+    .filter((entity) => entity.type === "artifact")
+    .sort(
+      (a, b) =>
+        Number(b.latest_score || 0) - Number(a.latest_score || 0) ||
+        Number(b.observation_count || 0) - Number(a.observation_count || 0) ||
+        a.label.localeCompare(b.label),
+    );
+  const artifactOrder = new Map(
+    artifacts.map((entity, index) => [entity.id, index]),
+  );
+  const artifactIds = new Set(artifacts.map((entity) => entity.id));
+  const visibleEdges = corpus.edges.filter(
+    (edge) =>
+      artifactIds.has(edge.source) &&
+      ["HAS_TOPIC", "RELEASED_BY", "FOUND_VIA"].includes(edge.type),
+  );
+  const visibleIds = new Set([
+    ...artifactIds,
+    ...visibleEdges.flatMap((edge) => [edge.source, edge.target]),
+  ]);
+  if (
+    selectedFromUrl &&
+    ["topic", "organization", "source"].includes(selectedFromUrl.type)
+  ) {
+    visibleIds.add(selectedFromUrl.id);
+  }
+  const visibleEntities = [...visibleIds]
+    .map((id) => entityById.get(id))
+    .filter(Boolean);
+  const typeOrder = ["source", "organization", "artifact", "topic"];
+  const xByType = { source: 110, organization: 350, artifact: 650, topic: 1010 };
+  const groups = Object.fromEntries(
+    typeOrder.map((type) => [
+      type,
+      visibleEntities
+        .filter((entity) => entity.type === type)
+        .sort((a, b) =>
+          type === "artifact"
+            ? artifactOrder.get(a.id) - artifactOrder.get(b.id)
+            : a.label.localeCompare(b.label),
+        ),
+    ]),
+  );
+  const rowSpacing = 36;
+  const height = Math.max(
+    560,
+    groups.artifact.length * rowSpacing + 120,
+  );
+  const positions = new Map();
+  typeOrder.forEach((type) => {
+    groups[type].forEach((entity, index) => {
+      const y =
+        type === "artifact"
+          ? 70 + index * rowSpacing
+          : groups[type].length === 1
+            ? height / 2
+            : 70 + (index * (height - 140)) / (groups[type].length - 1);
+      positions.set(entity.id, { x: xByType[type], y });
+    });
+  });
+
+  const svg = svgElement("svg", {
+    viewBox: `0 0 1200 ${height}`,
+    width: "1200",
+    height,
+    // role="group" rather than role="img": the map contains interactive
+    // marker nodes, and ARIA makes descendants of role="img" presentational,
+    // hiding every node from assistive tech. Same choice the adoption
+    // frontier documents for its marker buttons.
+    role: "group",
+    "aria-label": t("Items connected to topics, organizations, and sources"),
+  });
+  typeOrder.forEach((type) => {
+    svg.append(
+      svgElement(
+        "text",
+        {
+          x: xByType[type],
+          y: 30,
+          "text-anchor": "middle",
+          class: "map-column-label",
+        },
+        {
+          source: t("Sources"),
+          organization: t("Organizations"),
+          artifact: t("Items"),
+          topic: t("Topics"),
+        }[type],
+      ),
+    );
+  });
+  visibleEdges.forEach((edge) => {
+    const source = positions.get(edge.source);
+    const target = positions.get(edge.target);
+    if (!source || !target) return;
+    svg.append(
+      svgElement("line", {
+        x1: source.x,
+        y1: source.y,
+        x2: target.x,
+        y2: target.y,
+        class: "map-edge",
+      }),
+    );
+  });
+  visibleEntities.forEach((entity) => {
+    const position = positions.get(entity.id);
+    if (!position) return;
+    const group = svgElement("g", {
+      class: `map-node map-node-${entity.type}`,
+      transform: `translate(${position.x} ${position.y})`,
+      tabindex: "0",
+      role: "button",
+      "aria-label": `${entity.type}: ${entity.label}`,
+    });
+    group.append(svgElement("circle", { r: entity.type === "artifact" ? 8 : 6 }));
+    group.append(
+      svgElement(
+        "text",
+        { x: 14, y: 4 },
+        shorten(entity.label, entity.type === "artifact" ? 38 : 24),
+      ),
+    );
+    const related = visibleEdges
+      .filter((edge) => edge.source === entity.id || edge.target === entity.id)
+      .map((edge) => entityById.get(edge.source === entity.id ? edge.target : edge.source))
+      .filter(Boolean);
+    const select = () => selectMapNode(entity, related);
+    group.addEventListener("click", select);
+    group.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        select();
+      }
+    });
+    svg.append(group);
+  });
+  replaceChildren(byId("map-canvas"), [svg]);
+  if (selectedFromUrl) {
+    const related = corpus.edges
+      .filter(
+        (edge) => edge.source === selectedFromUrl.id || edge.target === selectedFromUrl.id,
+      )
+      .map((edge) =>
+        entityById.get(
+          edge.source === selectedFromUrl.id ? edge.target : edge.source,
+        ),
+      )
+      .filter(Boolean);
+    selectMapNode(selectedFromUrl, related);
+  }
+}
+
+function attentionActivity(item) {
+  return element("div", { className: "attention-activity" }, [
+    element("strong", { text: metricLabel(item.metrics?.points, "point") }),
+    element("span", { text: metricLabel(item.metrics?.comments, "comment") }),
+    element("span", { text: metricLabel(item.metrics?.submissions ?? 1, "submission") }),
+  ]);
+}
+
+function observationCard(item, index) {
+  const isAttention = item.observation_kind === "attention";
+  const metadata = isAttention
+    ? element("div", { className: "signal-meta" }, [
+        element("span", { className: "attention-badge", text: t("attention") }),
+        element("span", {
+          text: `${item.source} · ${eventVerb(item)}`,
+          // The relative time on the row carries the exact timestamp on
+          // hover, matching the evidence rows (issue #248).
+          attrs: {
+            title: eventTimestamp(item)
+              ? `${formatDate(eventTimestamp(item), { dateStyle: "medium", timeStyle: "short" })} UTC`
+              : "",
+          },
+        }),
+      ])
+    : recordMeta(item);
+  const summary = (item.summary || "").trim()
+    ? shorten(item.summary)
+    : t("No description published at the source.");
+  const header = element("summary", { className: "record-summary" }, [
+    element("span", {
+      className: "signal-rank",
+      text: String(index + 1).padStart(2, "0"),
+    }),
+    element("div", { className: "record-heading" }, [
+      // The benchmark title leads the row; the provenance line follows it
+      // instead of classifying the item before it is named (issue #248).
+      element("h3", { text: item.title }),
+      metadata,
+      // Attention rows already show their source-specific points, comments,
+      // and submissions in attentionActivity; the generic facts helper does
+      // not understand those counters and would incorrectly call them absent.
+      isAttention ? null : recordFacts(item),
+      ...(item.watchlist && item.watchlist_note
+        ? [element("p", { className: "signal-tldr", text: item.watchlist_note })]
+        : []),
+      element("p", {
+        className: item.summary ? "" : "signal-nodesc",
+        text: isAttention
+          ? `${summary} · ${metricLabel(item.metrics?.points, "point")}`
+          : summary,
+      }),
+    ]),
+    isAttention ? attentionActivity(item) : scoreBlock(item),
+  ]);
+  return element(
+    "details",
+    {
+      className: `record-card${isAttention ? " attention-card" : ""}`,
+    },
+    [header, expandedRecord(item, (item.summary || "").trim() ? summary : "")],
+  );
+}
+
+const CONTACT_EMAIL = "ktwu01@gmail.com";
+const WECHAT_ID = "ktwu001";
+const DISCORD_ID = "ktwu01";
+
+const BRAND_ICON_PATHS = {
+  email: "M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm9 6.9L4.2 6h15.6L12 11.9Zm-8 6.6V8.9l8 5.9 8-5.9v9.6H4Z",
+  wechat:
+    "M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05a6.127 6.127 0 0 1-.253-1.72c0-3.571 3.437-6.467 7.678-6.467.233 0 .463.013.694.031C17.02 4.792 13.205 2.188 8.69 2.188Zm-2.6 4.408c.654 0 1.184.517 1.184 1.154 0 .637-.53 1.154-1.184 1.154-.654 0-1.184-.517-1.184-1.154 0-.637.53-1.154 1.184-1.154Zm5.51 0c.654 0 1.184.517 1.184 1.154 0 .637-.53 1.154-1.184 1.154-.654 0-1.184-.517-1.184-1.154 0-.637.53-1.154 1.184-1.154Zm7.835 3.124c-3.858 0-6.984 2.667-6.984 5.957 0 3.29 3.126 5.957 6.984 5.957.848 0 1.663-.146 2.418-.408a.622.622 0 0 1 .516.07l1.371.802a.235.235 0 0 0 .12.039.213.213 0 0 0 .208-.213c0-.052-.02-.102-.035-.153l-.28-1.067a.426.426 0 0 1 .153-.479c1.359-1.111 2.2-2.707 2.2-4.548 0-3.29-3.126-5.957-6.984-5.957Zm-3.865 3.594c.55 0 .996.435.996.971 0 .537-.446.972-.996.972-.55 0-.996-.435-.996-.972 0-.536.446-.971.996-.971Zm7.729 0c.55 0 .996.435.996.971 0 .537-.446.972-.996.972-.55 0-.996-.435-.996-.972 0-.536.446-.971.996-.971Z",
+  discord:
+    "M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 0 1-.0066.1276 12.2986 12.2986 0 0 1-1.873.8914.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286ZM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189Zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0957 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z",
+};
+
+function brandIcon(name) {
+  const svg = svgElement("svg", {
+    viewBox: "0 0 24 24",
+    class: "brand-icon",
+    "aria-hidden": "true",
+  });
+  svg.appendChild(svgElement("path", { d: BRAND_ICON_PATHS[name] }));
+  return svg;
+}
+
+// The contact dialog (issue #191) keeps every reach-out channel in one place:
+// email, WeChat, and Discord. The header badge (issue #213) merged the two
+// separate WeChat and Discord buttons into a single Contact control that
+// opens this dialog, so a reader lands on a choice rather than being launched
+// out of the page on a guess.
+//
+// Dataset access stays free. Contact is for corrections, missing sources, and
+// collaboration, while the sheet still gives a reader direct routes to the
+// dataset and the repository.
+function openContact(updateUrl = true) {
+  if (updateUrl) viewNavigationSequence += 1;
+  const dialog = byId("contact-dialog");
+  closeOtherSheets("contact-dialog");
+  state.rubric = "";
+  state.cite = false;
+  state.cli = false;
+  state.contact = true;
+  if (updateUrl) writeUrl("push");
+  replaceChildren(byId("contact-content"), [
+    element("p", { className: "detail-source", text: "Benchmark Radar" }),
+    element("h2", {
+      className: "detail-title contact-title",
+      text: t("Get in touch"),
+      attrs: { id: "contact-title" },
+    }),
+    element("p", {
+      className: "detail-summary",
+      text: t("A wrong row in the adoption ranking is a real bug. So is a data source that stopped returning anything, or a benchmark you expected the radar to see."),
+    }),
+    element("ul", { className: "contact-list" }, [
+      element("li", {}, [
+        element("span", { className: "contact-label" }, [
+          brandIcon("email"),
+          element("strong", { text: t("Email") }),
+        ]),
+        element("a", {
+          className: "contact-value",
+          text: CONTACT_EMAIL,
+          attrs: { href: `mailto:${CONTACT_EMAIL}` },
+        }),
+      ]),
+      element("li", {}, [
+        element("span", { className: "contact-label" }, [
+          brandIcon("wechat"),
+          element("strong", { text: t("WeChat") }),
+        ]),
+        element("span", { className: "contact-value", text: `ID ${WECHAT_ID}` }),
+      ]),
+      element("li", {}, [
+        element("span", { className: "contact-label" }, [
+          brandIcon("discord"),
+          element("strong", { text: t("Discord") }),
+        ]),
+        element("span", { className: "contact-value", text: `ID ${DISCORD_ID}` }),
+      ]),
+    ]),
+    element("div", { className: "contact-dataset" }, [
+      element("p", {
+        className: "detail-summary",
+        text: t("The complete dataset is free to download. If it saves you research time, star the repository so other eval builders can find it."),
+      }),
+      element("a", {
+        className: "primary-link",
+        text: t("Download"),
+        attrs: {
+          href: "https://huggingface.co/datasets/ktwu01/benchmark-radar",
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+      }),
+      element("a", {
+        className: "secondary-link",
+        text: t("Star the repository"),
+        attrs: {
+          href: `https://github.com/${REPO_SLUG}`,
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+      }),
+    ]),
+  ]);
+  if (!dialog.open) dialog.showModal();
+}
+
+// The published technical report. Contract tests keep these copyable strings
+// aligned with CITATION.cff and the server-rendered citation route.
+const CITE_DOI_URL = "https://arxiv.org/abs/2609.11115";
+const CITE_CFF_URL = "https://github.com/ktwu01/benchmark-radar/blob/main/CITATION.cff";
+const CITE_APA =
+  "Wu, K., Zhou, J., Shang, E., Wang, J., Han, P., Wang, J., & Xu, W. (2026). " +
+  "Benchmark Radar: A living database and search engine for AI benchmarks and evaluation. " +
+  "arXiv:2609.11115. " +
+  CITE_DOI_URL;
+const CITE_BIBTEX = [
+  "@misc{wu2026benchmarkradarlivingdatabase,",
+  "      title={Benchmark Radar: A Living Database and Search Engine for AI Benchmarks and Evaluation},",
+  "      author={Koutian Wu and Junjie Zhou and Ergan Shang and Jiayu Wang and Pengqian Han and Junkai Wang and Wanghan Xu},",
+  "      year={2026},",
+  "      eprint={2609.11115},",
+  "      archivePrefix={arXiv},",
+  "      primaryClass={cs.AI},",
+  "      url={https://arxiv.org/abs/2609.11115},",
+  "}",
+].join("\n");
+
+// One labelled block of copyable text, shared by the citation sheet and the CLI
+// sheet. The block itself is the button: a reader who came for a citation or a
+// setup prompt wants it on the clipboard, so clicking the text copies it rather
+// than making them select eight wrapped lines by hand.
+//
+// `collapsed` starts the block showing only its hint ("Click to copy") with the
+// raw text hidden, for formats long enough that seeing every one at once turns
+// the sheet into a wall of text. The first click both copies and reveals, so
+// the reader who did not need to read it first still gets it on the clipboard
+// in one click, and the reader who wants to check it can see what they copied.
+function copyBlock(label, value, hint, hideLabel = false, collapsed = false) {
+  const status = element("span", { className: "copy-status", text: t(hint) });
+  const text = element("code", { className: "copy-text", text: value });
+  const copy = element(
+    "button",
+    {
+      className: collapsed ? "copy-target is-collapsed" : "copy-target",
+      attrs: { type: "button", "aria-label": `${t(hint)}: ${t(label)}` },
+    },
+    [text, status],
+  );
+  copy.addEventListener("click", async () => {
+    copy.classList.remove("is-collapsed");
+    try {
+      await navigator.clipboard.writeText(value);
+      copy.classList.add("is-copied");
+      status.textContent = t("Copied");
+      setTimeout(() => {
+        copy.classList.remove("is-copied");
+        status.textContent = t(hint);
+      }, 1600);
+    } catch (error) {
+      // Clipboard access is refused outright in some browsers and embedded
+      // webviews. Selecting the text leaves the reader one keystroke from
+      // copying it by hand, rather than a click that visibly did nothing.
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      status.textContent = t("Copy it with your keyboard");
+    }
+  });
+  return element("section", { className: "copy-block" }, [
+    element("h3", {
+      className: hideLabel ? "copy-label visually-hidden" : "copy-label",
+      text: t(label),
+    }),
+    copy,
+  ]);
+}
+
+// True only while the open card owns a history entry this page pushed. A
+// reader who landed on /cite/ directly does not have one, so closing must not
+// step back: the entry behind them belongs to whatever site sent them here.
+let citeOwnsHistoryEntry = false;
+let replacingUtilitySheet = false;
+
+// One sheet at a time. showModal() stacks a dialog on top of an open one rather
+// than replacing it, so opening the rubric over the CLI card would leave the CLI
+// card waiting underneath to reappear when the rubric closed. Ownership is
+// dropped first: the sheet being replaced must not step history back, because
+// the entry it pushed is the one the reader came through.
+function closeOtherSheets(keep) {
+  replacingUtilitySheet = true;
+  rubricOwnsHistoryEntry = false;
+  citeOwnsHistoryEntry = false;
+  cliOwnsHistoryEntry = false;
+  try {
+    for (const id of ["rubric-dialog", "contact-dialog", "cite-dialog", "cli-dialog"]) {
+      if (id === keep) continue;
+      const other = byId(id);
+      if (other?.open) other.close();
+    }
+  } finally {
+    replacingUtilitySheet = false;
+  }
+}
+
+function utilityEntryReturnsOnClose(utility) {
+  const entry = window.history?.state?.benchmarkRadarUtility;
+  return entry?.utility === utility && Boolean(entry.returnOnClose);
+}
+
+function finishUtilityClose(utility, ownsHistoryEntry) {
+  const currentUtility = utilityFromPath(window.location.pathname);
+  if (
+    !replacingUtilitySheet
+    && currentUtility === utility
+    && (ownsHistoryEntry || utilityEntryReturnsOnClose(utility))
+  ) {
+    syncNavState();
+    applyCurrentSeo();
+    window.history.back();
+    return;
+  }
+  // A directly opened utility owns no previous same-site entry. Closing it
+  // replaces the utility URL with the homepage instead of sending the reader
+  // back to whichever external page referred them.
+  if (!replacingUtilitySheet && currentUtility === utility) {
+    state.view = "today";
+    state.todayDate = "";
+    state.q = "";
+    state.kind = "";
+    state.category = "";
+    state.source = "";
+    state.organization = "";
+    state.event = "";
+    state.todayPage = 1;
+  }
+  syncNavState();
+  applyCurrentSeo();
+  writeUrl("replace");
+}
+
+// The catalogs the score layer reads. LLM Stats asks for credit visible to
+// readers with a link back; this is the mirror of SCORE_SOURCE_LINKS in
+// app_seeds.py, and the two must render the same sentence or the seed and the
+// hydrated card disagree.
+const SCORE_SOURCE_LINKS = [
+  ["LLM Stats", "https://llm-stats.com"],
+  ["Artificial Analysis", "https://artificialanalysis.ai"],
+  ["OpenCompass Hub", "https://hub.opencompass.org.cn"],
+];
+
+// Deliberately quiet: it closes the card as a footnote under the formats the
+// reader came for, so it carries no button styling and no heading.
+function citeCredit() {
+  const node = element("p", { className: "cite-credit" });
+  node.append(
+    document.createTextNode(
+      `${t("Benchmark score data comes from lab model reports and from")} `,
+    ),
+  );
+  SCORE_SOURCE_LINKS.forEach(([name, url], index) => {
+    if (index > 0) {
+      node.append(
+        document.createTextNode(
+          index === SCORE_SOURCE_LINKS.length - 1 ? ` ${t("and")} ` : ", ",
+        ),
+      );
+    }
+    node.append(
+      element("a", {
+        text: name,
+        attrs: { href: url, target: "_blank", rel: "noopener noreferrer" },
+      }),
+    );
+  });
+  node.append(document.createTextNode("."));
+  return node;
+}
+
+// Reachable at /cite/, so the card has a short link that can be pasted into a
+// paper, a README or a message instead of a reader hunting the footer for it.
+function openCite(updateUrl = true) {
+  if (updateUrl) viewNavigationSequence += 1;
+  const dialog = byId("cite-dialog");
+  closeOtherSheets("cite-dialog");
+  state.rubric = "";
+  state.contact = false;
+  state.cli = false;
+  state.cite = true;
+  citeOwnsHistoryEntry = updateUrl;
+  syncNavState();
+  applyCurrentSeo();
+  if (updateUrl) writeUrl("push");
+  replaceChildren(byId("cite-content"), [
+    element("p", { className: "detail-source", text: "Benchmark Radar" }),
+    element("h2", {
+      className: "detail-title cite-title",
+      text: t("Cite this work"),
+      attrs: { id: "cite-title" },
+    }),
+    element("p", {
+      className: "detail-summary",
+      text: t("Pick the format your paper or repository needs, then click it to copy."),
+    }),
+    element("div", { className: "copy-blocks" }, [
+      copyBlock("APA", CITE_APA, "Click to copy", false, true),
+      copyBlock("BibTeX", CITE_BIBTEX, "Click to copy", false, true),
+      copyBlock("Citation file (.cff)", CITE_CFF_URL, "Click to copy link"),
+    ]),
+    element("a", {
+      className: "secondary-link dialog-link",
+      text: t("View the citation file"),
+      attrs: { href: CITE_CFF_URL, target: "_blank", rel: "noopener noreferrer" },
+    }),
+    citeCredit(),
+  ]);
+  showModalDialog(dialog);
+}
+
+// The consumer Skill owns setup end to end (48413f8); do not duplicate its
+// steps in page copy. This query-only prompt points to the Skill and passes on
+// the reader's current search request for issue #487.
+const CLI_SKILL_URL =
+  "https://github.com/ktwu01/benchmark-radar/blob/main/skills/benchmark-radar/SKILL.md";
+const CLI_SKILL_INSTALL = "npx skills add ktwu01/benchmark-radar";
+
+function cliAgentPrompt(query) {
+  return [
+    "Set up Benchmark Radar for local benchmark search. Follow",
+    CLI_SKILL_URL,
+    "to install the CLI and consumer Skill, initialize the local data, and verify the setup.",
+    `Then search for ${JSON.stringify(query)} using this CLI and Skill.`,
+  ].join("\n");
+}
+
+// True only while the open card owns a history entry this page pushed, for the
+// same reason the citation card tracks it: closing a directly-opened /cli/ must
+// not step a reader back off the site.
+let cliOwnsHistoryEntry = false;
+
+// Reachable at /cli/ from the view bar, so the offline route is one click from
+// every view rather than a section of the README a reader has to scroll to.
+function openCli(updateUrl = true) {
+  if (updateUrl) viewNavigationSequence += 1;
+  const dialog = byId("cli-dialog");
+  const query = state.view === "today" ? state.q.trim() : "";
+  closeOtherSheets("cli-dialog");
+  state.rubric = "";
+  state.contact = false;
+  state.cite = false;
+  state.cli = true;
+  cliOwnsHistoryEntry = updateUrl;
+  syncNavState();
+  applyCurrentSeo();
+  if (updateUrl) writeUrl("push");
+  replaceChildren(byId("cli-content"), [
+    element("p", { className: "detail-source", text: "Benchmark Radar" }),
+    element("h2", {
+      className: "detail-title cli-title",
+      text: t("Query it locally (CLI version)"),
+      attrs: { id: "cli-title" },
+    }),
+    query && element("p", {
+      className: "detail-summary",
+      text: t("Continue your search for “{query}” with the CLI.", { query }),
+    }),
+    element("div", { className: "copy-blocks" }, [
+      copyBlock("Install", CLI_SKILL_INSTALL, "Click to copy", true),
+      query && copyBlock("Agent prompt", cliAgentPrompt(query), "Click to copy"),
+    ]),
+    element("a", {
+      className: "secondary-link dialog-link",
+      text: t("Read the setup guide"),
+      attrs: { href: CLI_SKILL_URL, target: "_blank", rel: "noopener noreferrer" },
+    }),
+  ]);
+  showModalDialog(dialog);
+}
+
+// Filter keystrokes only rebuild the bounded result list. Briefing, questions,
+// health, and corpus totals do not change while a reader types.
+const scheduleTodayRender = debounce(() => renderToday({ resultsOnly: true }));
+
+// Same for the leaderboard, which re-sorts the registry and rewrites the URL
+// on every keystroke otherwise.
+const scheduleLeaderboardRender = debounce(() => {
+  renderLeaderboard();
+  writeUrl();
+});
+
+function bindEvents() {
+  // Without this a pushed entry would change the URL on Back and leave the
+  // page showing the previous view, silently disagreeing with its own address
+  // bar (issue #286).
+  window.addEventListener("popstate", onPopState);
+  const langToggle = byId("lang-toggle");
+  if (langToggle) langToggle.addEventListener("click", toggleLang);
+  document.querySelectorAll("[data-view]").forEach((item) => {
+    item.addEventListener("click", async (event) => {
+      // View nav entries are anchors so crawlers can follow them; keep the
+      // navigation client-side once a compatible payload is available. Before
+      // then, fall through to their real href so a generated route can show its
+      // seeded content even when the data request failed.
+      const anchor = item.matches("a") ? item : null;
+      if (anchor && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) {
+        return;
+      }
+      const navigationSequence = ++viewNavigationSequence;
+      const view = item.dataset.view;
+      if (!compatibleDashboard(state.data)) {
+        if (anchor) return;
+        window.location.assign(VIEW_PATHS[view] || "/");
+        return;
+      }
+      if (anchor) event.preventDefault();
+      // The Today tab is the latest scan. A Trends column writes ?date= into
+      // the URL for a historical day; clicking Today must not keep that date
+      // or the list looks empty / stuck on an old scan.
+      if (view === "today" && state.todayDate !== "all") {
+        state.todayDate = state.data.latest_date || "";
+      }
+      setView(view);
+      if (view === "today") renderToday();
+      if (view === "leaderboard") renderLeaderboard();
+      if (view === "saturation") renderSaturation();
+      if (view === "trends") renderTrends();
+      if (view === "map") renderTrendMap();
+      try {
+        if (view === "trends") await ensureTrendsData();
+        // A trends response can supersede an in-flight /data/radar.json fetch
+        // while the relationship explorer is open. The <details> element never
+        // closed, so no toggle event fires again and the explorer would stay
+        // empty on return. Re-run the state gate here: it re-requests the full
+        // corpus when the open disclosure still needs it and does nothing when
+        // Explore is entered with the canvas collapsed, keeping lazy loading.
+        else if (view === "map") await ensureDataForState();
+      } catch (error) {
+        console.error(error);
+        if (navigationSequence !== viewNavigationSequence) return;
+        window.location.assign(anchor?.href || VIEW_PATHS[view] || "/");
+        return;
+      }
+      if (navigationSequence !== viewNavigationSequence) return;
+      if (view === "trends") renderTrends();
+      if (view === "map") renderTrendMap();
+    });
+  });
+  // Reads every control rather than the event target, so the <select>
+  // "input"-before-"change" ordering that broke the Scan date picker (issue
+  // #43) cannot write a stale value back over the reader's pick here: whichever
+  // event arrives first, all three values come from the DOM as it stands now.
+  // One delegated listener for the mode and window controls: the empty state
+  // renders its own "try a wider window" buttons, which a bind-time
+  // querySelectorAll would never see.
+  const latestSearch = byId("latest-releases-search");
+  if (latestSearch) {
+    latestSearch.addEventListener("input", () => setLatestQuery(latestSearch.value));
+  }
+  byId("leaderboard-view").addEventListener("click", (event) => {
+    if (event.target.closest("[data-lrq-clear]")) {
+      setLatestQuery("");
+      return;
+    }
+    const windowControl = event.target.closest("[data-lwindow]");
+    if (windowControl) {
+      setLatestWindow(windowControl.dataset.lwindow);
+      return;
+    }
+    const modeControl = event.target.closest("button[data-lmode]");
+    if (modeControl) {
+      setLeaderboardMode(modeControl.dataset.lmode);
+      return;
+    }
+    const scoresLink = event.target.closest('a.leaderboard-mode[href="/benchmark-radar-zh24/saturation/"]');
+    if (
+      scoresLink
+      && event.button === 0
+      && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      && compatibleDashboard(state.data)
+    ) {
+      event.preventDefault();
+      setView("saturation");
+      renderSaturation();
+    }
+  });
+  byId("leaderboard-filters").addEventListener("input", () => {
+    state.lq = byId("leaderboard-search").value;
+    state.ldomain = byId("leaderboard-domain").value;
+    state.lorg = byId("leaderboard-organization").value;
+    state.lera = byId("leaderboard-era").value;
+    scheduleLeaderboardRender();
+  });
+  byId("leaderboard-clear").addEventListener("click", () => {
+    state.lq = "";
+    state.ldomain = "";
+    state.lorg = "";
+    state.lera = "";
+    state.leaderboardShowAll = false;
+    byId("leaderboard-search").value = "";
+    renderLeaderboard();
+    writeUrl();
+  });
+  byId("leaderboard-top-more").addEventListener("click", () => {
+    state.leaderboardTopExpanded = !state.leaderboardTopExpanded;
+    const board = catalogDocumentBoard();
+    if (board) renderLeaderboardTop(board);
+  });
+  byId("leaderboard-show-all").addEventListener("click", () => {
+    state.leaderboardShowAll = !state.leaderboardShowAll;
+    renderLeaderboard();
+    byId("leaderboard-table-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  byId("score-ranking-more").addEventListener("click", () => {
+    state.scoreRankingExpanded = !state.scoreRankingExpanded;
+    renderScoreRanking(scoreRankingRows());
+  });
+  document.querySelectorAll("[data-score-filter]").forEach((scoreFilter) => {
+    scoreFilter.addEventListener("input", (event) => {
+      const value = scoreCutoff(event.target.value);
+      syncScoreFilters(value);
+      if (state.view === "leaderboard") renderBenchmarkSkyline(value);
+    });
+    scoreFilter.addEventListener("change", (event) => setScoreFilter(event.target.value));
+  });
+  byId("benchmark-skyline-height").addEventListener("change", (event) => {
+    state.lheight = event.target.value;
+    renderBenchmarkSkyline();
+    writeUrl();
+  });
+  byId("benchmark-search-more").addEventListener("click", () => {
+    state.benchmarkVisibleLimit += BENCHMARK_SEARCH_LIMIT;
+    renderBenchmarkSearch();
+  });
+  byId("frontier-benchmark").addEventListener("change", (event) => {
+    selectFrontier(event.target.value);
+    renderAdoptionFrontier(catalogDocumentBoard());
+    writeUrl("push");
+  });
+  byId("today-date").addEventListener("change", async (event) => {
+    // A newer date or range must also supersede a pending Trends-day load.
+    viewNavigationSequence += 1;
+    const previousDate = state.todayRenderedDate || state.todayDate;
+    const selectedDate = event.target.value;
+    state.todayDate = selectedDate;
+    const notice = byId("today-load-error");
+    notice.hidden = false;
+    notice.textContent = t("Loading observations…");
+    try {
+      await ensureDataForState();
+    } catch (error) {
+      console.error(error);
+      if (state.todayDate === selectedDate) {
+        state.todayDate = previousDate;
+        byId("today-date").value = previousDate;
+        notice.textContent = t("Historical data could not be loaded. Select the range again to retry.");
+      }
+      return;
+    }
+    if (state.todayDate !== selectedDate) return;
+    notice.hidden = true;
+    renderToday();
+  });
+  byId("today-page-prev").addEventListener("click", () => {
+    if (state.todayPage <= 1) return;
+    state.todayPage -= 1;
+    renderToday({ resultsOnly: true });
+    byId("today-list").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  byId("today-page-next").addEventListener("click", () => {
+    state.todayPage += 1;
+    renderToday({ resultsOnly: true });
+    byId("today-list").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  byId("trend-released-only").addEventListener("change", (event) => {
+    state.trendReleasedOnly = event.target.checked;
+    renderTrends();
+  });
+  // An open hover card is positioned against the chart, so any scroll or resize
+  // that moves its column has to move it too.
+  byId("trend-chart").addEventListener("scroll", repositionDayTooltip, {
+    passive: true,
+  });
+  window.addEventListener("resize", repositionDayTooltip);
+  window.addEventListener("resize", repositionFrontierTooltip);
+  window.addEventListener("scroll", repositionFrontierTooltip, { passive: true });
+  byId("benchmark-skyline-chart").addEventListener("scroll", repositionFrontierTooltip, { passive: true });
+  // The frontier chart picks its viewBox width from the viewport, so crossing the
+  // 760px breakpoint has to redraw it. Without this a page loaded wide and then
+  // narrowed (or a rotated phone) keeps the 920-unit box until some unrelated
+  // rerender, and the CSS min-height only letterboxes the collapsed chart rather
+  // than fixing it. Re-rendered only on an actual crossing, not on every resize
+  // event, since redrawing every SVG mid-drag would be wasteful.
+  let wasNarrow = window.innerWidth <= 760;
+  window.addEventListener("resize", () => {
+    const isNarrow = window.innerWidth <= 760;
+    if (isNarrow === wasNarrow) return;
+    wasNarrow = isNarrow;
+    if (state.data && state.view === "saturation") renderSaturation();
+  });
+  document.addEventListener("keydown", (event) => {
+    // A <dialog>'s native Escape-close is the keydown's default action (its
+    // `cancel` event), so preventDefault() below would swallow the first
+    // Escape while a dialog is open. Yield to the dialog when one is up.
+    if (
+      event.key === "Escape" &&
+      selectedFrontierPoint &&
+      !document.querySelector("dialog[open]")
+    ) {
+      clearFrontierPointSelection();
+      event.preventDefault();
+      return;
+    }
+    // Do not swallow Escape unless a card is actually open to close.
+    if (event.key === "Escape" && dismissDayTooltip()) event.preventDefault();
+  });
+  byId("filters").addEventListener("input", (event) => {
+    // The Scan date select has its own dedicated change handler above. A
+    // <select> fires "input" before "change", and this bubbled "input"
+    // reaching here would call renderToday() with the still-stale
+    // state.todayDate, which then writes the OLD date back onto the
+    // control and clobbers the user's just-made selection.
+    if (event.target === byId("today-date")) return;
+    const hadQuery = Boolean(state.q.trim());
+    state.q = byId("search-filter").value;
+    state.kind = byId("kind-filter").value;
+    state.category = byId("category-filter").value;
+    state.source = byId("source-filter").value;
+    state.organization = byId("organization-filter").value;
+    state.event = byId("event-filter").value;
+    // The homepage is a newest-scan browser, but a query is a retrieval action:
+    // its default scope is the full archive. Once a query exists, a reader can
+    // still narrow it with the date select or the banner's "today" link.
+    if (!hadQuery && state.q.trim() && !todayIsMultiDate()) {
+      viewNavigationSequence += 1;
+      state.todayDate = "all";
+      state.todayPage = 1;
+      ensureFullData()
+        .then(() => renderToday())
+        .catch((error) => console.error(error));
+      return;
+    }
+    scheduleTodayRender();
+  });
+  // Both filter panels are <form>s whose state lives in the URL query we
+  // build ourselves. Enter in a search field would otherwise trigger an
+  // implicit GET that submits only the named controls, dropping `view` and
+  // reloading the reader into Today from whichever panel they were using.
+  document.querySelectorAll("#filters, #leaderboard-filters").forEach((form) => {
+    form.addEventListener("submit", (event) => event.preventDefault());
+  });
+  byId("clear-filters").addEventListener("click", async () => {
+    viewNavigationSequence += 1;
+    state.todayDate = "all";
+    state.q = "";
+    state.kind = "";
+    state.category = "";
+    state.source = "";
+    state.organization = "";
+    state.event = "";
+    try {
+      await ensureFullData();
+    } catch (error) {
+      console.error(error);
+      return;
+    }
+    renderToday();
+  });
+  // The drawer trigger, its outside-click and Escape dismissal, and the
+  // refresh control. The drawer sits inside the #filters form, so its
+  // selects already reach the shared input handler above.
+  byId("filters-toggle").addEventListener("click", () => {
+    const drawer = byId("filters-drawer");
+    drawer.hidden = !drawer.hidden;
+    byId("filters-toggle").setAttribute("aria-expanded", String(!drawer.hidden));
+  });
+  document.addEventListener("click", (event) => {
+    if (byId("filters-drawer").hidden) return;
+    if (byId("filters").contains(event.target)) return;
+    closeFiltersDrawer();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeFiltersDrawer();
+  });
+  byId("refresh-button").addEventListener("click", refreshData);
+  byId("rubric-close").addEventListener("click", () => byId("rubric-dialog").close());
+  byId("rubric-dialog").addEventListener("click", (event) => {
+    if (event.target === byId("rubric-dialog")) byId("rubric-dialog").close();
+  });
+  // Fires for every close path (button, backdrop click, Esc), so /rubric/ is
+  // cleared from the URL no matter how the reader dismisses the dialog.
+  byId("rubric-dialog").addEventListener("close", () => {
+    state.rubric = "";
+    const owned = rubricOwnsHistoryEntry;
+    rubricOwnsHistoryEntry = false;
+    finishUtilityClose("rubric", owned);
+  });
+  byId("badge-contact").addEventListener("click", openContact);
+  byId("contact-close").addEventListener("click", () => byId("contact-dialog").close());
+  byId("contact-dialog").addEventListener("click", (event) => {
+    if (event.target === byId("contact-dialog")) byId("contact-dialog").close();
+  });
+  byId("contact-dialog").addEventListener("close", () => {
+    state.contact = false;
+    writeUrl();
+  });
+  // The footer entry is an anchor to the same short link, so it still reads as
+  // a link to a crawler and to a reader copying it out of the context menu;
+  // the handler keeps the click itself on the page.
+  byId("cite-open").addEventListener("click", (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openCite();
+  });
+  // The view bar entry is an anchor to the same short link, so /cite/ reads as
+  // a link to a crawler and can be copied out of the context menu; the
+  // handler keeps the click itself on the page.
+  byId("cite-nav").addEventListener("click", (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openCite();
+  });
+  byId("cite-close").addEventListener("click", () => byId("cite-dialog").close());
+  byId("cite-dialog").addEventListener("click", (event) => {
+    if (event.target === byId("cite-dialog")) byId("cite-dialog").close();
+  });
+  byId("cite-dialog").addEventListener("close", () => {
+    state.cite = false;
+    const owned = citeOwnsHistoryEntry;
+    citeOwnsHistoryEntry = false;
+    finishUtilityClose("cite", owned);
+  });
+  // The view bar entry is an anchor to the same short link, so /cli/ reads as a
+  // link to a crawler and can be copied out of the context menu; the handler
+  // keeps the click itself on the page.
+  byId("cli-nav").addEventListener("click", (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    openCli();
+  });
+  byId("cli-close").addEventListener("click", () => byId("cli-dialog").close());
+  byId("cli-dialog").addEventListener("click", (event) => {
+    if (event.target === byId("cli-dialog")) byId("cli-dialog").close();
+  });
+  byId("cli-dialog").addEventListener("close", () => {
+    state.cli = false;
+    const owned = cliOwnsHistoryEntry;
+    cliOwnsHistoryEntry = false;
+    finishUtilityClose("cli", owned);
+  });
+  byId("share-radar").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const shareData = {
+      title: document.title,
+      text: t("Share Benchmark Radar"),
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else await navigator.clipboard.writeText(shareData.url);
+      button.textContent = t("Copied");
+      setTimeout(() => { button.textContent = t("Share"); }, 1600);
+    } catch (error) {
+      if (error?.name !== "AbortError") console.error(error);
+    }
+  });
+}
+
+const REPO_SLUG = "ktwu01/benchmark-radar";
+
+// The visible badge reads "★ Star 12", which a screen reader would announce as
+// a bare statistic. The accessible name states the action and keeps the count
+// as context, so the control sounds like the invitation it is.
+function setStarCount(value) {
+  const badge = byId("badge-stars");
+  const node = badge?.querySelector("[data-count]");
+  if (!node) return;
+  const count = Number(value || 0).toLocaleString();
+  node.textContent = count;
+  badge.setAttribute("aria-label", t("Star this repository on GitHub. {count} stars", { count }));
+}
+
+async function renderStarCount() {
+  // The count is decoration: the badge links out and stays usable if this fails,
+  // so a rate-limited API must never surface as an error state.
+  try {
+    const response = await fetch(`https://api.github.com/repos/${REPO_SLUG}`, {
+      headers: { Accept: "application/vnd.github+json" },
+    });
+    if (!response.ok) return;
+    const repo = await response.json();
+    setStarCount(repo.stargazers_count);
+  } catch (error) {
+    console.debug("Repository star count unavailable", error);
+  }
+}
+
+// Two scheduled runs a day (issue #44), roughly 6h apart; a gap past 30h
+// means both the scheduled run and its same-day retry were missed.
+const STALE_AFTER_HOURS = 30;
+
+// The banner's one job is to send a worried reader somewhere useful within a
+// click: the public Actions log answers "what broke", and the contact dialog
+// that already exists on the page answers "who do I tell". The error messages
+// in those logs are credential-safe by construction, so linking out publishes
+// nothing the repository does not already show.
+const DAILY_RADAR_RUNS_URL = `https://github.com/${REPO_SLUG}/actions/workflows/daily-radar.yml`;
+
+function contactGlyph() {
+  // Same speech-bubble path as the header's Contact badge (issue #213), so a
+  // reader meets one icon for one meaning.
+  const icon = svgElement("svg", { viewBox: "0 0 24 24", "aria-hidden": "true" });
+  icon.append(
+    svgElement("path", {
+      d: "M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z",
+    }),
+  );
+  return icon;
+}
+
+async function pointAtLatestFailedRun(link) {
+  // The workflows page lists every workflow and buries yesterday's failure.
+  // One unauthenticated lookup pins the link to the exact failed run, which is
+  // where "was it the API key or something else" is actually answered. Any
+  // failure keeps the fallback href, which always resolves.
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${REPO_SLUG}/actions/workflows/daily-radar.yml/runs?status=failure&per_page=1`,
+      { headers: { Accept: "application/vnd.github+json" } },
+    );
+    if (!response.ok) return;
+    const data = await response.json();
+    const url = data.workflow_runs?.[0]?.html_url;
+    if (url) link.setAttribute("href", url);
+  } catch (_) {
+    // Offline or rate-limited: the fallback href already points somewhere real.
+  }
+}
+
+function renderStaleBanner() {
+  const banner = byId("stale-banner");
+  const latestDay = state.data.days[state.data.days.length - 1];
+  const generatedAt = new Date(state.data.generated_at);
+  const ageHours = (Date.now() - generatedAt.getTime()) / 3_600_000;
+  const degraded = !latestDay.required_coverage_complete;
+  banner.classList.toggle("stale-banner-degraded", degraded);
+  if (ageHours <= STALE_AFTER_HOURS && !degraded) {
+    banner.hidden = true;
+    banner.replaceChildren();
+    return;
+  }
+  const parts = [];
+  if (ageHours > STALE_AFTER_HOURS) {
+    parts.push(
+      t("Last updated {date}, {hours} hours ago. The automatic update has not succeeded since.", {
+        date: formatDate(state.data.generated_at, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
+        hours: Math.floor(ageHours),
+      }),
+    );
+  }
+  if (degraded) {
+    parts.push(
+      t("Some sources failed to answer on {date}: {gaps}.", {
+        date: latestDay.date,
+        gaps: latestDay.required_coverage_gaps.join(", "),
+      }),
+    );
+  }
+
+  const whatBroke = element("a", {
+    className: "stale-banner-action",
+    text: t("What broke?"),
+    attrs: { href: DAILY_RADAR_RUNS_URL, target: "_blank", rel: "noopener noreferrer" },
+  });
+  pointAtLatestFailedRun(whatBroke);
+
+  // A <button>, not an <a>: it opens the existing contact dialog instead of
+  // navigating away, exactly like the header badge does.
+  const contactButton = element("button", {
+    type: "button",
+    className: "stale-banner-action",
+    attrs: { "aria-haspopup": "dialog" },
+  });
+  contactButton.append(contactGlyph(), document.createTextNode(t("Contact")));
+  contactButton.addEventListener("click", openContact);
+
+  banner.replaceChildren(
+    document.createTextNode(parts.join(" ")),
+    element("span", { className: "stale-banner-actions" }, [whatBroke, contactButton]),
+  );
+  banner.hidden = false;
+}
+
+function compatibleDashboard(data) {
+  return data?.schema_version === 2 && Array.isArray(data.days) && data.days.length > 0;
+}
+
+function stateNeedsFullData() {
+  if (state.fullDataLoaded) return false;
+  if (state.view === "map" && (byId("relationship-explorer")?.open || state.entity)) return true;
+  // The bootstrap payload carries the default release window only
+  // (snapshots.py); a leaderboard address naming another one needs the corpus.
+  const latest = latestReleasesPayload();
+  if (
+    state.view === "leaderboard"
+    && state.lmode !== "adoption"
+    && latest
+    && state.lwindow
+    && !latest.windows?.[state.lwindow]
+  ) return true;
+  return state.view === "today" && Boolean(
+    state.todayDate === "all" ||
+    (state.todayDate && state.todayDate !== state.data?.latest_date)
+  );
+}
+
+function stateNeedsTrendsData() {
+  if (state.trendsDataLoaded || state.fullDataLoaded) return false;
+  return state.view === "trends";
+}
+
+async function fetchDashboardPayload(path, cache, requestSequence, fullPayload) {
+  const response = await fetch(path, { cache });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = await response.json();
+  if (!compatibleDashboard(data)) throw new Error("No compatible snapshots");
+  const applied = applyDashboardData(data, requestSequence, fullPayload);
+  if (!applied && fullPayload && !state.fullDataLoaded) {
+    // A later bootstrap refresh won the response race. It cannot satisfy the
+    // caller that requested history, so fail visibly and let route navigation
+    // load the generated page instead of rendering a full-data view from one
+    // bootstrap day.
+    throw new Error("Full data request was superseded by a bootstrap response");
+  }
+  if (!applied && !fullPayload && stateNeedsTrendsData() && !state.trendsDataLoaded) {
+    throw new Error("Trends data request was superseded by a bootstrap response");
+  }
+  if (applied) renderTodayDateOptions();
+  return state.data;
+}
+
+async function ensureTrendsData(cache = "default") {
+  if (state.fullDataLoaded || state.trendsDataLoaded) return state.data;
+  if (state.trendsDataPromise) return state.trendsDataPromise;
+  const requestSequence = ++nextDashboardRequestSequence;
+  state.trendsDataPromise = (async () => {
+    return fetchDashboardPayload("/benchmark-radar-zh24/data/radar-trends.json", cache, requestSequence, false);
+  })();
+  try {
+    return await state.trendsDataPromise;
+  } finally {
+    state.trendsDataPromise = null;
+  }
+}
+
+async function ensureFullData(cache = "default") {
+  if (state.fullDataLoaded) return state.data;
+  if (state.fullDataPromise) return state.fullDataPromise;
+  const requestSequence = ++nextDashboardRequestSequence;
+  state.fullDataPromise = (async () => {
+    return fetchDashboardPayload("/benchmark-radar-zh24/data/radar.json", cache, requestSequence, true);
+  })();
+  try {
+    return await state.fullDataPromise;
+  } finally {
+    state.fullDataPromise = null;
+  }
+}
+
+async function ensureDataForState() {
+  if (stateNeedsFullData()) await ensureFullData();
+  else if (stateNeedsTrendsData()) await ensureTrendsData();
+}
+
+// The refresh control revalidates the payload the current route requires. A
+// failed first attempt at Trends, Explore, or a historical Today URL must retry
+// the full corpus; accepting a fresh bootstrap there would clear the warning
+// while leaving the route incomplete.
+async function refreshData() {
+  const requestSequence = ++nextDashboardRequestSequence;
+  try {
+    const needsFullPayload = state.fullDataLoaded || stateNeedsFullData();
+    const needsTrendsPayload = !needsFullPayload && state.view === "trends";
+    const path = needsFullPayload
+      ? "/benchmark-radar-zh24/data/radar.json"
+      : needsTrendsPayload
+        ? "/benchmark-radar-zh24/data/radar-trends.json"
+        : "/benchmark-radar-zh24/data/radar-bootstrap.json";
+    const response = await fetch(path, { cache: "reload" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (!compatibleDashboard(data)) throw new Error("No compatible snapshots");
+    if (!applyDashboardData(data, requestSequence, path === "/benchmark-radar-zh24/data/radar.json")) return;
+    if (!validTodayDate()) {
+      state.todayDate = state.data.latest_date;
+    }
+    // Re-evaluate against the payload just received. This is normally a no-op,
+    // but guarantees the error is not retired if a future bootstrap shape lacks
+    // data a URL-backed state needs.
+    if (stateNeedsFullData()) await ensureFullData("reload");
+    else if (stateNeedsTrendsData()) await ensureTrendsData("reload");
+    closeFiltersDrawer();
+    syncLeaderboardNav();
+    setView(state.view, false);
+    rerenderCurrentView();
+    // The banner tells the reader to try refreshing. This is that refresh
+    // working, so the warning it printed is no longer true. It is the only
+    // path that retires the banner: navigating after a failed boot only moves
+    // between views built from the payload that failed, and a boot that threw
+    // never settled the date filter, so a view can come up empty and look fine.
+    successfulDataRefreshSequence += 1;
+    byId("error-state").hidden = true;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function initialize() {
+  setLang(initialLang());
+  applyStaticI18n();
+  syncLangToggle();
+  readUrl();
+  applyCurrentSeo();
+  if (document.querySelector("[data-view]")) syncNavState();
+  // Old query-view and fragment permalinks still work, but immediately become
+  // the one clean URL for their content. replaceState costs no history entry,
+  // so a directly opened legacy link still closes to the homepage rather than
+  // sending the reader back off-site.
+  const initialParams = new URLSearchParams(window.location.search);
+  const initialHash = window.location.hash.slice(1);
+  const initialHashParams = new URLSearchParams(initialHash);
+  const legacyUtilityHash = ["cli", "cite", "rubric"].some(
+    (utility) => initialHash === utility || initialHashParams.has(utility),
+  );
+  if (initialParams.has("view") || legacyUtilityHash
+    || (state.view === "saturation" && viewFromPath(window.location.pathname) === "leaderboard")) writeUrl("replace");
+  bindEvents();
+  const initializationNavigationSequence = viewNavigationSequence;
+  const initializationRefreshSequence = successfulDataRefreshSequence;
+  // Utility pages ship useful dialog content in their first HTML response.
+  // Upgrade that native non-modal `open` state synchronously, without touching
+  // its children; the ordinary open function hydrates it when its data is ready.
+  const seededUtility = activeUtility();
+  if (seededUtility) {
+    promoteSeededDialog(byId(`${seededUtility}-dialog`));
+    syncNavState();
+  }
+  // Independent of the data file, so badges still render on an error state.
+  renderStarCount();
+  // The citation and the CLI setup route are fixed text, not readings of the
+  // corpus. Someone arriving from a paper's reference link or looking for the
+  // offline route should still get them on a build whose data file is broken,
+  // so they open before the fetch rather than after it.
+  if (state.cite) openCite(false);
+  if (state.cli) openCli(false);
+  try {
+    // The default payload carries the latest day, aggregate counts, and the
+    // leaderboard. Trends, Explore, All dates, and historical permalinks lazily
+    // upgrade to the full public corpus only when the reader asks for them.
+    const requestSequence = ++nextDashboardRequestSequence;
+    const response = await fetch("/benchmark-radar-zh24/data/radar-bootstrap.json");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (!compatibleDashboard(data)) throw new Error("No compatible snapshots");
+    if (!applyDashboardData(data, requestSequence, false)) return;
+    await ensureDataForState();
+    if (!validTodayDate()) {
+      state.todayDate = state.data.latest_date;
+    }
+    renderTodayDateOptions();
+    syncLeaderboardNav();
+    setView(state.view, false);
+
+    // Rendering all four views up front made the reader wait for charts and
+    // thousands of hidden nodes. Build only the requested view; the navigation
+    // handlers render another view when the reader opens it.
+    if (state.view === "today") renderToday();
+    if (state.view === "leaderboard") renderLeaderboard();
+    if (state.view === "saturation") renderSaturation();
+    if (state.view === "trends") renderTrends();
+    if (state.view === "map") renderTrendMap();
+
+    renderBuildMeta();
+    renderStaleBanner();
+    if (state.rubric) {
+      openRubric(null, state.rubric === "current" ? null : state.rubric, false);
+    }
+    if (state.contact) openContact(false);
+  } catch (error) {
+    // A route can change while the original page is waiting for the full
+    // corpus. If the newer route is already satisfied by the compatible
+    // payload in state, the older request's failure is stale: keep and finish
+    // the newer screen instead of hiding it behind the failure UI. A successful
+    // Refresh during initial loading reaches the same recovery path.
+    const initializationWasSuperseded =
+      initializationNavigationSequence !== viewNavigationSequence
+      || initializationRefreshSequence !== successfulDataRefreshSequence;
+    if (
+      initializationWasSuperseded
+      && compatibleDashboard(state.data)
+      && !stateNeedsFullData()
+    ) {
+      syncLeaderboardNav();
+      setView(state.view, false);
+      rerenderCurrentView();
+      renderBuildMeta();
+      renderStaleBanner();
+      return;
+    }
+    // /leaderboard/, /trends/ and /explore/ ship real content in their first
+    // response, before any script runs. Hiding every view here would throw that
+    // away and leave an empty shell behind a URL that promises a ranking, which
+    // reads as a broken page to a reader and as a missing page to a crawler.
+    // A view that was seeded stays on screen; a view with nothing seeded has
+    // nothing worth keeping.
+    let survivor = null;
+    document.querySelectorAll(".view").forEach((section) => {
+      const seeded = section.id === `${state.view}-view` && section.querySelector("[data-seed]");
+      section.hidden = !seeded;
+      if (seeded) survivor = section;
+    });
+    const banner = byId("error-state");
+    banner.hidden = false;
+    // The banner sits last in the document, which is the right place when it is
+    // all that is left. When content survives, the reader has to be told the
+    // numbers are the ones the page shipped with before they read them, and
+    // that stays true for whichever view they open next.
+    if (survivor) banner.parentElement.prepend(banner);
+    console.error(error);
+  }
+}
+
+initialize();

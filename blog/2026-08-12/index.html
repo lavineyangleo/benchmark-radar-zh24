@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="/benchmark-radar-zh24/assets/github-runtime-v1.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Several new releases in this captured feed bind benchmarks to deployment context: web-access APIs are compared across quality, latency, cost, and error…">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<title>Daily AI benchmark brief: 2026-08-12 | Benchmark Radar</title>
+<link rel="canonical" href="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-12/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Benchmark Radar">
+<meta property="og:title" content="Daily AI benchmark brief: 2026-08-12 | Benchmark Radar">
+<meta property="og:description" content="Several new releases in this captured feed bind benchmarks to deployment context: web-access APIs are compared across quality, latency, cost, and error…">
+<meta property="og:url" content="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-12/">
+<meta property="og:image" content="https://benchmark-radar.org/assets/og-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Daily AI benchmark brief: 2026-08-12 | Benchmark Radar">
+<meta name="twitter:description" content="Several new releases in this captured feed bind benchmarks to deployment context: web-access APIs are compared across quality, latency, cost, and error…">
+<meta name="twitter:image" content="https://benchmark-radar.org/assets/og-card.png">
+<link rel="icon" href="/benchmark-radar-zh24/icon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/rss+xml" title="Benchmark Radar daily brief"
+      href="/benchmark-radar-zh24/blog/feed.xml">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/styles.css">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/blog.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-12/", "@type": "BlogPosting", "author": {"@type": "Organization", "name": "Benchmark Radar"}, "citation": ["https://huggingface.co/datasets/nutrientdocs/doc-split-benchmark", "https://huggingface.co/datasets/nativeport/web-access-api-benchmarks", "https://github.com/drwjkirkpatrick-web/jetson-llm-benchmark", "https://github.com/kizz-tech/agentic-evidence-lab", "https://github.com/lhao17202-hue/MemoraiBench", "https://github.com/sands-lab/nika", "https://huggingface.co/datasets/bielik-benchmark-datasets/polish-fast-benchmarks", "https://github.com/kenzychew/DocExtract", "https://huggingface.co/datasets/darthludious/adaption-preference-trace-decisions", "https://huggingface.co/datasets/mingyang-wu/physics-benchmark", "https://huggingface.co/datasets/serpaudit-fyi/serp-audit-benchmarks", "https://github.com/G14nTDo4/Awesome-Pathology-Agents", "https://github.com/PeterQLz/FinAtlas", "https://github.com/nemarDatasets/nm000129", "https://github.com/karthikmattu06-hue/ercot-rtcb-bench", "https://github.com/Hariniramesh123/synapse", "https://github.com/priyatham9/ehs-benchmarks", "https://github.com/DineshMv/XSMC_AI_Evaluator", "https://github.com/RakeshKumarAgrawal/BQEB-ForecastBench", "https://github.com/dgrieser/ai-bench", "https://github.com/rosselvert/Elena", "https://github.com/kristinealli/SyntheticSight", "https://github.com/nemarDatasets/nm000126", "https://github.com/FlameForged/redteam_in_the_wild"], "dateModified": "2026-08-12", "datePublished": "2026-08-12", "description": "Several new releases in this captured feed bind benchmarks to deployment context: web-access APIs are compared across quality, latency, cost, and error…", "headline": "Daily AI benchmark brief: 2026-08-12", "inLanguage": "en", "isPartOf": {"@id": "https://benchmark-radar.org/blog/#blog", "@type": "Blog", "name": "Benchmark Radar blog", "url": "https://benchmark-radar.org/blog/"}, "keywords": ["daily brief", "AI benchmarks", "evaluation"], "mainEntityOfPage": "https://benchmark-radar.org/blog/2026-08-12/", "publisher": {"@id": "https://benchmark-radar.org/#organization", "@type": "Organization", "name": "Benchmark Radar", "url": "https://benchmark-radar.org/"}, "url": "https://benchmark-radar.org/blog/2026-08-12/"}</script><script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-12/#breadcrumb", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "item": "https://benchmark-radar.org/", "name": "Benchmark Radar", "position": 1}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/", "name": "Blog", "position": 2}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/2026-08-12/", "name": "Daily AI benchmark brief: 2026-08-12", "position": 3}]}</script>
+<script type="application/json" id="chrome-i18n">{"About": "关于", "About this site": "关于本站", "Blog": "博客", "CLI": "命令行", "Cite": "引用", "Contact": "联系作者", "Dashboard views": "仪表盘视图", "Get in touch · Email, WeChat, Discord": "联系我 · 邮件、微信、Discord", "If this saved you research time, cite the work, star the repo and help other eval builders find it.": "如果它帮你节省了研究时间，请引用这项工作、给仓库点 Star，让更多评测开发者找到它。", "Leaderboard": "排行榜", "Open the repository and star it": "打开仓库并给个 Star", "Privacy notice": "隐私声明", "Publications": "论文与引用", "Saturation": "饱和度", "Share": "分享", "Site utilities": "网站工具", "Star": "Star", "Star the repository": "给仓库点 Star", "Star this repository on GitHub. {count} stars": "在 GitHub 上给这个仓库点 Star。{count} 个 star", "Subscribe to Benchmark Radar via RSS": "通过 RSS 订阅 Benchmark Radar", "Switch to Chinese (中文)": "切换到中文", "Switch to English": "切换到英文", "Today": "今日", "Trends": "趋势", "Updated": "更新于"}</script>
+<script src="/benchmark-radar-zh24/assets/blog.js" defer></script>
+</head>
+<body class="blog-page">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="masthead">
+      <div class="masthead-main">
+        <a class="brand" href="/benchmark-radar-zh24/" aria-label="Benchmark Radar home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+          </span>
+          <strong>Benchmark Radar™</strong>
+        </a>
+        <nav class="view-nav" aria-label="Dashboard views" data-i18n-aria="Dashboard views">
+          <a href="/benchmark-radar-zh24/" data-i18n="Today">Today</a>
+          <a
+            href="/benchmark-radar-zh24/cli/"
+            id="cli-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="CLI"
+          >
+            CLI
+          </a>
+          <a href="/benchmark-radar-zh24/leaderboard/" data-i18n="Leaderboard">
+            Leaderboard
+          </a>
+          <a href="/benchmark-radar-zh24/saturation/" data-i18n="Saturation">Saturation</a>
+          <a href="/benchmark-radar-zh24/trends/" data-i18n="Trends">Trends</a>
+          <a
+            href="/benchmark-radar-zh24/cite/"
+            id="cite-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="Publications"
+          >
+            Publications
+          </a>
+        </nav>
+      </div>
+      <div class="masthead-end" aria-label="Site utilities" data-i18n-aria="Site utilities">
+        <a
+          class="repo-badge feed-badge"
+          href="/benchmark-radar-zh24/feed.xml"
+          title="Subscribe to Benchmark Radar via RSS"
+          aria-label="Subscribe to Benchmark Radar via RSS"
+          data-i18n-title="Subscribe to Benchmark Radar via RSS"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="19" r="2"></circle>
+            <path d="M4 11a9 9 0 0 1 9 9"></path>
+            <path d="M4 4a16 16 0 0 1 16 16"></path>
+          </svg>
+          <span class="repo-badge-label">RSS</span>
+        </a>
+        <button
+          type="button"
+          class="repo-badge"
+          id="lang-toggle"
+          aria-pressed="false"
+          title="Switch to Chinese (中文)"
+          data-i18n-title="Switch to Chinese (中文)"
+        >
+          <span class="repo-badge-glyph" id="lang-toggle-label">中</span>
+        </button>
+        <a class="repo-badge" href="/benchmark-radar-zh24/#contact" aria-haspopup="dialog" title="Get in touch · Email, WeChat, Discord" data-i18n-title="Get in touch · Email, WeChat, Discord">
+          <svg class="outline-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Contact">Contact</span>
+        </a>
+        <a
+          class="repo-badge"
+          id="badge-stars"
+          href="https://github.com/ktwu01/benchmark-radar"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open the repository and star it"
+          data-i18n-title="Open the repository and star it"
+        >
+          <svg class="brand-icon github-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.5a9.5 9.5 0 0 0-3 18.52c.48.09.65-.21.65-.46v-1.67c-2.67.58-3.23-1.13-3.23-1.13-.44-1.12-1.07-1.42-1.07-1.42-.87-.6.07-.59.07-.59.96.07 1.47.99 1.47.99.86 1.47 2.25 1.05 2.8.8.09-.62.34-1.05.61-1.29-2.13-.24-4.37-1.07-4.37-4.75 0-1.05.38-1.91.99-2.58-.1-.24-.43-1.22.09-2.54 0 0 .81-.26 2.63.98A9.16 9.16 0 0 1 12 7.96c.82 0 1.65.11 2.42.33 1.82-1.24 2.63-.98 2.63-.98.52 1.32.19 2.3.09 2.54.61.67.99 1.53.99 2.58 0 3.69-2.25 4.5-4.39 4.74.35.3.65.88.65 1.78v2.63c0 .25.17.55.66.46A9.5 9.5 0 0 0 12 2.5Z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Star">Star</span>
+          <span class="repo-badge-count" data-count>—</span>
+        </a>
+      </div>
+    </header>
+<main id="main-content" tabindex="-1"><div class="blog-view"><div data-lang-content="en">
+<header class="blog-hero">
+  <h1>Daily AI benchmark brief: 2026-08-12</h1>
+</header>
+<div class="blog-prose"><div class="blog-stats"><div class="blog-stat"><strong>164</strong><span>evidence observations</span></div><div class="blog-stat"><strong>4</strong><span>sources represented</span></div><div class="blog-stat"><strong>14</strong><span>public-attention signals</span></div></div><section class="blog-section"><div class="blog-section-heading"><h2>Daily briefing</h2></div><ol class="blog-index"><li class="blog-card">Several new releases in this captured feed bind benchmarks to deployment context: web-access APIs are compared across quality, latency, cost, and error rate; document segmentation includes a reference scorer and cloud-VLM comparison; and a device-specific benchmark targets reproducible 7B testing on Jetson hardware. Why it matters: Evaluators should choose suites that reproduce the intended stack and expose operational trade-offs, rather than treating a task score as sufficient evidence for deployment selection. Evidence: E001, E003, E015. High confidence.</li><li class="blog-card">Agent evaluation is targeting persistent capabilities and executable environments. Two repositories updated today cover long-term memory—including state updating and causal dependency—and network-troubleshooting agents in an arena; a separate evidence toolkit was newly released. Why it matters: Teams evaluating agents should test trajectories, retained state, and environment outcomes, not only isolated responses. These artifacts can inform whether an evaluation harness represents the failure modes of an operational agent. Evidence: E004, E007, E008. High confidence.</li><li class="blog-card">Evaluation separation and auditability recur across the selected artifacts. New releases provide evaluation-only compact subsets and hash-identified lineage files, while an updated extraction pipeline uses rule-based validation with a held-out harness. Why it matters: Benchmark adopters should require explicit train/evaluation separation, traceable dataset versions, and runnable validation before relying on rankings. Compact subsets also need evidence that they preserve full-benchmark ordering. Evidence: E002, E011, E014. High confidence.</li></ol></section><section class="blog-section"><div class="blog-section-heading"><h2>What arrived</h2></div><article class="blog-panel"><h3>What benchmarks, datasets, or evaluation methods did the radar first see today?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span><span class="blog-chip">Not enough evidence</span></div><p>In this captured feed, release-labelled arrivals included Doc-Split, Polish Fast Benchmarks, Web-Access API Benchmarks, Agentic Evidence Lab, Physics Benchmark, SERP Audit Benchmarks, PreferenceTrace, Jetson LLM Benchmark, Synapse, EHS Benchmarks, and XSMC AI Evaluator.</p><p>The radar also first encountered update-labelled records for MemoraiBench, Nika, a pathology dataset collection, FinAtlas, DocExtract, SSVEP BETA, ERCOT, ForecastBench, AI Bench, Elena, SyntheticSight, SSVEP Wang, and a longitudinal red-team framework.</p><p><strong>Takeaway:</strong> The registry confirms a broader set of first-observed artifacts, but the supplied evidence packet does not expose every registry-counted arrival. This is therefore a documented subset from the keyword-filtered feed, not a complete or representative field inventory.</p><p class="blog-caveat"><strong>Another reading:</strong> First observed by the radar does not necessarily mean newly created or newly released. MemoraiBench, Nika, FinAtlas, and several others carried update labels, so their appearance may reflect collection coverage rather than genuinely new artifacts.</p><ul class="blog-list"><li><span class="blog-cite-id">S013</span> artifacts first observed by the radar today: <strong>27</strong></li><li><span class="blog-cite-id">S003</span> records with event kind updated: <strong>89</strong></li><li><span class="blog-cite-id">S004</span> records with event kind released: <strong>75</strong></li></ul></article><article class="blog-panel"><h3>Which of today&#x27;s arrivals document how they score an answer?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span><span class="blog-chip">Not enough evidence</span></div><p>Doc-Split is the clearest candidate because its description advertises a reference scorer intended to make results reproducible. However, the supplied excerpt does not reveal the scorer’s rules, rubric, aggregation, or treatment of partially correct answers.</p><p>Web-Access API Benchmarks says capabilities are scored on a fixed task set, while SERP Audit Benchmarks lists several score dimensions. Neither excerpt explains how an individual answer becomes a score. Other arrivals mention evaluation or generated scores without exposing answer-level scoring instructions.</p><p><strong>Takeaway:</strong> No arrival can be verified from this packet alone as fully documenting how an answer is scored. Doc-Split merits inspection, but scorer code or rubric details are missing from the evidence provided here.</p><p class="blog-caveat"><strong>Another reading:</strong> Doc-Split’s linked reference scorer may completely encode the scoring method even though the excerpt omits its mechanics. The fixed-task and scorecard materials for Web-Access API Benchmarks may likewise contain details not reproduced in the packet.</p></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What is still moving</h2></div><article class="blog-panel"><h3>Which artifacts the radar already tracked moved measurably, and over what span?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The registry contains candidate download and star movements with full tracked spans, but the movement statistics have no linked evidence records.</p><p>The numbers and observation periods are available, but the source packet does not provide evidence identifiers needed to substantiate claims about named artifacts.</p><p><strong>Takeaway:</strong> Do not publish an artifact-level movement list until the movement statistics are linked to source evidence; all reported changes would describe cumulative movement across each full tracked span, not one-day changes.</p><p class="blog-caveat"><strong>Another reading:</strong> The registry itself includes artifact names, metrics, and spans, so it could support a numerical list, but doing so would violate the requirement for artifact-specific evidence citations.</p><ul class="blog-list"><li><span class="blog-cite-id">S016</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,994.0 downloads</strong></li><li><span class="blog-cite-id">S017</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>7,028.0 downloads</strong></li><li><span class="blog-cite-id">S018</span> stars change for santifer/career-ops: <strong>1,027.0 stars</strong></li><li><span class="blog-cite-id">S019</span> downloads change for Weyaxi/followers-leaderboard: <strong>-814.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for vava22684/song-jury-leaderboard: <strong>714.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for runbenchhub/leaderboards: <strong>-561.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for hf-benchmarks/transformers: <strong>-302.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for genomic-benchmarks/GUE_v2: <strong>198.0 downloads</strong></li></ul></article><article class="blog-panel"><h3>Which of that movement is corroborated by more than one connector?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>None of the registry-listed movement metrics is corroborated by more than one connector.</p><p>Every listed movement was measured by a single source, so the radar cannot confirm the same metric through an independent connector.</p><p><strong>Takeaway:</strong> Treat all listed movement as single-connector observations within this keyword-filtered feed, even though some tracked artifacts were seen by multiple connectors.</p><p class="blog-caveat"><strong>Another reading:</strong> A separate registry count shows that some tracked artifacts appeared through more than one connector, but it explicitly does not establish that both connectors measured the same movement metric.</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> tracked artifacts today seen by more than one connector: <strong>3</strong></li><li><span class="blog-cite-id">S016</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,994.0 downloads</strong></li><li><span class="blog-cite-id">S017</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>7,028.0 downloads</strong></li><li><span class="blog-cite-id">S018</span> stars change for santifer/career-ops: <strong>1,027.0 stars</strong></li><li><span class="blog-cite-id">S019</span> downloads change for Weyaxi/followers-leaderboard: <strong>-814.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for vava22684/song-jury-leaderboard: <strong>714.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for runbenchhub/leaderboards: <strong>-561.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for hf-benchmarks/transformers: <strong>-302.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for genomic-benchmarks/GUE_v2: <strong>198.0 downloads</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What it means</h2></div><article class="blog-panel"><h3>What should someone building or evaluating AI systems do differently today?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span></div><p>Prioritize evaluation coverage and reproducibility over reacting to raw popularity signals.</p><p>In this captured feed, benchmark, dataset, and evaluation records overlap heavily, while both releases and updates are present. Newly captured artifacts cover document splitting, web-access services, agent memory, network troubleshooting, document extraction, small-device testing, and release checks. Treat these as candidates to inspect, not proof that they are reliable or better.</p><p><strong>Takeaway:</strong> Map these candidates against your system’s actual failure modes, then verify test data, scoring, contamination controls, reproducibility, and deployment relevance before adding any to a release gate.</p><p class="blog-caveat"><strong>Another reading:</strong> The feed is keyword filtered, most captured artifacts were already tracked, and very few received sightings from multiple connectors. Today may therefore offer little genuinely new or independently confirmed evidence for changing an existing evaluation program.</p><ul class="blog-list"><li><span class="blog-cite-id">S003</span> records with event kind updated: <strong>89</strong></li><li><span class="blog-cite-id">S004</span> records with event kind released: <strong>75</strong></li><li><span class="blog-cite-id">S009</span> records tagged benchmark: <strong>102 count (multi-label)</strong></li><li><span class="blog-cite-id">S010</span> records tagged dataset: <strong>87 count (multi-label)</strong></li><li><span class="blog-cite-id">S011</span> records tagged evaluation: <strong>67 count (multi-label)</strong></li><li><span class="blog-cite-id">S013</span> artifacts first observed by the radar today: <strong>27</strong></li><li><span class="blog-cite-id">S014</span> artifacts seen today that the radar had already tracked: <strong>137</strong></li><li><span class="blog-cite-id">S015</span> tracked artifacts today seen by more than one connector: <strong>3</strong></li></ul></article><article class="blog-panel"><h3>What does today&#x27;s evidence fail to show, and what would change the reading?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>Today’s feed cannot establish a field-wide pattern, benchmark winner, or corroborated adoption shift.</p><p>There is no certified comparison window, so differences from earlier captures may reflect collection changes rather than changes in the field. The packet also does not establish benchmark quality, model superiority, causal explanations, or representative adoption. Reported metric movements come from single connectors rather than corroborating sources.</p><p><strong>Takeaway:</strong> A stable comparison window with the same taxonomy, full required coverage, adequate volume, confirmation of the same metrics across connectors, and independent replication of benchmark results would support a stronger reading.</p><p class="blog-caveat"><strong>Another reading:</strong> A competing reading is that positive recent-versus-prior differences across several overlapping categories indicate more captured activity. However, without certified comparability, those differences may instead result from collection changes.</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> tracked artifacts today seen by more than one connector: <strong>3</strong></li><li><span class="blog-cite-id">S016</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,994.0 downloads</strong></li><li><span class="blog-cite-id">S017</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>7,028.0 downloads</strong></li><li><span class="blog-cite-id">S018</span> stars change for santifer/career-ops: <strong>1,027.0 stars</strong></li><li><span class="blog-cite-id">S019</span> downloads change for Weyaxi/followers-leaderboard: <strong>-814.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for vava22684/song-jury-leaderboard: <strong>714.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for runbenchhub/leaderboards: <strong>-561.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for hf-benchmarks/transformers: <strong>-302.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for genomic-benchmarks/GUE_v2: <strong>198.0 downloads</strong></li><li><span class="blog-cite-id">S024</span> daily-average change in benchmark observations: <strong>123.29 observations per day</strong></li><li><span class="blog-cite-id">S025</span> daily-average change in evaluation observations: <strong>91.86 observations per day</strong></li><li><span class="blog-cite-id">S026</span> daily-average change in dataset observations: <strong>68.43 observations per day</strong></li><li><span class="blog-cite-id">S027</span> daily-average change in agentic observations: <strong>28.0 observations per day</strong></li><li><span class="blog-cite-id">S028</span> daily-average change in data_quality observations: <strong>1.71 observations per day</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>Evidence sources</h2></div><ul class="blog-evidence"><li><span class="blog-cite-id">E001</span> <a href="https://huggingface.co/datasets/nutrientdocs/doc-split-benchmark">nutrientdocs/doc-split-benchmark</a></li><li><span class="blog-cite-id">E003</span> <a href="https://huggingface.co/datasets/nativeport/web-access-api-benchmarks">nativeport/web-access-api-benchmarks</a></li><li><span class="blog-cite-id">E015</span> <a href="https://github.com/drwjkirkpatrick-web/jetson-llm-benchmark">drwjkirkpatrick-web/jetson-llm-benchmark</a></li><li><span class="blog-cite-id">E004</span> <a href="https://github.com/kizz-tech/agentic-evidence-lab">kizz-tech/agentic-evidence-lab</a></li><li><span class="blog-cite-id">E007</span> <a href="https://github.com/lhao17202-hue/MemoraiBench">lhao17202-hue/MemoraiBench</a></li><li><span class="blog-cite-id">E008</span> <a href="https://github.com/sands-lab/nika">sands-lab/nika</a></li><li><span class="blog-cite-id">E002</span> <a href="https://huggingface.co/datasets/bielik-benchmark-datasets/polish-fast-benchmarks">bielik-benchmark-datasets/polish-fast-benchmarks</a></li><li><span class="blog-cite-id">E011</span> <a href="https://github.com/kenzychew/DocExtract">kenzychew/DocExtract</a></li><li><span class="blog-cite-id">E014</span> <a href="https://huggingface.co/datasets/darthludious/adaption-preference-trace-decisions">darthludious/adaption-preference-trace-decisions</a></li><li><span class="blog-cite-id">E005</span> <a href="https://huggingface.co/datasets/mingyang-wu/physics-benchmark">mingyang-wu/physics-benchmark</a></li><li><span class="blog-cite-id">E006</span> <a href="https://huggingface.co/datasets/serpaudit-fyi/serp-audit-benchmarks">serpaudit-fyi/serp-audit-benchmarks</a></li><li><span class="blog-cite-id">E009</span> <a href="https://github.com/G14nTDo4/Awesome-Pathology-Agents">G14nTDo4/Awesome-Pathology-Agents</a></li><li><span class="blog-cite-id">E010</span> <a href="https://github.com/PeterQLz/FinAtlas">PeterQLz/FinAtlas</a></li><li><span class="blog-cite-id">E012</span> <a href="https://github.com/nemarDatasets/nm000129">nemarDatasets/nm000129</a></li><li><span class="blog-cite-id">E013</span> <a href="https://github.com/karthikmattu06-hue/ercot-rtcb-bench">karthikmattu06-hue/ercot-rtcb-bench</a></li><li><span class="blog-cite-id">E016</span> <a href="https://github.com/Hariniramesh123/synapse">Hariniramesh123/synapse</a></li><li><span class="blog-cite-id">E017</span> <a href="https://github.com/priyatham9/ehs-benchmarks">priyatham9/ehs-benchmarks</a></li><li><span class="blog-cite-id">E018</span> <a href="https://github.com/DineshMv/XSMC_AI_Evaluator">DineshMv/XSMC_AI_Evaluator</a></li><li><span class="blog-cite-id">E019</span> <a href="https://github.com/RakeshKumarAgrawal/BQEB-ForecastBench">RakeshKumarAgrawal/BQEB-ForecastBench</a></li><li><span class="blog-cite-id">E020</span> <a href="https://github.com/dgrieser/ai-bench">dgrieser/ai-bench</a></li><li><span class="blog-cite-id">E021</span> <a href="https://github.com/rosselvert/Elena">rosselvert/Elena</a></li><li><span class="blog-cite-id">E022</span> <a href="https://github.com/kristinealli/SyntheticSight">kristinealli/SyntheticSight</a></li><li><span class="blog-cite-id">E023</span> <a href="https://github.com/nemarDatasets/nm000126">nemarDatasets/nm000126</a></li><li><span class="blog-cite-id">E025</span> <a href="https://github.com/FlameForged/redteam_in_the_wild">FlameForged/redteam_in_the_wild</a></li></ul></section><section class="blog-section blog-panel"><h2>Where this came from, and what it does not cover</h2><p>Built from the validated daily snapshot and its 164 evidence records.</p><p>Briefing model: gpt-5.6-sol.</p><p>It read 25 of 164 records.</p><p class="blog-caveat">Only 25 of 164 corpus evidence records were injected, so these findings describe the selected slice rather than the full captured feed. Brave and OpenReview were unavailable, no attention signal was observed today, and comparable history is insufficient for a cross-day trend. Tracked metric deltas were not used because each came from a single connector and was therefore uncorroborated.</p></section></div>
+</div></div></main>
+<footer>
+      <nav class="footer-nav" aria-label="About this site" data-i18n-aria="About this site">
+        <a href="/benchmark-radar-zh24/about/" data-i18n="About">About</a>
+        <a class="nav-active" aria-current="page" href="/benchmark-radar-zh24/blog/" data-i18n="Blog">Blog</a>
+      </nav>
+      <p id="build-meta"><span data-i18n="Updated">Updated</span> 2026-08-12</p>
+      <aside class="adoption-cta" aria-label="Support Benchmark Radar">
+        <p data-i18n="If this saved you research time, cite the work, star the repo and help other eval builders find it.">
+          If this saved you research time, cite the work, star the repo and help other eval builders find it.
+        </p>
+        <span class="adoption-actions">
+          <a
+            class="primary-link"
+            id="cite-open"
+            href="/benchmark-radar-zh24/cite/"
+            aria-haspopup="dialog"
+            aria-controls="cite-dialog"
+            aria-expanded="false"
+            data-i18n="Cite"
+          >Cite</a>
+          <a
+            class="primary-link"
+            href="https://github.com/ktwu01/benchmark-radar"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-i18n="Star the repository"
+          >Star the repository</a>
+          <button type="button" class="secondary-link" id="share-radar" data-i18n="Share">
+            Share
+          </button>
+        </span>
+      </aside>
+      <details class="privacy-note">
+        <summary data-i18n="Privacy notice">Privacy notice</summary>
+        <p>
+          We use Microsoft Clarity cookies, session replays and heatmaps to understand how people use
+          this site and improve its navigation and content. Sensitive content is masked by default.
+          By using this site, you agree that Benchmark Radar and Microsoft can collect and use this
+          data. See the
+          <a href="https://privacy.microsoft.com/privacystatement">Microsoft Privacy Statement</a>.
+        </p>
+      </details>
+      <p class="copyright">© 2026 Koutian Wu and contributors</p>
+    </footer

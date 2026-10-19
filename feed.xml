@@ -1,0 +1,599 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>Benchmark Radar</title>
+    <link>https://benchmark-radar.org/</link>
+    <description>Daily evidence-first updates on AI benchmarks, evaluations, and datasets.</description>
+    <language>en</language>
+    <atom:link href="https://benchmark-radar.org/feed.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 18 Oct 2026 09:12:51 GMT</lastBuildDate>
+    <item>
+      <title>Benchmark Radar — 2026-10-18</title>
+      <link>https://benchmark-radar.org/?date=2026-10-18</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-18</guid>
+      <pubDate>Sun, 18 Oct 2026 00:00:00 GMT</pubDate>
+      <description>488 evidence observations from 11 sources; 18 public-attention signals; categories — agentic: 51, benchmark: 281, data_quality: 7, dataset: 205, evaluation: 211.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-17</title>
+      <link>https://benchmark-radar.org/?date=2026-10-17</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-17</guid>
+      <pubDate>Sat, 17 Oct 2026 00:00:00 GMT</pubDate>
+      <description>749 evidence observations from 14 sources; 16 public-attention signals; categories — agentic: 106, benchmark: 486, data_quality: 4, dataset: 301, evaluation: 375.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-16</title>
+      <link>https://benchmark-radar.org/?date=2026-10-16</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-16</guid>
+      <pubDate>Fri, 16 Oct 2026 00:00:00 GMT</pubDate>
+      <description>846 evidence observations from 14 sources; 14 public-attention signals; categories — agentic: 117, benchmark: 583, data_quality: 7, dataset: 346, evaluation: 421.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-15</title>
+      <link>https://benchmark-radar.org/?date=2026-10-15</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-15</guid>
+      <pubDate>Thu, 15 Oct 2026 00:00:00 GMT</pubDate>
+      <description>899 evidence observations from 14 sources; 16 public-attention signals; categories — agentic: 156, benchmark: 636, data_quality: 12, dataset: 344, evaluation: 515.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-14</title>
+      <link>https://benchmark-radar.org/?date=2026-10-14</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-14</guid>
+      <pubDate>Wed, 14 Oct 2026 00:00:00 GMT</pubDate>
+      <description>773 evidence observations from 12 sources; 12 public-attention signals; categories — agentic: 145, benchmark: 575, data_quality: 9, dataset: 369, evaluation: 390.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-13</title>
+      <link>https://benchmark-radar.org/?date=2026-10-13</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-13</guid>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 GMT</pubDate>
+      <description>624 evidence observations from 12 sources; 12 public-attention signals; categories — agentic: 69, benchmark: 405, data_quality: 6, dataset: 310, evaluation: 297.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-12</title>
+      <link>https://benchmark-radar.org/?date=2026-10-12</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-12</guid>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 GMT</pubDate>
+      <description>449 evidence observations from 11 sources; 17 public-attention signals; categories — agentic: 70, benchmark: 320, data_quality: 8, dataset: 193, evaluation: 230.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-11</title>
+      <link>https://benchmark-radar.org/?date=2026-10-11</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-11</guid>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 GMT</pubDate>
+      <description>477 evidence observations from 10 sources; 15 public-attention signals; categories — agentic: 33, benchmark: 272, data_quality: 2, dataset: 195, evaluation: 240.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-10</title>
+      <link>https://benchmark-radar.org/?date=2026-10-10</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-10</guid>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 GMT</pubDate>
+      <description>547 evidence observations from 12 sources; 15 public-attention signals; categories — agentic: 88, benchmark: 364, data_quality: 5, dataset: 241, evaluation: 253.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-09</title>
+      <link>https://benchmark-radar.org/?date=2026-10-09</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-09</guid>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 GMT</pubDate>
+      <description>616 evidence observations from 11 sources; 18 public-attention signals; categories — agentic: 105, benchmark: 412, data_quality: 7, dataset: 277, evaluation: 292.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-08</title>
+      <link>https://benchmark-radar.org/?date=2026-10-08</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-08</guid>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 GMT</pubDate>
+      <description>604 evidence observations from 11 sources; 20 public-attention signals; categories — agentic: 92, benchmark: 408, data_quality: 5, dataset: 271, evaluation: 288.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-07</title>
+      <link>https://benchmark-radar.org/?date=2026-10-07</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-07</guid>
+      <pubDate>Wed, 07 Oct 2026 00:00:00 GMT</pubDate>
+      <description>1107 evidence observations from 13 sources; 20 public-attention signals; categories — agentic: 171, benchmark: 741, data_quality: 11, dataset: 450, evaluation: 594.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-05</title>
+      <link>https://benchmark-radar.org/?date=2026-10-05</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-05</guid>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 GMT</pubDate>
+      <description>560 evidence observations from 12 sources; 18 public-attention signals; categories — agentic: 54, benchmark: 331, data_quality: 9, dataset: 205, evaluation: 322.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-04</title>
+      <link>https://benchmark-radar.org/?date=2026-10-04</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-04</guid>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 GMT</pubDate>
+      <description>484 evidence observations from 9 sources; 18 public-attention signals; categories — agentic: 41, benchmark: 246, data_quality: 6, dataset: 176, evaluation: 258.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-03</title>
+      <link>https://benchmark-radar.org/?date=2026-10-03</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-03</guid>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 GMT</pubDate>
+      <description>674 evidence observations from 12 sources; 19 public-attention signals; categories — agentic: 65, benchmark: 379, data_quality: 10, dataset: 276, evaluation: 313.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-02</title>
+      <link>https://benchmark-radar.org/?date=2026-10-02</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-02</guid>
+      <pubDate>Fri, 02 Oct 2026 00:00:00 GMT</pubDate>
+      <description>668 evidence observations from 12 sources; 15 public-attention signals; categories — agentic: 92, benchmark: 437, data_quality: 7, dataset: 260, evaluation: 337.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-10-01</title>
+      <link>https://benchmark-radar.org/?date=2026-10-01</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-10-01</guid>
+      <pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>
+      <description>688 evidence observations from 12 sources; 8 public-attention signals; categories — agentic: 103, benchmark: 459, data_quality: 6, dataset: 265, evaluation: 358.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-30</title>
+      <link>https://benchmark-radar.org/?date=2026-09-30</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-30</guid>
+      <pubDate>Wed, 30 Sep 2026 00:00:00 GMT</pubDate>
+      <description>986 evidence observations from 12 sources; 10 public-attention signals; categories — agentic: 157, benchmark: 642, data_quality: 3, dataset: 364, evaluation: 546.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-29</title>
+      <link>https://benchmark-radar.org/?date=2026-09-29</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-29</guid>
+      <pubDate>Tue, 29 Sep 2026 00:00:00 GMT</pubDate>
+      <description>758 evidence observations from 12 sources; 10 public-attention signals; categories — agentic: 117, benchmark: 499, data_quality: 5, dataset: 294, evaluation: 454.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-28</title>
+      <link>https://benchmark-radar.org/?date=2026-09-28</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-28</guid>
+      <pubDate>Mon, 28 Sep 2026 00:00:00 GMT</pubDate>
+      <description>505 evidence observations from 11 sources; 10 public-attention signals; categories — agentic: 46, benchmark: 295, data_quality: 2, dataset: 207, evaluation: 257.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-27</title>
+      <link>https://benchmark-radar.org/?date=2026-09-27</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-27</guid>
+      <pubDate>Sun, 27 Sep 2026 00:00:00 GMT</pubDate>
+      <description>314 evidence observations from 7 sources; 9 public-attention signals; categories — agentic: 31, benchmark: 190, data_quality: 1, dataset: 122, evaluation: 129.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-26</title>
+      <link>https://benchmark-radar.org/?date=2026-09-26</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-26</guid>
+      <pubDate>Sat, 26 Sep 2026 00:00:00 GMT</pubDate>
+      <description>540 evidence observations from 10 sources; 10 public-attention signals; categories — agentic: 51, benchmark: 332, data_quality: 4, dataset: 224, evaluation: 282.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-25</title>
+      <link>https://benchmark-radar.org/?date=2026-09-25</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-25</guid>
+      <pubDate>Fri, 25 Sep 2026 00:00:00 GMT</pubDate>
+      <description>450 evidence observations from 11 sources; 11 public-attention signals; categories — agentic: 63, benchmark: 297, data_quality: 5, dataset: 190, evaluation: 198.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-24</title>
+      <link>https://benchmark-radar.org/?date=2026-09-24</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-24</guid>
+      <pubDate>Thu, 24 Sep 2026 00:00:00 GMT</pubDate>
+      <description>471 evidence observations from 11 sources; 15 public-attention signals; categories — agentic: 75, benchmark: 314, data_quality: 6, dataset: 197, evaluation: 208.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-23</title>
+      <link>https://benchmark-radar.org/?date=2026-09-23</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-23</guid>
+      <pubDate>Wed, 23 Sep 2026 00:00:00 GMT</pubDate>
+      <description>510 evidence observations from 11 sources; 16 public-attention signals; categories — agentic: 76, benchmark: 331, data_quality: 5, dataset: 212, evaluation: 243.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-22</title>
+      <link>https://benchmark-radar.org/?date=2026-09-22</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-22</guid>
+      <pubDate>Tue, 22 Sep 2026 00:00:00 GMT</pubDate>
+      <description>595 evidence observations from 12 sources; 20 public-attention signals; categories — agentic: 81, benchmark: 378, data_quality: 6, dataset: 233, evaluation: 316.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-20</title>
+      <link>https://benchmark-radar.org/?date=2026-09-20</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-20</guid>
+      <pubDate>Sun, 20 Sep 2026 00:00:00 GMT</pubDate>
+      <description>520 evidence observations from 9 sources; 18 public-attention signals; categories — agentic: 50, benchmark: 258, data_quality: 9, dataset: 181, evaluation: 255.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-18</title>
+      <link>https://benchmark-radar.org/?date=2026-09-18</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-18</guid>
+      <pubDate>Fri, 18 Sep 2026 00:00:00 GMT</pubDate>
+      <description>618 evidence observations from 11 sources; 21 public-attention signals; categories — agentic: 66, benchmark: 366, data_quality: 10, dataset: 228, evaluation: 346.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-17</title>
+      <link>https://benchmark-radar.org/?date=2026-09-17</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-17</guid>
+      <pubDate>Thu, 17 Sep 2026 00:00:00 GMT</pubDate>
+      <description>666 evidence observations from 11 sources; 21 public-attention signals; categories — agentic: 74, benchmark: 411, data_quality: 9, dataset: 288, evaluation: 355.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-16</title>
+      <link>https://benchmark-radar.org/?date=2026-09-16</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-16</guid>
+      <pubDate>Wed, 16 Sep 2026 00:00:00 GMT</pubDate>
+      <description>707 evidence observations from 11 sources; 20 public-attention signals; categories — agentic: 95, benchmark: 450, data_quality: 8, dataset: 284, evaluation: 390.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-15</title>
+      <link>https://benchmark-radar.org/?date=2026-09-15</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-15</guid>
+      <pubDate>Tue, 15 Sep 2026 00:00:00 GMT</pubDate>
+      <description>560 evidence observations from 11 sources; 15 public-attention signals; categories — agentic: 76, benchmark: 363, data_quality: 7, dataset: 228, evaluation: 309.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-14</title>
+      <link>https://benchmark-radar.org/?date=2026-09-14</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-14</guid>
+      <pubDate>Mon, 14 Sep 2026 00:00:00 GMT</pubDate>
+      <description>419 evidence observations from 10 sources; 15 public-attention signals; categories — agentic: 44, benchmark: 241, data_quality: 4, dataset: 189, evaluation: 198.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-13</title>
+      <link>https://benchmark-radar.org/?date=2026-09-13</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-13</guid>
+      <pubDate>Sun, 13 Sep 2026 00:00:00 GMT</pubDate>
+      <description>285 evidence observations from 6 sources; 16 public-attention signals; categories — agentic: 35, benchmark: 167, data_quality: 5, dataset: 125, evaluation: 130.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-12</title>
+      <link>https://benchmark-radar.org/?date=2026-09-12</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-12</guid>
+      <pubDate>Sat, 12 Sep 2026 00:00:00 GMT</pubDate>
+      <description>532 evidence observations from 10 sources; 14 public-attention signals; categories — agentic: 62, benchmark: 328, data_quality: 3, dataset: 206, evaluation: 282.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-11</title>
+      <link>https://benchmark-radar.org/?date=2026-09-11</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-11</guid>
+      <pubDate>Fri, 11 Sep 2026 00:00:00 GMT</pubDate>
+      <description>655 evidence observations from 10 sources; 15 public-attention signals; categories — agentic: 76, benchmark: 408, data_quality: 6, dataset: 255, evaluation: 346.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-10</title>
+      <link>https://benchmark-radar.org/?date=2026-09-10</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-10</guid>
+      <pubDate>Thu, 10 Sep 2026 00:00:00 GMT</pubDate>
+      <description>440 evidence observations from 11 sources; 14 public-attention signals; categories — agentic: 61, benchmark: 261, data_quality: 2, dataset: 175, evaluation: 219.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-09</title>
+      <link>https://benchmark-radar.org/?date=2026-09-09</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-09</guid>
+      <pubDate>Wed, 09 Sep 2026 00:00:00 GMT</pubDate>
+      <description>506 evidence observations from 11 sources; 14 public-attention signals; categories — agentic: 71, benchmark: 353, data_quality: 4, dataset: 229, evaluation: 259.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-08</title>
+      <link>https://benchmark-radar.org/?date=2026-09-08</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-08</guid>
+      <pubDate>Tue, 08 Sep 2026 00:00:00 GMT</pubDate>
+      <description>349 evidence observations from 8 sources; 16 public-attention signals; categories — agentic: 37, benchmark: 195, data_quality: 2, dataset: 142, evaluation: 165.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-07</title>
+      <link>https://benchmark-radar.org/?date=2026-09-07</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-07</guid>
+      <pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate>
+      <description>366 evidence observations from 9 sources; 15 public-attention signals; categories — agentic: 50, benchmark: 212, data_quality: 4, dataset: 152, evaluation: 190.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-06</title>
+      <link>https://benchmark-radar.org/?date=2026-09-06</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-06</guid>
+      <pubDate>Sun, 06 Sep 2026 00:00:00 GMT</pubDate>
+      <description>322 evidence observations from 8 sources; 13 public-attention signals; categories — agentic: 34, benchmark: 171, data_quality: 3, dataset: 123, evaluation: 162.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-05</title>
+      <link>https://benchmark-radar.org/?date=2026-09-05</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-05</guid>
+      <pubDate>Sat, 05 Sep 2026 00:00:00 GMT</pubDate>
+      <description>376 evidence observations from 9 sources; 13 public-attention signals; categories — agentic: 58, benchmark: 240, data_quality: 2, dataset: 157, evaluation: 169.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-04</title>
+      <link>https://benchmark-radar.org/?date=2026-09-04</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-04</guid>
+      <pubDate>Fri, 04 Sep 2026 00:00:00 GMT</pubDate>
+      <description>464 evidence observations from 10 sources; 10 public-attention signals; categories — agentic: 76, benchmark: 301, data_quality: 3, dataset: 190, evaluation: 219.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-03</title>
+      <link>https://benchmark-radar.org/?date=2026-09-03</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-03</guid>
+      <pubDate>Thu, 03 Sep 2026 00:00:00 GMT</pubDate>
+      <description>543 evidence observations from 10 sources; 10 public-attention signals; categories — agentic: 69, benchmark: 330, data_quality: 5, dataset: 211, evaluation: 274.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-02</title>
+      <link>https://benchmark-radar.org/?date=2026-09-02</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-02</guid>
+      <pubDate>Wed, 02 Sep 2026 00:00:00 GMT</pubDate>
+      <description>380 evidence observations from 9 sources; 10 public-attention signals; categories — agentic: 61, benchmark: 252, data_quality: 3, dataset: 155, evaluation: 176.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-09-01</title>
+      <link>https://benchmark-radar.org/?date=2026-09-01</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-09-01</guid>
+      <pubDate>Tue, 01 Sep 2026 00:00:00 GMT</pubDate>
+      <description>515 evidence observations from 9 sources; 8 public-attention signals; categories — agentic: 69, benchmark: 399, data_quality: 5, dataset: 189, evaluation: 240.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-31</title>
+      <link>https://benchmark-radar.org/?date=2026-08-31</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-31</guid>
+      <pubDate>Mon, 31 Aug 2026 00:00:00 GMT</pubDate>
+      <description>333 evidence observations from 8 sources; 13 public-attention signals; categories — agentic: 42, benchmark: 238, dataset: 128, evaluation: 114.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-30</title>
+      <link>https://benchmark-radar.org/?date=2026-08-30</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-30</guid>
+      <pubDate>Sun, 30 Aug 2026 00:00:00 GMT</pubDate>
+      <description>229 evidence observations from 7 sources; 12 public-attention signals; categories — agentic: 19, benchmark: 140, data_quality: 2, dataset: 96, evaluation: 75.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-29</title>
+      <link>https://benchmark-radar.org/?date=2026-08-29</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-29</guid>
+      <pubDate>Sat, 29 Aug 2026 00:00:00 GMT</pubDate>
+      <description>528 evidence observations from 11 sources; 12 public-attention signals; categories — agentic: 53, benchmark: 333, data_quality: 3, dataset: 221, evaluation: 237.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-28</title>
+      <link>https://benchmark-radar.org/?date=2026-08-28</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-28</guid>
+      <pubDate>Fri, 28 Aug 2026 00:00:00 GMT</pubDate>
+      <description>238 evidence observations from 6 sources; 13 public-attention signals; categories — agentic: 40, benchmark: 183, data_quality: 2, dataset: 115, evaluation: 110.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-27</title>
+      <link>https://benchmark-radar.org/?date=2026-08-27</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-27</guid>
+      <pubDate>Thu, 27 Aug 2026 00:00:00 GMT</pubDate>
+      <description>274 evidence observations from 6 sources; 10 public-attention signals; categories — agentic: 48, benchmark: 208, data_quality: 1, dataset: 126, evaluation: 153.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-26</title>
+      <link>https://benchmark-radar.org/?date=2026-08-26</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-26</guid>
+      <pubDate>Wed, 26 Aug 2026 00:00:00 GMT</pubDate>
+      <description>264 evidence observations from 7 sources; 7 public-attention signals; categories — agentic: 52, benchmark: 197, dataset: 112, evaluation: 127.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-25</title>
+      <link>https://benchmark-radar.org/?date=2026-08-25</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-25</guid>
+      <pubDate>Tue, 25 Aug 2026 00:00:00 GMT</pubDate>
+      <description>204 evidence observations from 7 sources; 4 public-attention signals; categories — agentic: 39, benchmark: 146, data_quality: 2, dataset: 95, evaluation: 97.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-24</title>
+      <link>https://benchmark-radar.org/?date=2026-08-24</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-24</guid>
+      <pubDate>Mon, 24 Aug 2026 00:00:00 GMT</pubDate>
+      <description>140 evidence observations from 5 sources; 8 public-attention signals; categories — agentic: 25, benchmark: 96, dataset: 64, evaluation: 51.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-23</title>
+      <link>https://benchmark-radar.org/?date=2026-08-23</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-23</guid>
+      <pubDate>Sun, 23 Aug 2026 00:00:00 GMT</pubDate>
+      <description>143 evidence observations from 4 sources; 8 public-attention signals; categories — agentic: 21, benchmark: 87, dataset: 65, evaluation: 57.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-22</title>
+      <link>https://benchmark-radar.org/?date=2026-08-22</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-22</guid>
+      <pubDate>Sat, 22 Aug 2026 00:00:00 GMT</pubDate>
+      <description>136 evidence observations from 6 sources; 9 public-attention signals; categories — agentic: 14, benchmark: 95, data_quality: 1, dataset: 69, evaluation: 50.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-21</title>
+      <link>https://benchmark-radar.org/?date=2026-08-21</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-21</guid>
+      <pubDate>Fri, 21 Aug 2026 00:00:00 GMT</pubDate>
+      <description>198 evidence observations from 6 sources; 10 public-attention signals; categories — agentic: 32, benchmark: 139, data_quality: 2, dataset: 92, evaluation: 102.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-20</title>
+      <link>https://benchmark-radar.org/?date=2026-08-20</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-20</guid>
+      <pubDate>Thu, 20 Aug 2026 00:00:00 GMT</pubDate>
+      <description>191 evidence observations from 6 sources; 13 public-attention signals; categories — agentic: 32, benchmark: 131, dataset: 112, evaluation: 86.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-19</title>
+      <link>https://benchmark-radar.org/?date=2026-08-19</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-19</guid>
+      <pubDate>Wed, 19 Aug 2026 00:00:00 GMT</pubDate>
+      <description>223 evidence observations from 6 sources; 15 public-attention signals; categories — agentic: 40, benchmark: 173, data_quality: 2, dataset: 112, evaluation: 116.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-18</title>
+      <link>https://benchmark-radar.org/?date=2026-08-18</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-18</guid>
+      <pubDate>Tue, 18 Aug 2026 00:00:00 GMT</pubDate>
+      <description>140 evidence observations from 5 sources; 14 public-attention signals; categories — agentic: 19, benchmark: 88, dataset: 55, evaluation: 60.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-17</title>
+      <link>https://benchmark-radar.org/?date=2026-08-17</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-17</guid>
+      <pubDate>Mon, 17 Aug 2026 00:00:00 GMT</pubDate>
+      <description>209 evidence observations from 5 sources; 11 public-attention signals; categories — agentic: 29, benchmark: 145, data_quality: 1, dataset: 87, evaluation: 95.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-16</title>
+      <link>https://benchmark-radar.org/?date=2026-08-16</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-16</guid>
+      <pubDate>Sun, 16 Aug 2026 00:00:00 GMT</pubDate>
+      <description>186 evidence observations from 4 sources; 11 public-attention signals; categories — agentic: 16, benchmark: 130, dataset: 93, evaluation: 74.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-15</title>
+      <link>https://benchmark-radar.org/?date=2026-08-15</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-15</guid>
+      <pubDate>Sat, 15 Aug 2026 00:00:00 GMT</pubDate>
+      <description>320 evidence observations from 5 sources; 11 public-attention signals; categories — agentic: 49, benchmark: 224, data_quality: 4, dataset: 144, evaluation: 148.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-14</title>
+      <link>https://benchmark-radar.org/?date=2026-08-14</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-14</guid>
+      <pubDate>Fri, 14 Aug 2026 00:00:00 GMT</pubDate>
+      <description>199 evidence observations from 6 sources; 13 public-attention signals; categories — agentic: 36, benchmark: 150, data_quality: 2, dataset: 96, evaluation: 90.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-13</title>
+      <link>https://benchmark-radar.org/?date=2026-08-13</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-13</guid>
+      <pubDate>Thu, 13 Aug 2026 00:00:00 GMT</pubDate>
+      <description>235 evidence observations from 6 sources; 13 public-attention signals; categories — agentic: 29, benchmark: 167, data_quality: 2, dataset: 126, evaluation: 100.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-12</title>
+      <link>https://benchmark-radar.org/?date=2026-08-12</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-12</guid>
+      <pubDate>Wed, 12 Aug 2026 00:00:00 GMT</pubDate>
+      <description>164 evidence observations from 4 sources; 14 public-attention signals; categories — agentic: 17, benchmark: 102, dataset: 87, evaluation: 67.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-11</title>
+      <link>https://benchmark-radar.org/?date=2026-08-11</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-11</guid>
+      <pubDate>Tue, 11 Aug 2026 00:00:00 GMT</pubDate>
+      <description>504 evidence observations from 5 sources; 19 public-attention signals; categories — agentic: 72, benchmark: 357, data_quality: 5, dataset: 232, evaluation: 285.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-10</title>
+      <link>https://benchmark-radar.org/?date=2026-08-10</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-10</guid>
+      <pubDate>Mon, 10 Aug 2026 00:00:00 GMT</pubDate>
+      <description>327 evidence observations from 5 sources; 18 public-attention signals; categories — agentic: 51, benchmark: 218, data_quality: 5, dataset: 148, evaluation: 141.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-08</title>
+      <link>https://benchmark-radar.org/?date=2026-08-08</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-08</guid>
+      <pubDate>Sat, 08 Aug 2026 00:00:00 GMT</pubDate>
+      <description>306 evidence observations from 4 sources; 20 public-attention signals; categories — agentic: 35, benchmark: 182, data_quality: 3, dataset: 133, evaluation: 141.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-07</title>
+      <link>https://benchmark-radar.org/?date=2026-08-07</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-07</guid>
+      <pubDate>Fri, 07 Aug 2026 00:00:00 GMT</pubDate>
+      <description>355 evidence observations from 5 sources; 22 public-attention signals; categories — agentic: 47, benchmark: 260, data_quality: 3, dataset: 163, evaluation: 172.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-06</title>
+      <link>https://benchmark-radar.org/?date=2026-08-06</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-06</guid>
+      <pubDate>Thu, 06 Aug 2026 00:00:00 GMT</pubDate>
+      <description>471 evidence observations from 5 sources; 20 public-attention signals; categories — agentic: 91, benchmark: 329, data_quality: 8, dataset: 180, evaluation: 246.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-05</title>
+      <link>https://benchmark-radar.org/?date=2026-08-05</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-05</guid>
+      <pubDate>Wed, 05 Aug 2026 00:00:00 GMT</pubDate>
+      <description>272 evidence observations from 5 sources; 21 public-attention signals; categories — agentic: 80, benchmark: 227, data_quality: 5, dataset: 132, evaluation: 165.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-04</title>
+      <link>https://benchmark-radar.org/?date=2026-08-04</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-04</guid>
+      <pubDate>Tue, 04 Aug 2026 00:00:00 GMT</pubDate>
+      <description>212 evidence observations from 3 sources; 16 public-attention signals; categories — agentic: 55, benchmark: 178, data_quality: 4, dataset: 110, evaluation: 117.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-03</title>
+      <link>https://benchmark-radar.org/?date=2026-08-03</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-03</guid>
+      <pubDate>Mon, 03 Aug 2026 00:00:00 GMT</pubDate>
+      <description>152 evidence observations from 3 sources; 16 public-attention signals; categories — agentic: 39, benchmark: 128, data_quality: 4, dataset: 85, evaluation: 89.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-02</title>
+      <link>https://benchmark-radar.org/?date=2026-08-02</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-02</guid>
+      <pubDate>Sun, 02 Aug 2026 00:00:00 GMT</pubDate>
+      <description>89 evidence observations from 2 sources; 16 public-attention signals; categories — agentic: 23, benchmark: 68, data_quality: 1, dataset: 48, evaluation: 41.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-08-01</title>
+      <link>https://benchmark-radar.org/?date=2026-08-01</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-08-01</guid>
+      <pubDate>Sat, 01 Aug 2026 00:00:00 GMT</pubDate>
+      <description>69 evidence observations from 2 sources; 17 public-attention signals; categories — agentic: 17, benchmark: 60, data_quality: 1, dataset: 39, evaluation: 33.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-31</title>
+      <link>https://benchmark-radar.org/?date=2026-07-31</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-31</guid>
+      <pubDate>Fri, 31 Jul 2026 00:00:00 GMT</pubDate>
+      <description>60 evidence observations from 2 sources; 14 public-attention signals; categories — agentic: 10, benchmark: 56, dataset: 41, evaluation: 32.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-30</title>
+      <link>https://benchmark-radar.org/?date=2026-07-30</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-30</guid>
+      <pubDate>Thu, 30 Jul 2026 00:00:00 GMT</pubDate>
+      <description>200 evidence observations from 3 sources; 16 public-attention signals; categories — agentic: 32, benchmark: 165, data_quality: 4, dataset: 136, evaluation: 124.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-29</title>
+      <link>https://benchmark-radar.org/?date=2026-07-29</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-29</guid>
+      <pubDate>Wed, 29 Jul 2026 00:00:00 GMT</pubDate>
+      <description>201 evidence observations from 3 sources; 18 public-attention signals; categories — agentic: 21, benchmark: 157, data_quality: 3, dataset: 137, evaluation: 138.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-28</title>
+      <link>https://benchmark-radar.org/?date=2026-07-28</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-28</guid>
+      <pubDate>Tue, 28 Jul 2026 00:00:00 GMT</pubDate>
+      <description>186 evidence observations from 3 sources; 18 public-attention signals; categories — agentic: 21, benchmark: 137, data_quality: 7, dataset: 134, evaluation: 122.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-27</title>
+      <link>https://benchmark-radar.org/?date=2026-07-27</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-27</guid>
+      <pubDate>Mon, 27 Jul 2026 00:00:00 GMT</pubDate>
+      <description>30 evidence observations from 2 sources; 18 public-attention signals; categories — agentic: 1, benchmark: 25, data_quality: 2, dataset: 22, evaluation: 16.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-26</title>
+      <link>https://benchmark-radar.org/?date=2026-07-26</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-26</guid>
+      <pubDate>Sun, 26 Jul 2026 00:00:00 GMT</pubDate>
+      <description>30 evidence observations from 1 source; 0 public-attention signals; categories — agentic: 3, benchmark: 25, dataset: 26, evaluation: 8.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-25</title>
+      <link>https://benchmark-radar.org/?date=2026-07-25</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-25</guid>
+      <pubDate>Sat, 25 Jul 2026 00:00:00 GMT</pubDate>
+      <description>32 evidence observations from 1 source; 0 public-attention signals; categories — agentic: 5, benchmark: 29, dataset: 25, evaluation: 11.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-24</title>
+      <link>https://benchmark-radar.org/?date=2026-07-24</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-24</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 GMT</pubDate>
+      <description>32 evidence observations from 1 source; 0 public-attention signals; categories — agentic: 4, benchmark: 31, dataset: 29, evaluation: 13.</description>
+    </item>
+    <item>
+      <title>Benchmark Radar — 2026-07-23</title>
+      <link>https://benchmark-radar.org/?date=2026-07-23</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/?date=2026-07-23</guid>
+      <pubDate>Thu, 23 Jul 2026 00:00:00 GMT</pubDate>
+      <description>20 evidence observations from 1 source; 0 public-attention signals; categories — agentic: 3, benchmark: 18, dataset: 16, evaluation: 10.</description>
+    </item>
+  </channel>
+</rss>

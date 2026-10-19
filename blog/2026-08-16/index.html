@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="/benchmark-radar-zh24/assets/github-runtime-v1.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Agent benchmarking in the captured evidence is being designed around controlled execution, not just task sets: a new arena adds side-by-side and blind…">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<title>Daily AI benchmark brief: 2026-08-16 | Benchmark Radar</title>
+<link rel="canonical" href="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-16/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Benchmark Radar">
+<meta property="og:title" content="Daily AI benchmark brief: 2026-08-16 | Benchmark Radar">
+<meta property="og:description" content="Agent benchmarking in the captured evidence is being designed around controlled execution, not just task sets: a new arena adds side-by-side and blind…">
+<meta property="og:url" content="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-16/">
+<meta property="og:image" content="https://benchmark-radar.org/assets/og-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Daily AI benchmark brief: 2026-08-16 | Benchmark Radar">
+<meta name="twitter:description" content="Agent benchmarking in the captured evidence is being designed around controlled execution, not just task sets: a new arena adds side-by-side and blind…">
+<meta name="twitter:image" content="https://benchmark-radar.org/assets/og-card.png">
+<link rel="icon" href="/benchmark-radar-zh24/icon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/rss+xml" title="Benchmark Radar daily brief"
+      href="/benchmark-radar-zh24/blog/feed.xml">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/styles.css">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/blog.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-16/", "@type": "BlogPosting", "author": {"@type": "Organization", "name": "Benchmark Radar"}, "citation": ["https://github.com/EnzoVezzaro/aba-arena", "https://github.com/zgl95116-sys/HoldemAgentBench", "https://github.com/cmudrc/agentic-bench", "https://huggingface.co/datasets/ModelBrew/sequential-forgetting-benchmark", "https://github.com/multivon-ai/multivon-eval", "https://github.com/edward-lcl/eval-evidence", "https://www.semanticscholar.org/paper/ddb59178df4958d378f6fa7ab8c9b8c54110e8d4", "https://www.semanticscholar.org/paper/eceb2a5471a0ca29c89c38e9239cabfac156e713", "https://huggingface.co/datasets/saas-discovery-benchmarks/saas-discovery-benchmarks", "https://github.com/kelsonc/genids-framework", "https://github.com/alejandro-publius/denali", "https://github.com/PavanJakkamsetti99/trustderm-ai-skin-lesion-evaluation", "https://www.semanticscholar.org/paper/8d967e48d9586957cce108733e2b71f0519e1cc1"], "dateModified": "2026-08-16", "datePublished": "2026-08-16", "description": "Agent benchmarking in the captured evidence is being designed around controlled execution, not just task sets: a new arena adds side-by-side and blind…", "headline": "Daily AI benchmark brief: 2026-08-16", "inLanguage": "en", "isPartOf": {"@id": "https://benchmark-radar.org/blog/#blog", "@type": "Blog", "name": "Benchmark Radar blog", "url": "https://benchmark-radar.org/blog/"}, "keywords": ["daily brief", "AI benchmarks", "evaluation"], "mainEntityOfPage": "https://benchmark-radar.org/blog/2026-08-16/", "publisher": {"@id": "https://benchmark-radar.org/#organization", "@type": "Organization", "name": "Benchmark Radar", "url": "https://benchmark-radar.org/"}, "url": "https://benchmark-radar.org/blog/2026-08-16/"}</script><script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-16/#breadcrumb", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "item": "https://benchmark-radar.org/", "name": "Benchmark Radar", "position": 1}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/", "name": "Blog", "position": 2}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/2026-08-16/", "name": "Daily AI benchmark brief: 2026-08-16", "position": 3}]}</script>
+<script type="application/json" id="chrome-i18n">{"About": "关于", "About this site": "关于本站", "Blog": "博客", "CLI": "命令行", "Cite": "引用", "Contact": "联系作者", "Dashboard views": "仪表盘视图", "Get in touch · Email, WeChat, Discord": "联系我 · 邮件、微信、Discord", "If this saved you research time, cite the work, star the repo and help other eval builders find it.": "如果它帮你节省了研究时间，请引用这项工作、给仓库点 Star，让更多评测开发者找到它。", "Leaderboard": "排行榜", "Open the repository and star it": "打开仓库并给个 Star", "Privacy notice": "隐私声明", "Publications": "论文与引用", "Saturation": "饱和度", "Share": "分享", "Site utilities": "网站工具", "Star": "Star", "Star the repository": "给仓库点 Star", "Star this repository on GitHub. {count} stars": "在 GitHub 上给这个仓库点 Star。{count} 个 star", "Subscribe to Benchmark Radar via RSS": "通过 RSS 订阅 Benchmark Radar", "Switch to Chinese (中文)": "切换到中文", "Switch to English": "切换到英文", "Today": "今日", "Trends": "趋势", "Updated": "更新于"}</script>
+<script src="/benchmark-radar-zh24/assets/blog.js" defer></script>
+</head>
+<body class="blog-page">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="masthead">
+      <div class="masthead-main">
+        <a class="brand" href="/benchmark-radar-zh24/" aria-label="Benchmark Radar home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+          </span>
+          <strong>Benchmark Radar™</strong>
+        </a>
+        <nav class="view-nav" aria-label="Dashboard views" data-i18n-aria="Dashboard views">
+          <a href="/benchmark-radar-zh24/" data-i18n="Today">Today</a>
+          <a
+            href="/benchmark-radar-zh24/cli/"
+            id="cli-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="CLI"
+          >
+            CLI
+          </a>
+          <a href="/benchmark-radar-zh24/leaderboard/" data-i18n="Leaderboard">
+            Leaderboard
+          </a>
+          <a href="/benchmark-radar-zh24/saturation/" data-i18n="Saturation">Saturation</a>
+          <a href="/benchmark-radar-zh24/trends/" data-i18n="Trends">Trends</a>
+          <a
+            href="/benchmark-radar-zh24/cite/"
+            id="cite-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="Publications"
+          >
+            Publications
+          </a>
+        </nav>
+      </div>
+      <div class="masthead-end" aria-label="Site utilities" data-i18n-aria="Site utilities">
+        <a
+          class="repo-badge feed-badge"
+          href="/benchmark-radar-zh24/feed.xml"
+          title="Subscribe to Benchmark Radar via RSS"
+          aria-label="Subscribe to Benchmark Radar via RSS"
+          data-i18n-title="Subscribe to Benchmark Radar via RSS"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="19" r="2"></circle>
+            <path d="M4 11a9 9 0 0 1 9 9"></path>
+            <path d="M4 4a16 16 0 0 1 16 16"></path>
+          </svg>
+          <span class="repo-badge-label">RSS</span>
+        </a>
+        <button
+          type="button"
+          class="repo-badge"
+          id="lang-toggle"
+          aria-pressed="false"
+          title="Switch to Chinese (中文)"
+          data-i18n-title="Switch to Chinese (中文)"
+        >
+          <span class="repo-badge-glyph" id="lang-toggle-label">中</span>
+        </button>
+        <a class="repo-badge" href="/benchmark-radar-zh24/#contact" aria-haspopup="dialog" title="Get in touch · Email, WeChat, Discord" data-i18n-title="Get in touch · Email, WeChat, Discord">
+          <svg class="outline-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Contact">Contact</span>
+        </a>
+        <a
+          class="repo-badge"
+          id="badge-stars"
+          href="https://github.com/ktwu01/benchmark-radar"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open the repository and star it"
+          data-i18n-title="Open the repository and star it"
+        >
+          <svg class="brand-icon github-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.5a9.5 9.5 0 0 0-3 18.52c.48.09.65-.21.65-.46v-1.67c-2.67.58-3.23-1.13-3.23-1.13-.44-1.12-1.07-1.42-1.07-1.42-.87-.6.07-.59.07-.59.96.07 1.47.99 1.47.99.86 1.47 2.25 1.05 2.8.8.09-.62.34-1.05.61-1.29-2.13-.24-4.37-1.07-4.37-4.75 0-1.05.38-1.91.99-2.58-.1-.24-.43-1.22.09-2.54 0 0 .81-.26 2.63.98A9.16 9.16 0 0 1 12 7.96c.82 0 1.65.11 2.42.33 1.82-1.24 2.63-.98 2.63-.98.52 1.32.19 2.3.09 2.54.61.67.99 1.53.99 2.58 0 3.69-2.25 4.5-4.39 4.74.35.3.65.88.65 1.78v2.63c0 .25.17.55.66.46A9.5 9.5 0 0 0 12 2.5Z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Star">Star</span>
+          <span class="repo-badge-count" data-count>—</span>
+        </a>
+      </div>
+    </header>
+<main id="main-content" tabindex="-1"><div class="blog-view"><div data-lang-content="en">
+<header class="blog-hero">
+  <h1>Daily AI benchmark brief: 2026-08-16</h1>
+</header>
+<div class="blog-prose"><div class="blog-stats"><div class="blog-stat"><strong>186</strong><span>evidence observations</span></div><div class="blog-stat"><strong>4</strong><span>sources represented</span></div><div class="blog-stat"><strong>11</strong><span>public-attention signals</span></div></div><section class="blog-section"><div class="blog-section-heading"><h2>Daily briefing</h2></div><ol class="blog-index"><li class="blog-card">Agent benchmarking in the captured evidence is being designed around controlled execution, not just task sets: a new arena adds side-by-side and blind comparison, while two updated benchmarks specify a shared harness or deterministic scoring. This is a recurring design pressure supported by three separate repositories, not a release trend. [E005, E023, E024] Why it matters: Evaluators comparing agents should hold tools, harnesses, and scoring rules constant or explicitly report them. Otherwise, measured differences may reflect execution infrastructure rather than the agents themselves; benchmark selection should therefore include a harness-control audit. [E005, E023, E024] Evidence: E005, E023, E024. Medium confidence.</li><li class="blog-card">Reproducibility is extending from published scores to evaluation provenance: a new forgetting benchmark links each result to raw runs and discloses invalid runs, while updated tools emphasize machine-checkable run evidence, deterministic evaluators, datasets, and CI/CD integration. [E019, E021, E030] Why it matters: Teams choosing evaluation infrastructure should require traceable run artifacts and invalid-run handling alongside aggregate metrics. These features make regressions and production gates more auditable than score-only reporting, although the evidence describes project capabilities rather than independently verified implementations. [E019, E021, E030] Evidence: E019, E021, E030. Medium confidence.</li></ol></section><section class="blog-section"><div class="blog-section-heading"><h2>What arrived</h2></div><article class="blog-panel"><h3>What benchmarks, datasets, or evaluation methods did the radar first see today?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The captured feed first saw benchmarks for sequential model forgetting, software discovery, agent comparisons, medical imaging, and cross-dataset generalization, alongside evaluation frameworks for trustworthy classification and reproducible evidence.</p><p>Notable arrivals included a provenance-backed ledger for measuring what models forget, a dataset scoring software recommendations, agent arenas, a standardized medical-image denoising pipeline, grouped validation for fracture sensing, and frameworks for skin-lesion assessment and intrusion-detection transfer.</p><p><strong>Takeaway:</strong> The first-seen set spans reusable AI evaluation tools and highly specialized research methods. First-seen means new to this keyword-filtered radar, not necessarily newly created or representative of the wider field.</p><p class="blog-caveat"><strong>Another reading:</strong> The supplied evidence does not identify every first-seen artifact counted by the registry. Some captured papers may also be keyword matches rather than newly introduced benchmarks; the distributed-training record is categorized as a benchmark although its summary primarily describes a scheduling scheme.</p><ul class="blog-list"><li><span class="blog-cite-id">S013</span> artifacts first observed by the radar today: <strong>43</strong></li><li><span class="blog-cite-id">S009</span> records tagged benchmark: <strong>130 count (multi-label)</strong></li><li><span class="blog-cite-id">S010</span> records tagged dataset: <strong>93 count (multi-label)</strong></li><li><span class="blog-cite-id">S011</span> records tagged evaluation: <strong>74 count (multi-label)</strong></li></ul></article><article class="blog-panel"><h3>Which of today&#x27;s arrivals document how they score an answer?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The clearest captured descriptions are the SaaS discovery dataset, multivon-eval, and agentic-bench: they respectively expose scoring dimensions, combine deterministic and model-judge evaluators, and use deterministic scoring with one aggregate loss.</p><p>The SaaS dataset names the qualities it scores, including category fit, feature match, use-case alignment, ranking, presence, and overall fit. Multivon-eval says it supports fixed-rule and model-based judging. Agentic-bench says its result is calculated deterministically and condensed into one loss value.</p><p><strong>Takeaway:</strong> The SaaS dataset was captured as a release, while multivon-eval and agentic-bench were first observed through update events. The packet identifies their broad scoring approaches but does not provide full formulas, rubrics, thresholds, or worked examples.</p><p class="blog-caveat"><strong>Another reading:</strong> ABA Arena reports per-metric winners and a blind mode, but its captured description does not explain how answers become metric values. Repository or dataset documentation is therefore needed before claiming that any candidate fully specifies answer scoring.</p><ul class="blog-list"><li><span class="blog-cite-id">S013</span> artifacts first observed by the radar today: <strong>43</strong></li><li><span class="blog-cite-id">S003</span> records with event kind released: <strong>101</strong></li><li><span class="blog-cite-id">S004</span> records with event kind updated: <strong>85</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What is still moving</h2></div><article class="blog-panel"><h3>Which artifacts the radar already tracked moved measurably, and over what span?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The registry contains artifact-level movement statistics and whole-span windows, but the supplied evidence packet provides no E-coded support for those artifacts.</p><p>Several named datasets and repositories have recorded changes in downloads or stars across their full tracking periods. These are cumulative changes, not one-day movements, but the required source citations are missing.</p><p><strong>Takeaway:</strong> A grounded artifact-by-artifact list cannot be published until evidence records with E identifiers are supplied for the movement statistics.</p><p class="blog-caveat"><strong>Another reading:</strong> The statistic labels themselves name the artifacts, metrics, and spans, so they could be treated as sufficient structured evidence. That reading conflicts with the explicit requirement for E-coded citations on specific artifact claims.</p><ul class="blog-list"><li><span class="blog-cite-id">S016</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>11,612.0 downloads</strong></li><li><span class="blog-cite-id">S017</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>9,108.0 downloads</strong></li><li><span class="blog-cite-id">S018</span> stars change for santifer/career-ops: <strong>1,431.0 stars</strong></li><li><span class="blog-cite-id">S019</span> downloads change for vava22684/song-jury-leaderboard: <strong>-1,256.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for Weyaxi/followers-leaderboard: <strong>-864.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for qimma/leaderboard-details: <strong>630.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for sselaine27/benchmark-research: <strong>360.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for qimma/leaderboard-requests: <strong>332.0 downloads</strong></li></ul></article><article class="blog-panel"><h3>Which of that movement is corroborated by more than one connector?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span><span class="blog-chip">Not enough evidence</span></div><p>None of the registered movement statistics is marked as corroborated; each was measured by a single connector.</p><p>The radar separately reports that some tracked artifacts appeared through more than one connector, but that does not show that multiple connectors measured the same download or star change.</p><p><strong>Takeaway:</strong> No listed movement can be called corroborated. A per-metric statistic and E-coded evidence are missing for any tracked artifact whose movement may have multi-connector support.</p><p class="blog-caveat"><strong>Another reading:</strong> An artifact appearing through multiple connectors could be read as general corroboration. The registry explicitly warns that a shared sighting is not the same as multiple connectors measuring the same metric.</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> tracked artifacts today seen by more than one connector: <strong>2</strong></li><li><span class="blog-cite-id">S016</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>11,612.0 downloads</strong></li><li><span class="blog-cite-id">S017</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>9,108.0 downloads</strong></li><li><span class="blog-cite-id">S018</span> stars change for santifer/career-ops: <strong>1,431.0 stars</strong></li><li><span class="blog-cite-id">S019</span> downloads change for vava22684/song-jury-leaderboard: <strong>-1,256.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for Weyaxi/followers-leaderboard: <strong>-864.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for qimma/leaderboard-details: <strong>630.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for sselaine27/benchmark-research: <strong>360.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for qimma/leaderboard-requests: <strong>332.0 downloads</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What it means</h2></div><article class="blog-panel"><h3>What should someone building or evaluating AI systems do differently today?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span></div><p>Make no portfolio-level pivot from this feed; instead, review newly released, task-relevant evaluation artifacts and tighten provenance checks.</p><p>Benchmark-tagged records were common, with dataset and evaluation tags also recurring; these labels overlap. A newly released sequential-forgetting benchmark says it links results to raw runs and retains invalid runs, while a newly released agent arena offers side-by-side testing. [E019] [E005]</p><p><strong>Takeaway:</strong> If sequential fine-tuning matters, consider adding a forgetting regression test and preserve raw outputs and rejected runs. Trial the agent arena only in a sandbox. Treat both artifacts as newly released candidates, not validated standards or public-attention signals. [E019] [E005]</p><p class="blog-caveat"><strong>Another reading:</strong> The release descriptions do not demonstrate external validity, implementation quality, or relevance to a particular production workload. Very few tracked artifacts had sightings from multiple connectors, so maintaining the existing evaluation plan may be more appropriate than adopting either candidate.</p><ul class="blog-list"><li><span class="blog-cite-id">S003</span> records with event kind released: <strong>101</strong></li><li><span class="blog-cite-id">S009</span> records tagged benchmark: <strong>130 count (multi-label)</strong></li><li><span class="blog-cite-id">S010</span> records tagged dataset: <strong>93 count (multi-label)</strong></li><li><span class="blog-cite-id">S011</span> records tagged evaluation: <strong>74 count (multi-label)</strong></li><li><span class="blog-cite-id">S013</span> artifacts first observed by the radar today: <strong>43</strong></li><li><span class="blog-cite-id">S015</span> tracked artifacts today seen by more than one connector: <strong>2</strong></li></ul></article><article class="blog-panel"><h3>What does today&#x27;s evidence fail to show, and what would change the reading?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>Today&#x27;s evidence does not establish a field-wide trend, a benchmark quality ranking, or independently corroborated metric movement.</p><p>There is no certified comparison window, and this keyword-filtered feed is not representative of the field. The listed artifact movements cover differing whole tracked spans and come from single connectors; they are not one-day changes or corroborated measurements.</p><p><strong>Takeaway:</strong> A stronger reading would require a certified comparison window with stable taxonomy and collection coverage, repeated measurement of the same metric by multiple connectors, and reproducible primary evidence for release claims. Broader sampling would be needed before generalizing beyond this captured feed.</p><p class="blog-caveat"><strong>Another reading:</strong> The feed still provides useful discovery evidence despite its measurement limits. The sequential-forgetting benchmark exposes provenance practices, and the agent arena presents a concrete testing format, so both can justify targeted inspection without supporting a broader trend claim. [E019] [E005]</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> tracked artifacts today seen by more than one connector: <strong>2</strong></li><li><span class="blog-cite-id">S016</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>11,612.0 downloads</strong></li><li><span class="blog-cite-id">S017</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>9,108.0 downloads</strong></li><li><span class="blog-cite-id">S018</span> stars change for santifer/career-ops: <strong>1,431.0 stars</strong></li><li><span class="blog-cite-id">S019</span> downloads change for vava22684/song-jury-leaderboard: <strong>-1,256.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for Weyaxi/followers-leaderboard: <strong>-864.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for qimma/leaderboard-details: <strong>630.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for sselaine27/benchmark-research: <strong>360.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for qimma/leaderboard-requests: <strong>332.0 downloads</strong></li><li><span class="blog-cite-id">S024</span> daily-average change in agentic observations: <strong>-14.29 observations per day</strong></li><li><span class="blog-cite-id">S025</span> daily-average change in dataset observations: <strong>10.71 observations per day</strong></li><li><span class="blog-cite-id">S026</span> daily-average change in evaluation observations: <strong>-9.43 observations per day</strong></li><li><span class="blog-cite-id">S027</span> daily-average change in benchmark observations: <strong>-3.43 observations per day</strong></li><li><span class="blog-cite-id">S028</span> daily-average change in data_quality observations: <strong>-1.43 observations per day</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>Evidence sources</h2></div><ul class="blog-evidence"><li><span class="blog-cite-id">E005</span> <a href="https://github.com/EnzoVezzaro/aba-arena">EnzoVezzaro/aba-arena</a></li><li><span class="blog-cite-id">E023</span> <a href="https://github.com/zgl95116-sys/HoldemAgentBench">zgl95116-sys/HoldemAgentBench</a></li><li><span class="blog-cite-id">E024</span> <a href="https://github.com/cmudrc/agentic-bench">cmudrc/agentic-bench</a></li><li><span class="blog-cite-id">E019</span> <a href="https://huggingface.co/datasets/ModelBrew/sequential-forgetting-benchmark">ModelBrew/sequential-forgetting-benchmark</a></li><li><span class="blog-cite-id">E021</span> <a href="https://github.com/multivon-ai/multivon-eval">multivon-ai/multivon-eval</a></li><li><span class="blog-cite-id">E030</span> <a href="https://github.com/edward-lcl/eval-evidence">edward-lcl/eval-evidence</a></li><li><span class="blog-cite-id">E013</span> <a href="https://www.semanticscholar.org/paper/ddb59178df4958d378f6fa7ab8c9b8c54110e8d4">A quantitative benchmarking framework for reinforcement learning-based low-dose CT image denoising</a></li><li><span class="blog-cite-id">E014</span> <a href="https://www.semanticscholar.org/paper/eceb2a5471a0ca29c89c38e9239cabfac156e713">Physics-Informed RF Features for Bone Fracture Detection and Healing Classification: A Grouped Cross-Validation Study Using 2D-FDTD Simulation Across Five Anatomical Sites</a></li><li><span class="blog-cite-id">E020</span> <a href="https://huggingface.co/datasets/saas-discovery-benchmarks/saas-discovery-benchmarks">saas-discovery-benchmarks/saas-discovery-benchmarks</a></li><li><span class="blog-cite-id">E022</span> <a href="https://github.com/kelsonc/genids-framework">kelsonc/genids-framework</a></li><li><span class="blog-cite-id">E025</span> <a href="https://github.com/alejandro-publius/denali">alejandro-publius/denali</a></li><li><span class="blog-cite-id">E026</span> <a href="https://github.com/PavanJakkamsetti99/trustderm-ai-skin-lesion-evaluation">PavanJakkamsetti99/trustderm-ai-skin-lesion-evaluation</a></li><li><span class="blog-cite-id">E027</span> <a href="https://www.semanticscholar.org/paper/8d967e48d9586957cce108733e2b71f0519e1cc1">Execution-Delay-Balanced Pipeline-Parallelism-Based Distributed Model Training for Artificial Intelligence Data Centers Interconnected by Optical Networks</a></li></ul></section><section class="blog-section blog-panel"><h2>Where this came from, and what it does not cover</h2><p>Built from the validated daily snapshot and its 186 evidence records.</p><p>Briefing model: gpt-5.6-sol.</p><p>It read 33 of 186 records.</p><p class="blog-caveat">Only 33 of 186 corpus evidence records were injected, so these findings describe the selected slice rather than the full captured feed. Brave and OpenReview were unavailable, no attention signal was observed today, and the supplied history fails the stated comparability guardrail; therefore, no across-day trend is inferred. Tracked metric movements were also predominantly single-connector observations and are not treated as corroborated.</p></section></div>
+</div></div></main>
+<footer>
+      <nav class="footer-nav" aria-label="About this site" data-i18n-aria="About this site">
+        <a href="/benchmark-radar-zh24/about/" data-i18n="About">About</a>
+        <a class="nav-active" aria-current="page" href="/benchmark-radar-zh24/blog/" data-i18n="Blog">Blog</a>
+      </nav>
+      <p id="build-meta"><span data-i18n="Updated">Updated</span> 2026-08-16</p>
+      <aside class="adoption-cta" aria-label="Support Benchmark Radar">
+        <p data-i18n="If this saved you research time, cite the work, star the repo and help other eval builders find it.">
+          If this saved you research time, cite the work, star the repo and help other eval builders find it.
+        </p>
+        <span class="adoption-actions">
+          <a
+            class="primary-link"
+            id="cite-open"
+            href="/benchmark-radar-zh24/cite/"
+            aria-haspopup="dialog"
+            aria-controls="cite-dialog"
+            aria-expanded="false"
+            data-i18n="Cite"
+          >Cite</a>
+          <a
+            class="primary-link"
+            href="https://github.com/ktwu01/benchmark-radar"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-i18n="Star the repository"
+          >Star the repository</a>
+          <button type="button" class="secondary-link" id="share-radar" data-i18n="Share">
+            Share
+          </button>
+        </span>
+      </aside>
+      <details class="privacy-note">
+        <summary data-i18n="Privacy notice">Privacy notice</summary>
+        <p>
+          We use Microsoft Clarity cookies, session replays and heatmaps to understand how people use
+          this site and improve its navigation and content. Sensitive content is masked by default.
+          By using this site, you agree that Benchmark Radar and Microsoft can collect and use this
+          data. See the
+          <a href="https://privacy.microsoft.com/privacystatement">Microsoft Privacy Statement</a>.
+        </p>
+      </details>
+      <p class="copyright">© 2026 Koutian Wu and contributors</p>
+    </footer

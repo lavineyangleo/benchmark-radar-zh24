@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# The sitemap is regenerated on every dashboard build, so it can never list a
+# view the deployed site does not serve.
+Sitemap: https://lavineyangleo.github.io/benchmark-radar-zh24/sitemap.xml

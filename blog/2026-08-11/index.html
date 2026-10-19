@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="/benchmark-radar-zh24/assets/github-runtime-v1.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Multiple new releases in the captured feed move agent evaluation beyond final-task success toward inspecting collaboration graphs, requirement recovery…">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<title>Daily AI benchmark brief: 2026-08-11 | Benchmark Radar</title>
+<link rel="canonical" href="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-11/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Benchmark Radar">
+<meta property="og:title" content="Daily AI benchmark brief: 2026-08-11 | Benchmark Radar">
+<meta property="og:description" content="Multiple new releases in the captured feed move agent evaluation beyond final-task success toward inspecting collaboration graphs, requirement recovery…">
+<meta property="og:url" content="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-11/">
+<meta property="og:image" content="https://benchmark-radar.org/assets/og-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Daily AI benchmark brief: 2026-08-11 | Benchmark Radar">
+<meta name="twitter:description" content="Multiple new releases in the captured feed move agent evaluation beyond final-task success toward inspecting collaboration graphs, requirement recovery…">
+<meta name="twitter:image" content="https://benchmark-radar.org/assets/og-card.png">
+<link rel="icon" href="/benchmark-radar-zh24/icon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/rss+xml" title="Benchmark Radar daily brief"
+      href="/benchmark-radar-zh24/blog/feed.xml">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/styles.css">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/blog.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-11/", "@type": "BlogPosting", "author": {"@type": "Organization", "name": "Benchmark Radar"}, "citation": ["https://arxiv.org/abs/2608.08605", "https://arxiv.org/abs/2608.09072", "https://www.semanticscholar.org/paper/4bf998abb6df104aa192cf3053a5edbfa0d4b7c0", "https://arxiv.org/abs/2608.09412", "https://arxiv.org/abs/2608.09766", "https://www.semanticscholar.org/paper/bc687e9476b385bdd4581777df6efe7663d2488c", "https://www.semanticscholar.org/paper/86b3c2995526de01c138a4d88d5439d3096a4b3e", "https://arxiv.org/abs/2608.07873", "https://arxiv.org/abs/2608.09925", "https://arxiv.org/abs/2608.09930", "https://arxiv.org/abs/2608.09538", "https://arxiv.org/abs/2608.09393", "https://arxiv.org/abs/2608.09128", "https://arxiv.org/abs/2608.08727", "https://www.semanticscholar.org/paper/1439d7398affe668b7b54065ab3b388d674adc5d", "https://www.semanticscholar.org/paper/c08bae856cf0f309ff3d35668d24205263ce636f", "https://www.semanticscholar.org/paper/277a7a8f8157646660b37304a51047c8679a693d", "https://github.com/carlacasaroti/slm-doc-extract-bench"], "dateModified": "2026-08-11", "datePublished": "2026-08-11", "description": "Multiple new releases in the captured feed move agent evaluation beyond final-task success toward inspecting collaboration graphs, requirement recovery…", "headline": "Daily AI benchmark brief: 2026-08-11", "inLanguage": "en", "isPartOf": {"@id": "https://benchmark-radar.org/blog/#blog", "@type": "Blog", "name": "Benchmark Radar blog", "url": "https://benchmark-radar.org/blog/"}, "keywords": ["daily brief", "AI benchmarks", "evaluation"], "mainEntityOfPage": "https://benchmark-radar.org/blog/2026-08-11/", "publisher": {"@id": "https://benchmark-radar.org/#organization", "@type": "Organization", "name": "Benchmark Radar", "url": "https://benchmark-radar.org/"}, "url": "https://benchmark-radar.org/blog/2026-08-11/"}</script><script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-11/#breadcrumb", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "item": "https://benchmark-radar.org/", "name": "Benchmark Radar", "position": 1}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/", "name": "Blog", "position": 2}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/2026-08-11/", "name": "Daily AI benchmark brief: 2026-08-11", "position": 3}]}</script>
+<script type="application/json" id="chrome-i18n">{"About": "关于", "About this site": "关于本站", "Blog": "博客", "CLI": "命令行", "Cite": "引用", "Contact": "联系作者", "Dashboard views": "仪表盘视图", "Get in touch · Email, WeChat, Discord": "联系我 · 邮件、微信、Discord", "If this saved you research time, cite the work, star the repo and help other eval builders find it.": "如果它帮你节省了研究时间，请引用这项工作、给仓库点 Star，让更多评测开发者找到它。", "Leaderboard": "排行榜", "Open the repository and star it": "打开仓库并给个 Star", "Privacy notice": "隐私声明", "Publications": "论文与引用", "Saturation": "饱和度", "Share": "分享", "Site utilities": "网站工具", "Star": "Star", "Star the repository": "给仓库点 Star", "Star this repository on GitHub. {count} stars": "在 GitHub 上给这个仓库点 Star。{count} 个 star", "Subscribe to Benchmark Radar via RSS": "通过 RSS 订阅 Benchmark Radar", "Switch to Chinese (中文)": "切换到中文", "Switch to English": "切换到英文", "Today": "今日", "Trends": "趋势", "Updated": "更新于"}</script>
+<script src="/benchmark-radar-zh24/assets/blog.js" defer></script>
+</head>
+<body class="blog-page">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="masthead">
+      <div class="masthead-main">
+        <a class="brand" href="/benchmark-radar-zh24/" aria-label="Benchmark Radar home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+          </span>
+          <strong>Benchmark Radar™</strong>
+        </a>
+        <nav class="view-nav" aria-label="Dashboard views" data-i18n-aria="Dashboard views">
+          <a href="/benchmark-radar-zh24/" data-i18n="Today">Today</a>
+          <a
+            href="/benchmark-radar-zh24/cli/"
+            id="cli-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="CLI"
+          >
+            CLI
+          </a>
+          <a href="/benchmark-radar-zh24/leaderboard/" data-i18n="Leaderboard">
+            Leaderboard
+          </a>
+          <a href="/benchmark-radar-zh24/saturation/" data-i18n="Saturation">Saturation</a>
+          <a href="/benchmark-radar-zh24/trends/" data-i18n="Trends">Trends</a>
+          <a
+            href="/benchmark-radar-zh24/cite/"
+            id="cite-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="Publications"
+          >
+            Publications
+          </a>
+        </nav>
+      </div>
+      <div class="masthead-end" aria-label="Site utilities" data-i18n-aria="Site utilities">
+        <a
+          class="repo-badge feed-badge"
+          href="/benchmark-radar-zh24/feed.xml"
+          title="Subscribe to Benchmark Radar via RSS"
+          aria-label="Subscribe to Benchmark Radar via RSS"
+          data-i18n-title="Subscribe to Benchmark Radar via RSS"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="19" r="2"></circle>
+            <path d="M4 11a9 9 0 0 1 9 9"></path>
+            <path d="M4 4a16 16 0 0 1 16 16"></path>
+          </svg>
+          <span class="repo-badge-label">RSS</span>
+        </a>
+        <button
+          type="button"
+          class="repo-badge"
+          id="lang-toggle"
+          aria-pressed="false"
+          title="Switch to Chinese (中文)"
+          data-i18n-title="Switch to Chinese (中文)"
+        >
+          <span class="repo-badge-glyph" id="lang-toggle-label">中</span>
+        </button>
+        <a class="repo-badge" href="/benchmark-radar-zh24/#contact" aria-haspopup="dialog" title="Get in touch · Email, WeChat, Discord" data-i18n-title="Get in touch · Email, WeChat, Discord">
+          <svg class="outline-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Contact">Contact</span>
+        </a>
+        <a
+          class="repo-badge"
+          id="badge-stars"
+          href="https://github.com/ktwu01/benchmark-radar"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open the repository and star it"
+          data-i18n-title="Open the repository and star it"
+        >
+          <svg class="brand-icon github-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.5a9.5 9.5 0 0 0-3 18.52c.48.09.65-.21.65-.46v-1.67c-2.67.58-3.23-1.13-3.23-1.13-.44-1.12-1.07-1.42-1.07-1.42-.87-.6.07-.59.07-.59.96.07 1.47.99 1.47.99.86 1.47 2.25 1.05 2.8.8.09-.62.34-1.05.61-1.29-2.13-.24-4.37-1.07-4.37-4.75 0-1.05.38-1.91.99-2.58-.1-.24-.43-1.22.09-2.54 0 0 .81-.26 2.63.98A9.16 9.16 0 0 1 12 7.96c.82 0 1.65.11 2.42.33 1.82-1.24 2.63-.98 2.63-.98.52 1.32.19 2.3.09 2.54.61.67.99 1.53.99 2.58 0 3.69-2.25 4.5-4.39 4.74.35.3.65.88.65 1.78v2.63c0 .25.17.55.66.46A9.5 9.5 0 0 0 12 2.5Z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Star">Star</span>
+          <span class="repo-badge-count" data-count>—</span>
+        </a>
+      </div>
+    </header>
+<main id="main-content" tabindex="-1"><div class="blog-view"><div data-lang-content="en">
+<header class="blog-hero">
+  <h1>Daily AI benchmark brief: 2026-08-11</h1>
+</header>
+<div class="blog-prose"><div class="blog-stats"><div class="blog-stat"><strong>504</strong><span>evidence observations</span></div><div class="blog-stat"><strong>5</strong><span>sources represented</span></div><div class="blog-stat"><strong>19</strong><span>public-attention signals</span></div></div><section class="blog-section"><div class="blog-section-heading"><h2>Daily briefing</h2></div><ol class="blog-index"><li class="blog-card">Multiple new releases in the captured feed move agent evaluation beyond final-task success toward inspecting collaboration graphs, requirement recovery, planning, and execution trajectories. This recurring pressure appears across multi-agent, coding-agent, and behavioral-safety benchmarks rather than in one artifact alone. [E002, E014, E047] Why it matters: Agent builders should retain structured traces and score intermediate decisions, not rely solely on pass/fail outcomes. Evaluators adopting these releases can better localize whether failures arise from coordination, planning, implementation, or unsafe actions, which changes debugging priorities and product-release criteria. [E002, E014, E047] Evidence: E002, E014, E047. High confidence.</li><li class="blog-card">Several new releases treat benchmark validity itself as an evaluation target: they isolate compressor-specific failures, probe contamination and localization, identify test and gold-patch leakage risks, and prevent copy-based shortcuts. In this captured feed, benchmark controls are becoming as important as task difficulty. [E005, E007, E022, E039] Why it matters: Model-selection decisions should require controls tailored to likely shortcuts and artifacts, including per-method baselines, contamination checks, test audits, and constraint validation. Otherwise, reported gains may reflect benchmark construction rather than deployable capability, especially when comparing compression methods, multilingual systems, or coding agents. [E005, E007, E022, E039] Evidence: E005, E007, E022, E039. High confidence.</li></ol></section><section class="blog-section"><div class="blog-section-heading"><h2>What arrived</h2></div><article class="blog-panel"><h3>What benchmarks, datasets, or evaluation methods did the radar first see today?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The captured feed first observed a broad set of artifacts, including ForestBench for multi-agent collaboration, a workbook-creation benchmark, KVDiagnosis for cache compression, Cultivar for translation robustness, TCS-Bench for research proofs, and Social Gym for agent interaction. These are reported releases, not updates.</p><p>The notable arrivals test collaboration traces, spreadsheet creation, compressed-memory failures, localized translation, computer-science proofs, and social game play. Other releases cover Dutch government use, speech evaluation, legal retrieval, agricultural diagnosis, industrial safety, and coding agents.</p><p><strong>Takeaway:</strong> The clearest theme in this keyword-filtered feed is evaluation moving beyond final-answer accuracy toward process traces, controls, executable checks, localization, and domain-specific evidence. Benchmark, evaluation, and dataset tags overlap and should not be treated as separate shares.</p><p class="blog-caveat"><strong>Another reading:</strong> This is not a complete inventory of first-seen artifacts because only a selected evidence packet was supplied. First observed means new to the radar, not necessarily new to the field, and incomplete connector coverage may have delayed discovery.</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> artifacts first observed by the radar today: <strong>382</strong></li><li><span class="blog-cite-id">S010</span> records tagged benchmark: <strong>357 count (multi-label)</strong></li><li><span class="blog-cite-id">S011</span> records tagged evaluation: <strong>285 count (multi-label)</strong></li><li><span class="blog-cite-id">S012</span> records tagged dataset: <strong>232 count (multi-label)</strong></li></ul></article><article class="blog-panel"><h3>Which of today&#x27;s arrivals document how they score an answer?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The clearest examples are ForestBench, KVDiagnosis, Cultivar, TCS-Bench, Social Gym, the structured pseudocode benchmark, Contrastive Mask Fidelity, and the local document-extraction benchmark. Their descriptions identify comparison targets, controls, verifiers, game outcomes, executable tests, judges, or explicit output metrics.</p><p>ForestBench compares collaboration graphs with reference graphs. KVDiagnosis checks failures against an uncompressed control. Cultivar compares localized and unlocalized results. TCS-Bench verifies proofs and checks its verifier against experts. Social Gym uses game-rule outcomes and tournament ratings. The pseudocode benchmark runs tests, while Contrastive Mask Fidelity judges whether visual evidence lies inside a proposed mask.</p><p><strong>Takeaway:</strong> These arrivals provide more inspectable scoring than records that merely say they evaluate models. The strongest methods rely on deterministic outcomes, executable tests, explicit controls, or validation against expert judgment; model-based judging remains less objective.</p><p class="blog-caveat"><strong>Another reading:</strong> The supplied summaries are truncated and do not expose every rubric, aggregation rule, threshold, or implementation detail. Consequently, this identifies clearly described examples rather than every qualifying arrival in the captured feed.</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> artifacts first observed by the radar today: <strong>382</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What is still moving</h2></div><article class="blog-panel"><h3>Which artifacts the radar already tracked moved measurably, and over what span?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The registry contains named download-movement statistics and their full tracked spans, but the supplied packet provides no artifact-level evidence identifiers with which to cite them.</p><p>The available statistics indicate that several previously tracked artifacts changed in downloads over their respective observation periods. Those changes are cumulative across each full span, not daily changes. However, identifying the artifacts would create uncited artifact-specific claims because no supporting evidence records carry evidence identifiers.</p><p><strong>Takeaway:</strong> An artifact-by-artifact answer cannot be delivered under the grounding rules until evidence identifiers are attached to the movement records.</p><p class="blog-caveat"><strong>Another reading:</strong> The named statistics and their windows could be treated as sufficient by themselves. However, that reading conflicts with the explicit requirement for evidence citations on every artifact-specific claim.</p><ul class="blog-list"><li><span class="blog-cite-id">S018</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,994.0 downloads</strong></li><li><span class="blog-cite-id">S019</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>7,028.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for origamidance/genvsr-video-benchmarks: <strong>1,567.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for Weyaxi/followers-leaderboard: <strong>-814.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for vava22684/song-jury-leaderboard: <strong>714.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for runbenchhub/leaderboards: <strong>-561.0 downloads</strong></li><li><span class="blog-cite-id">S024</span> downloads change for hf-benchmarks/transformers: <strong>-302.0 downloads</strong></li><li><span class="blog-cite-id">S025</span> downloads change for genomic-benchmarks/GUE_v2: <strong>198.0 downloads</strong></li></ul></article><article class="blog-panel"><h3>Which of that movement is corroborated by more than one connector?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The tracked-artifact metadata flags a download movement as multi-connector corroborated, but the registry does not provide a corresponding movement statistic and the packet supplies no citable artifact-level evidence identifier.</p><p>The feed indicates that a previously tracked artifact was seen by multiple connectors, but independent sightings alone do not establish that both measured the same change. The metadata claims metric-level corroboration, yet the required citable evidence and registered movement statistic are missing.</p><p><strong>Takeaway:</strong> No specific corroborated movement can be reported under the grounding rules without its movement statistic and artifact-level evidence citation.</p><p class="blog-caveat"><strong>Another reading:</strong> The tracked-artifact row itself could be accepted as proof of metric corroboration. That competing reading still lacks the required evidence citation and a registered statistic for the movement.</p><ul class="blog-list"><li><span class="blog-cite-id">S017</span> tracked artifacts today seen by more than one connector: <strong>1</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What it means</h2></div><article class="blog-panel"><h3>What should someone building or evaluating AI systems do differently today?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span></div><p>Improve evaluation design before changing models. The captured releases emphasize task-specific failure diagnosis, process-level assessment, and robustness checks rather than relying only on aggregate benchmark scores.</p><p>Add tests that resemble your actual workflow and inspect where the system fails, not merely whether it passes. Released work in this feed examines collaboration traces, spreadsheet tasks, cache-compression failures, locale sensitivity, and coding-agent planning and requirement handling.</p><p><strong>Takeaway:</strong> Use these releases as design prompts for internal evaluations, not as proof that any model is better. Keep separate test sets for process quality, domain conditions, localization, contamination, and final outcomes.</p><p class="blog-caveat"><strong>Another reading:</strong> A team with a narrow production problem may benefit more from validating one directly relevant release than from expanding its whole evaluation suite. The feed does not establish that every highlighted evaluation dimension matters for every deployment.</p><ul class="blog-list"><li><span class="blog-cite-id">S010</span> records tagged benchmark: <strong>357 count (multi-label)</strong></li><li><span class="blog-cite-id">S011</span> records tagged evaluation: <strong>285 count (multi-label)</strong></li><li><span class="blog-cite-id">S012</span> records tagged dataset: <strong>232 count (multi-label)</strong></li><li><span class="blog-cite-id">S013</span> records tagged agentic: <strong>72 count (multi-label)</strong></li><li><span class="blog-cite-id">S014</span> records tagged data_quality: <strong>5 count (multi-label)</strong></li></ul></article><article class="blog-panel"><h3>What does today&#x27;s evidence fail to show, and what would change the reading?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>This captured feed does not establish a field-wide trend, broad adoption, or benchmark quality. The comparison window is uncertified, connector coverage is incomplete, and almost no tracked artifact has multi-connector visibility.</p><p>Differences between recent and earlier category observations could reflect collection changes rather than changes in the field. Download observations from one hosting connector are attention signals, not independent confirmation of use, effectiveness, or lasting adoption.</p><p><strong>Takeaway:</strong> The reading would change with a certified comparison window under stable coverage and taxonomy, restored missing connectors, repeated independent sightings, corroborated measurements, and external validation showing that released benchmarks predict performance in real systems.</p><p class="blog-caveat"><strong>Another reading:</strong> The feed still spans several research and artifact connectors, so it can reveal useful evaluation candidates even without supporting trend claims. Its breadth provides a discovery signal, although not a representative or causal one.</p><ul class="blog-list"><li><span class="blog-cite-id">S005</span> records contributed by Semantic Scholar: <strong>141</strong></li><li><span class="blog-cite-id">S006</span> records contributed by arXiv: <strong>125</strong></li><li><span class="blog-cite-id">S007</span> records contributed by Hugging Face: <strong>98</strong></li><li><span class="blog-cite-id">S008</span> records contributed by GitHub: <strong>96</strong></li><li><span class="blog-cite-id">S009</span> records contributed by OpenAlex: <strong>44</strong></li><li><span class="blog-cite-id">S017</span> tracked artifacts today seen by more than one connector: <strong>1</strong></li><li><span class="blog-cite-id">S018</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,994.0 downloads</strong></li><li><span class="blog-cite-id">S019</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>7,028.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for origamidance/genvsr-video-benchmarks: <strong>1,567.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for Weyaxi/followers-leaderboard: <strong>-814.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> downloads change for vava22684/song-jury-leaderboard: <strong>714.0 downloads</strong></li><li><span class="blog-cite-id">S023</span> downloads change for runbenchhub/leaderboards: <strong>-561.0 downloads</strong></li><li><span class="blog-cite-id">S024</span> downloads change for hf-benchmarks/transformers: <strong>-302.0 downloads</strong></li><li><span class="blog-cite-id">S025</span> downloads change for genomic-benchmarks/GUE_v2: <strong>198.0 downloads</strong></li><li><span class="blog-cite-id">S026</span> daily-average change in benchmark observations: <strong>140.0 observations per day</strong></li><li><span class="blog-cite-id">S027</span> daily-average change in evaluation observations: <strong>98.29 observations per day</strong></li><li><span class="blog-cite-id">S028</span> daily-average change in dataset observations: <strong>68.29 observations per day</strong></li><li><span class="blog-cite-id">S029</span> daily-average change in agentic observations: <strong>38.29 observations per day</strong></li><li><span class="blog-cite-id">S030</span> daily-average change in data_quality observations: <strong>1.86 observations per day</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>Evidence sources</h2></div><ul class="blog-evidence"><li><span class="blog-cite-id">E002</span> <a href="https://arxiv.org/abs/2608.08605">ForestBench: A Unified Graph Framework for Evaluating Multi-Agent Collaboration</a></li><li><span class="blog-cite-id">E014</span> <a href="https://arxiv.org/abs/2608.09072">A Unified Issue Resolution Benchmark for Requirement Clarification, Planning, and Code Generation for Coding Agents</a></li><li><span class="blog-cite-id">E047</span> <a href="https://www.semanticscholar.org/paper/4bf998abb6df104aa192cf3053a5edbfa0d4b7c0">ActBench: Self-Evolving Benchmark of Behavioral Safety in Cowork Agents</a></li><li><span class="blog-cite-id">E005</span> <a href="https://arxiv.org/abs/2608.09412">KVDiagnosis: A Diagnostic Benchmark for KV-Cache Compression in Long-Context Language Models</a></li><li><span class="blog-cite-id">E007</span> <a href="https://arxiv.org/abs/2608.09766">Cultivar: A Contrastive and Locale-Oriented Translation Benchmark for Investigating Contamination and Localisation Robustness</a></li><li><span class="blog-cite-id">E022</span> <a href="https://www.semanticscholar.org/paper/bc687e9476b385bdd4581777df6efe7663d2488c">SWE-Bench ProMax: Benchmarking Agents on Large-Scale Multilingual Code Refactoring</a></li><li><span class="blog-cite-id">E039</span> <a href="https://www.semanticscholar.org/paper/86b3c2995526de01c138a4d88d5439d3096a4b3e">UNSPECIFIC: General Constraint Synthesis for Breaking Copy-and-Paste Shortcut in LLM Instruction Following</a></li><li><span class="blog-cite-id">E003</span> <a href="https://arxiv.org/abs/2608.07873">Back to the Future: A workbook time machine for spread sheet creation benchmarks</a></li><li><span class="blog-cite-id">E004</span> <a href="https://arxiv.org/abs/2608.09925">From Values to Benchmarks: Evaluating Large Language Models for Governmental Use in Dutch</a></li><li><span class="blog-cite-id">E006</span> <a href="https://arxiv.org/abs/2608.09930">Beyond Naturalness: Probing Automated Text-To-Speech Evaluators on Linguistically Grounded Dimensions</a></li><li><span class="blog-cite-id">E009</span> <a href="https://arxiv.org/abs/2608.09538">TCS-BENCH: Benchmarking State-of-the-Art Generative AI Theoretical Computer Science Research Ability</a></li><li><span class="blog-cite-id">E017</span> <a href="https://arxiv.org/abs/2608.09393">Temporal Misgrounding in Legal RAG: A Versioned-Corpus Benchmark for French Tax Law</a></li><li><span class="blog-cite-id">E018</span> <a href="https://arxiv.org/abs/2608.09128">Social Gym and SPaRTan: Benchmarking and Improving LLM Social Reasoning via Multi-Agent Game Tournaments</a></li><li><span class="blog-cite-id">E019</span> <a href="https://arxiv.org/abs/2608.08727">TomaMMU: A Comprehensive Multimodal Understanding Benchmark for Tomato Leaf Diseases</a></li><li><span class="blog-cite-id">E032</span> <a href="https://www.semanticscholar.org/paper/1439d7398affe668b7b54065ab3b388d674adc5d">SafeSceneReason: A Multimodal Reasoning Benchmark Connecting Industrial Hazards with Accident Knowledge</a></li><li><span class="blog-cite-id">E041</span> <a href="https://www.semanticscholar.org/paper/c08bae856cf0f309ff3d35668d24205263ce636f">Pseudo2CodeQA: A Benchmark for LLM-Based Structured Algorithmic Reasoning in Code Generation</a></li><li><span class="blog-cite-id">E045</span> <a href="https://www.semanticscholar.org/paper/277a7a8f8157646660b37304a51047c8679a693d">Contrastive Mask Fidelity: Reference-Free Auditing of Ground-Truth Masks in Remote Sensing Semantic Segmentation</a></li><li><span class="blog-cite-id">E080</span> <a href="https://github.com/carlacasaroti/slm-doc-extract-bench">carlacasaroti/slm-doc-extract-bench</a></li></ul></section><section class="blog-section blog-panel"><h2>Where this came from, and what it does not cover</h2><p>Built from the validated daily snapshot and its 504 evidence records.</p><p>Briefing model: gpt-5.6-sol.</p><p>It read 97 of 504 records.</p><p class="blog-caveat">Only 97 of 504 corpus evidence records were injected, so these findings describe the reviewed subset rather than the full captured feed. OpenReview and Brave were unavailable. Historical volume or category trends were not assessed because the supplied series lacks the required run of days with identical collection signatures and measurement fields.</p></section></div>
+</div></div></main>
+<footer>
+      <nav class="footer-nav" aria-label="About this site" data-i18n-aria="About this site">
+        <a href="/benchmark-radar-zh24/about/" data-i18n="About">About</a>
+        <a class="nav-active" aria-current="page" href="/benchmark-radar-zh24/blog/" data-i18n="Blog">Blog</a>
+      </nav>
+      <p id="build-meta"><span data-i18n="Updated">Updated</span> 2026-08-11</p>
+      <aside class="adoption-cta" aria-label="Support Benchmark Radar">
+        <p data-i18n="If this saved you research time, cite the work, star the repo and help other eval builders find it.">
+          If this saved you research time, cite the work, star the repo and help other eval builders find it.
+        </p>
+        <span class="adoption-actions">
+          <a
+            class="primary-link"
+            id="cite-open"
+            href="/benchmark-radar-zh24/cite/"
+            aria-haspopup="dialog"
+            aria-controls="cite-dialog"
+            aria-expanded="false"
+            data-i18n="Cite"
+          >Cite</a>
+          <a
+            class="primary-link"
+            href="https://github.com/ktwu01/benchmark-radar"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-i18n="Star the repository"
+          >Star the repository</a>
+          <button type="button" class="secondary-link" id="share-radar" data-i18n="Share">
+            Share
+          </button>
+        </span>
+      </aside>
+      <details class="privacy-note">
+        <summary data-i18n="Privacy notice">Privacy notice</summary>
+        <p>
+          We use Microsoft Clarity cookies, session replays and heatmaps to understand how people use
+          this site and improve its navigation and content. Sensitive content is masked by default.
+          By using this site, you agree that Benchmark Radar and Microsoft can collect and use this
+          data. See the
+          <a href="https://privacy.microsoft.com/privacystatement">Microsoft Privacy Statement</a>.
+        </p>
+      </details>
+      <p class="copyright">© 2026 Koutian Wu and contributors</p>
+    </footer

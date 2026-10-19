@@ -1,0 +1,1090 @@
+<!doctype html>
+<html lang="en">
+  <head>
+<script src="/benchmark-radar-zh24/assets/github-runtime-v1.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="index,follow,max-image-preview:large">
+
+    <!-- Issue #236. Everything between these two markers is the part that
+         changes from one page to the next: the title, the summary, the social
+         card text, and the canonical URL. Each view and public utility is a
+         real page at its own path, so src/benchmark_radar/app_pages.py swaps
+         this whole block when it writes the six route copies from this file,
+         and raises if a marker is missing rather than shipping a page that
+         claims to be the homepage. app.js restates the same strings when a
+         reader changes route without a page load, so a shared link and a
+         crawled page describe the same thing. Nothing outside the markers is
+         page-specific. -->
+    <!-- br:head-seo -->
+    <meta name="description" content="See how benchmarks, datasets, evaluations, sources, and organizations connect across the Benchmark Radar corpus, and jump from any topic into the filtered daily list.">
+    <title>Explore connections across AI benchmarks | Benchmark Radar</title>
+    <meta property="og:title" content="Explore connections across AI benchmarks | Benchmark Radar">
+    <meta property="og:description" content="See how benchmarks, datasets, evaluations, sources, and organizations connect across the Benchmark Radar corpus, and jump from any topic into the filtered daily list.">
+    <meta property="og:url" content="https://lavineyangleo.github.io/benchmark-radar-zh24/explore/">
+    <meta name="twitter:title" content="Explore connections across AI benchmarks | Benchmark Radar">
+    <meta name="twitter:description" content="See how benchmarks, datasets, evaluations, sources, and organizations connect across the Benchmark Radar corpus, and jump from any topic into the filtered daily list.">
+    <link rel="canonical" href="https://lavineyangleo.github.io/benchmark-radar-zh24/explore/">
+    <!-- /br:head-seo -->
+
+    <!-- Without these, every share of this dashboard renders as a grey
+         placeholder with a URL under it. The card is generated from the same
+         score-frontier data as the saturation view (scripts/generate_og_image.py),
+         so a share shows reported scores over time rather than a leaderboard. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Benchmark Radar">
+    <meta property="og:locale" content="en_US">
+    <!-- Absolute, because Open Graph consumers do not resolve relative URLs. -->
+    <meta property="og:image" content="https://benchmark-radar.org/assets/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta
+      property="og:image:alt"
+      content="Benchmark Radar: see where reported AI benchmark scores start to plateau, with cited score frontiers across GPQA Diamond, HLE, Terminal-Bench, and SWE-bench Verified."
+    >
+    <meta name="twitter:card" content="summary_large_image">
+    <!-- Mirrors og:image for consumers that read the Twitter namespace only
+         and do not fall back to the Open Graph tags. -->
+    <meta name="twitter:image" content="https://benchmark-radar.org/assets/og-card.png">
+
+    <!-- Structured data for the three things this project actually is: a
+         named publisher, a searchable site, and a dataset. Each block is one
+         object with one @type rather than an @graph array, because that is the
+         shape the structured-data validators and tests/test_site_seo.py both
+         read. The @id values are what let the three cross-reference each
+         other instead of describing three unrelated entities.
+
+         The SearchAction target is the real search endpoint (the leaderboard's
+         lq filter), not a pretend one, so a search result lands on a page that
+         answers it. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "@id": "https://benchmark-radar.org/#organization",
+        "name": "Benchmark Radar",
+        "url": "https://benchmark-radar.org/",
+        "description": "Benchmark Radar tracks new AI benchmarks and evaluations daily and publishes the collection as an open, evidence-linked dataset.",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://benchmark-radar.org/icon.svg",
+          "caption": "Benchmark Radar"
+        },
+        "image": "https://benchmark-radar.org/assets/og-card.png",
+        "founder": {
+          "@type": "Person",
+          "name": "Koutian Wu",
+          "url": "https://github.com/ktwu01"
+        },
+        "sameAs": [
+          "https://github.com/ktwu01/benchmark-radar",
+          "https://x.com/ktwu01",
+          "https://www.linkedin.com/in/ktwu01",
+          "https://scholar.google.com/citations?user=s9w1k-cAAAAJ&hl=en"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": "https://benchmark-radar.org/#website",
+        "name": "Benchmark Radar",
+        "alternateName": "Benchmark Radar: AI Benchmark Tracker &amp; Dataset",
+        "url": "https://benchmark-radar.org/",
+        "description": "An evidence-linked tracker and open dataset for new AI benchmarks, model-card adoption, reported scores, and evaluation trends.",
+        "inLanguage": ["en", "zh-Hans"],
+        "publisher": { "@id": "https://benchmark-radar.org/#organization" },
+        "sameAs": "https://github.com/ktwu01/benchmark-radar",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://benchmark-radar.org/saturation/?bq={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": "Benchmark Radar: AI Benchmark Dataset",
+        "description": "A daily-updated machine-readable corpus of AI benchmark, evaluation, and dataset signals collected from arXiv, GitHub, Hugging Face, OpenAlex, OpenReview, Semantic Scholar, Hacker News, and first-party lab feeds.",
+        "url": "https://benchmark-radar.org/data/radar.json",
+        "keywords": [
+          "AI benchmarks",
+          "LLM evaluation",
+          "model evaluation",
+          "benchmark dataset",
+          "model cards"
+        ],
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "creator": {
+          "@type": "Person",
+          "name": "Koutian Wu",
+          "url": "https://github.com/ktwu01"
+        },
+        "publisher": { "@id": "https://benchmark-radar.org/#organization" },
+        "isPartOf": { "@id": "https://benchmark-radar.org/#website" },
+        "includedInDataCatalog": {
+          "@type": "DataCatalog",
+          "name": "Benchmark Radar",
+          "url": "https://benchmark-radar.org/benchmarks/"
+        },
+        "measurementTechnique": "Daily automated collection from public APIs and feeds, with every record linked to the document it was read from.",
+        "temporalCoverage": "2026-07-23/..",
+        "sameAs": "https://github.com/ktwu01/benchmark-radar",
+        "distribution": [
+          {
+            "@type": "DataDownload",
+            "name": "Complete daily corpus",
+            "encodingFormat": "application/json",
+            "contentUrl": "https://benchmark-radar.org/data/radar.json"
+          },
+          {
+            "@type": "DataDownload",
+            "name": "Benchmark index",
+            "encodingFormat": "application/json",
+            "contentUrl": "https://benchmark-radar.org/data/benchmark-index.json"
+          },
+          {
+            "@type": "DataDownload",
+            "name": "Model Card Adoption Rank",
+            "encodingFormat": "application/json",
+            "contentUrl": "https://benchmark-radar.org/data/leaderboard.json"
+          },
+          {
+            "@type": "DataDownload",
+            "name": "Model Card Adoption Rank (CSV)",
+            "encodingFormat": "text/csv",
+            "contentUrl": "https://benchmark-radar.org/data/leaderboard.csv"
+          }
+        ]
+      }
+    </script>
+
+    <!-- Each generated page adds its own WebPage and BreadcrumbList here, so a
+         search result can show where the page sits in the site. The homepage
+         leaves it empty: the Organization, WebSite and Dataset blocks above
+         already describe it. -->
+    <!-- br:page-jsonld -->
+    <script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/explore/", "@type": "WebPage", "description": "See how benchmarks, datasets, evaluations, sources, and organizations connect across the Benchmark Radar corpus, and jump from any topic into the filtered daily list.", "inLanguage": ["en", "zh-Hans"], "isPartOf": {"@id": "https://benchmark-radar.org/#website", "@type": "WebSite", "name": "Benchmark Radar", "url": "https://benchmark-radar.org/"}, "name": "Explore connections across AI benchmarks | Benchmark Radar", "url": "https://benchmark-radar.org/explore/"}</script>
+    <script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/explore/#breadcrumb", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "item": "https://benchmark-radar.org/", "name": "Benchmark Radar", "position": 1}, {"@type": "ListItem", "item": "https://benchmark-radar.org/explore/", "name": "Explore", "position": 2}]}</script>
+
+    <!-- Machine-readable citation hints: Highwire tags are the convention
+         academic indexers and reference managers look for; cite-as points at
+         the canonical thing to cite (the arXiv technical report). -->
+    <meta name="citation_title" content="Benchmark Radar: A Living Database and Search Engine for AI Benchmarks and Evaluation">
+    <meta name="citation_author" content="Wu, Koutian">
+    <meta name="citation_author" content="Zhou, Junjie">
+    <meta name="citation_author" content="Shang, Ergan">
+    <meta name="citation_author" content="Wang, Jiayu">
+    <meta name="citation_author" content="Han, Pengqian">
+    <meta name="citation_author" content="Wang, Junkai">
+    <meta name="citation_author" content="Xu, Wanghan">
+    <meta name="citation_publication_date" content="2026">
+    <meta name="citation_arxiv_id" content="2609.11115">
+    <link rel="cite-as" href="https://arxiv.org/abs/2609.11115">
+
+    <!-- Root-absolute, not relative. This document is also served at six
+         nested route paths, where "assets/app.js" would otherwise resolve
+         beneath that route and 404. -->
+    <link rel="icon" href="/benchmark-radar-zh24/icon.svg" type="image/svg+xml">
+    <link rel="alternate" type="application/rss+xml" title="Benchmark Radar RSS" href="/benchmark-radar-zh24/feed.xml">
+    <link rel="stylesheet" href="/benchmark-radar-zh24/assets/styles.css">
+    <script src="/benchmark-radar-zh24/assets/clarity.js" defer></script>
+    <script src="/benchmark-radar-zh24/assets/app.js" type="module"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content" data-i18n="Skip to content">Skip to content</a>
+
+    <header class="masthead">
+      <div class="masthead-main">
+        <a class="brand" href="/benchmark-radar-zh24/" aria-label="Benchmark Radar home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+          </span>
+          <strong>Benchmark Radar™</strong>
+        </a>
+        <nav class="view-nav" aria-label="Dashboard views" data-i18n-aria="Dashboard views">
+          <button type="button" data-view="today" aria-controls="today-view" data-i18n="Today">Today</button>
+          <a
+            href="/benchmark-radar-zh24/cli/"
+            id="cli-nav"
+            aria-haspopup="dialog"
+            aria-controls="cli-dialog"
+            aria-expanded="false"
+            data-i18n="CLI"
+          >
+            CLI
+          </a>
+          <!-- Real links, not tab buttons. Each one is this same dashboard served
+               at its own path with that view already open and its rows already in the
+               HTML, so a crawler and a reader with a slow connection both get content
+               from the first response. app.js intercepts the click and keeps the
+               navigation client-side for anyone whose script has loaded. -->
+          <a href="/benchmark-radar-zh24/leaderboard/" data-view="leaderboard" aria-controls="leaderboard-view" data-i18n="Leaderboard">
+            Leaderboard
+          </a>
+          <a href="/benchmark-radar-zh24/saturation/" data-view="saturation" aria-controls="saturation-view" data-i18n="Saturation">Saturation</a>
+          <a href="/benchmark-radar-zh24/trends/" data-view="trends" aria-controls="trends-view" data-i18n="Trends">Trends</a>
+          <!-- Blog and About are documents, not dashboard views, and they live
+               in the footer nav instead: this row is for the tools a reader
+               came to use, and every entry it carries competes with them for a
+               glance. -->
+          <!-- The label reads Publications because that is the word a reader
+               looks for; the path stays /cite/, which is already indexed and
+               linked from the paper. /publications/ and /publication/ redirect
+               here so a typed URL still lands. -->
+          <a
+            href="/benchmark-radar-zh24/cite/"
+            id="cite-nav"
+            aria-haspopup="dialog"
+            aria-controls="cite-dialog"
+            aria-expanded="false"
+            data-i18n="Publications"
+          >
+            Publications
+          </a>
+        </nav>
+      </div>
+      <div class="masthead-end" aria-label="Site utilities" data-i18n-aria="Site utilities">
+        <a
+          class="repo-badge feed-badge"
+          href="https://benchmark-radar.org/feed.xml"
+          title="Subscribe to Benchmark Radar via RSS"
+          aria-label="Subscribe to Benchmark Radar via RSS"
+          data-i18n-title="Subscribe to Benchmark Radar via RSS"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="19" r="2"></circle>
+            <path d="M4 11a9 9 0 0 1 9 9"></path>
+            <path d="M4 4a16 16 0 0 1 16 16"></path>
+          </svg>
+          <span class="repo-badge-label">RSS</span>
+        </a>
+        <!--
+          The language toggle switches the interface between English and Chinese
+          in place. It replaces the earlier badge that only linked to the
+          translated README: a reader who wants Chinese wants the dashboard, not
+          a tour of the repository tree.
+        -->
+        <button
+          type="button"
+          class="repo-badge"
+          id="lang-toggle"
+          aria-pressed="false"
+          title="Switch to Chinese (中文)"
+          data-i18n-title="Switch to Chinese (中文)"
+        >
+          <span class="repo-badge-glyph" id="lang-toggle-label">中</span>
+        </button>
+        <!--
+          The contact button (issue #213) opens one sheet that keeps email,
+          WeChat, and Discord in a single place, reachable without navigating
+          away from the current view. Dataset access (issue #311) travels with
+          it: the header carries no export button any more, and the contact
+          sheet plus the footer note say how to get the data.
+        -->
+        <button
+          type="button"
+          class="repo-badge"
+          id="badge-contact"
+          aria-haspopup="dialog"
+          title="Get in touch · Email, WeChat, Discord"
+          data-i18n-title="Get in touch · Email, WeChat, Discord"
+        >
+          <svg class="outline-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Contact">Contact</span>
+        </button>
+        <!-- GitHub has one job here: open the repository and show its star count. -->
+        <a
+          class="repo-badge"
+          id="badge-stars"
+          href="https://github.com/ktwu01/benchmark-radar"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open the repository and star it"
+          data-i18n-title="Open the repository and star it"
+        >
+          <svg class="brand-icon github-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.5a9.5 9.5 0 0 0-3 18.52c.48.09.65-.21.65-.46v-1.67c-2.67.58-3.23-1.13-3.23-1.13-.44-1.12-1.07-1.42-1.07-1.42-.87-.6.07-.59.07-.59.96.07 1.47.99 1.47.99.86 1.47 2.25 1.05 2.8.8.09-.62.34-1.05.61-1.29-2.13-.24-4.37-1.07-4.37-4.75 0-1.05.38-1.91.99-2.58-.1-.24-.43-1.22.09-2.54 0 0 .81-.26 2.63.98A9.16 9.16 0 0 1 12 7.96c.82 0 1.65.11 2.42.33 1.82-1.24 2.63-.98 2.63-.98.52 1.32.19 2.3.09 2.54.61.67.99 1.53.99 2.58 0 3.69-2.25 4.5-4.39 4.74.35.3.65.88.65 1.78v2.63c0 .25.17.55.66.46A9.5 9.5 0 0 0 12 2.5Z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Star">Star</span>
+          <span class="repo-badge-count" data-count>—</span>
+        </a>
+      </div>
+    </header>
+
+    <aside class="hf-upvote-banner">
+      <div class="hf-upvote-banner-inner">
+        <a
+          class="hf-paper-award"
+          href="https://huggingface.co/papers/date/2026-09-14"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Hugging Face: #1 Paper of the Day, September 14, 2026. View the ranking"
+          data-i18n-aria="Hugging Face: #1 Paper of the Day, September 14, 2026. View the ranking"
+        >
+          <img src="/benchmark-radar-zh24/assets/hf-paper-of-the-day.svg" width="360" height="96" alt="">
+        </a>
+        <a
+          class="hf-upvote-copy"
+          href="https://huggingface.co/papers/2609.11115"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span data-i18n="Upvote us">Upvote us</span>
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </aside>
+
+    <p class="stale-banner" id="stale-banner" hidden></p>
+
+    <main id="main-content" tabindex="-1">
+      <section class="view" id="today-view" aria-label="Today" hidden>
+        <!-- The page's one H1. It names what the whole site is rather than
+             what the list below currently shows, because the heading over the
+             results is rewritten as the reader changes the date range and a
+             heading that says "Past 7 days" is not what this page is.
+
+             It is read, not seen. A reader who has arrived at the dashboard
+             already knows what the search box is for, and a banner saying so
+             pushed the first result a screenful down. Screen readers and
+             search engines still get the page's subject; the longer version
+             of it lives on /about/. -->
+        <h1 class="visually-hidden" data-i18n="Search AI, LLM, agent, multimodal, and AI-for-science benchmarks">
+          Search AI, LLM, agent, multimodal, and AI-for-science benchmarks
+        </h1>
+        <!-- The toolbar stays one compact row so the results below stay
+             above the fold: search, the scan date, a trigger that opens the
+             secondary filters, and a refresh control. The badge on the
+             trigger counts how many secondary filters are active. -->
+        <form class="filter-panel today-filters" id="filters">
+          <label class="search-field">
+            <span class="visually-hidden" data-i18n="Search">Search</span>
+            <input
+              id="search-filter"
+              name="q"
+              type="search"
+              placeholder="Search benchmarks…"
+              data-i18n-placeholder="Search benchmarks…"
+            >
+          </label>
+          <label class="date-field">
+            <span data-i18n="Date:">Date:</span>
+            <select id="today-date" name="date"></select>
+          </label>
+          <button
+            type="button"
+            class="filters-toggle"
+            id="filters-toggle"
+            aria-expanded="false"
+            aria-controls="filters-drawer"
+          >
+            <span data-i18n="Filters">Filters</span>
+            <span id="filters-count"></span>
+          </button>
+          <button
+            type="button"
+            class="refresh-button"
+            id="refresh-button"
+            title="Refresh data"
+            aria-label="Refresh data"
+            data-i18n-title="Refresh data"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+              <path d="M21 3v6h-6"></path>
+            </svg>
+          </button>
+          <!-- Kind, category, source, organization, and event filter the
+               same list but are needed less often, so they live in a
+               popover instead of taking a row of the first viewport. -->
+          <div
+            class="filters-drawer"
+            id="filters-drawer"
+            hidden
+            aria-label="More filters"
+            data-i18n-aria="More filters"
+          >
+            <label>
+              <span data-i18n="Kind">Kind</span>
+              <select id="kind-filter" name="kind"></select>
+            </label>
+            <label>
+              <span data-i18n="Category">Category</span>
+              <select id="category-filter" name="category"></select>
+            </label>
+            <label>
+              <span data-i18n="Source">Source</span>
+              <select id="source-filter" name="source"></select>
+            </label>
+            <label>
+              <span data-i18n="Organization">Organization</span>
+              <select id="organization-filter" name="organization"></select>
+            </label>
+            <label>
+              <span data-i18n="Event">Event</span>
+              <select id="event-filter" name="event"></select>
+            </label>
+            <button class="clear-button" id="clear-filters" type="button" data-i18n="Clear filters">Clear filters</button>
+          </div>
+        </form>
+
+        <div class="content-grid">
+          <div>
+            <div class="section-title">
+              <h2 id="today-heading" class="today-heading" data-i18n="Today's radar">Today's radar</h2>
+              <div class="results-meta" aria-live="polite">
+                <span id="today-breakdown"></span>
+                <span id="today-sort"></span>
+              </div>
+            </div>
+            <p id="today-range" class="section-note" hidden></p>
+            <p id="today-load-error" class="empty-state" role="status" hidden></p>
+            <!-- Search is archive-wide by default even though browsing opens
+                 on the newest scan. This first result row makes that scope
+                 explicit and gives large result sets a practical export path. -->
+            <aside class="search-scope-banner" id="search-scope-banner" aria-live="polite" hidden></aside>
+            <section class="today-benchmarks" id="today-benchmarks" hidden aria-labelledby="today-benchmarks-heading">
+              <h3 class="today-benchmarks-heading" id="today-benchmarks-heading" data-i18n="Benchmarks with this name">Benchmarks with this name</h3>
+              <p class="today-benchmarks-note" id="today-benchmarks-note"></p>
+              <div id="today-benchmarks-results"></div>
+            </section>
+            <div class="signal-list" id="today-list"></div>
+            <nav class="today-pagination" aria-label="Result pages">
+              <button type="button" id="today-page-prev" data-i18n="Previous">Previous</button>
+              <p id="today-page-status" role="status"></p>
+              <button type="button" id="today-page-next" data-i18n="Next">Next</button>
+            </nav>
+            <div class="footer-dataset">
+              <strong data-i18n="Free dataset. No crawler needed.">Free dataset. No crawler needed.</strong>
+              <span class="footer-dataset-actions">
+                <a href="https://huggingface.co/datasets/ktwu01/benchmark-radar" data-i18n="Download">Download</a>
+              </span>
+            </div>
+          </div>
+          <div>
+            <!-- The day's narrative and Q&A describe the whole scan date
+                 rather than the filtered subset, so they sit in the sidebar
+                 above the health and corpus cards (issue #248). The briefing
+                 says what changed, the Q&A answers what a reader would ask
+                 about it. -->
+            <section class="daily-briefing" id="daily-briefing" aria-labelledby="daily-briefing-heading">
+              <h2 class="daily-briefing-title" id="daily-briefing-heading" data-i18n="Daily briefing">Daily briefing</h2>
+              <div id="daily-briefing-body"></div>
+            </section>
+            <section
+              class="daily-questions"
+              id="daily-questions"
+              aria-labelledby="daily-questions-heading"
+            >
+              <h2 class="daily-questions-title" id="daily-questions-heading" data-i18n="Questions for today">Questions for today</h2>
+              <div id="daily-questions-body"></div>
+            </section>
+            <aside class="health-panel" id="source-health-panel" aria-labelledby="health-heading">
+              <details id="health-panel-details">
+                <summary>
+                  <span class="health-panel-title" id="health-heading" data-i18n="Source">Sources</span>
+                  <span class="health-panel-status" id="health-status"></span>
+                </summary>
+                <ul id="health-list"></ul>
+              </details>
+            </aside>
+            <aside class="health-panel corpus-totals-panel" aria-labelledby="corpus-totals-heading">
+              <details id="corpus-totals-details">
+                <summary>
+                  <span class="health-panel-title" id="corpus-totals-heading" data-i18n="All-time totals">All-time totals</span>
+                  <span class="health-panel-status" id="corpus-totals-status"></span>
+                </summary>
+                <ul id="corpus-totals-list"></ul>
+              </details>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="leaderboard-view" aria-labelledby="leaderboard-heading" hidden>
+        <div class="score-browse-header">
+          <h1 id="leaderboard-heading" data-i18n="Leaderboard">Leaderboard</h1>
+        </div>
+
+        <!-- Three modes, one page (issue #530). Latest releases opens by
+             default: which newly released benchmarks are gaining attention
+             now. The cumulative model-card adoption view and the reported
+             score workbench keep their content, labels and permalinks. -->
+        <nav class="leaderboard-modes" aria-label="Leaderboard views" data-i18n-aria="Leaderboard views">
+          <button type="button" class="leaderboard-mode" data-lmode="latest" aria-pressed="true" data-i18n="Latest releases">Latest releases</button>
+          <button type="button" class="leaderboard-mode" data-lmode="adoption" aria-pressed="false" data-i18n="Model-card adoption">Model-card adoption</button>
+          <a class="leaderboard-mode" href="/benchmark-radar-zh24/saturation/" data-i18n="Saturation">Saturation</a>
+        </nav>
+
+        <section class="leaderboard-top latest-releases" id="latest-releases" aria-labelledby="latest-releases-heading">
+          <div class="leaderboard-top-heading">
+            <h2 id="latest-releases-heading"><span data-i18n="Latest releases">Latest releases</span> <span class="latest-releases-window" id="latest-releases-window">· 30 days</span></h2>
+            <span id="latest-releases-info"></span>
+          </div>
+          <p class="section-note latest-releases-deck" data-i18n="latest.deck">Recently released benchmarks, ranked by the attention they are receiving now: GitHub stars, Hugging Face paper upvotes and Hugging Face dataset downloads over the last 30 days.</p>
+          <div class="latest-releases-windows" role="group" aria-label="Release window" data-i18n-aria="Release window">
+            <button type="button" class="latest-releases-window-button" data-lwindow="7d" aria-pressed="false" data-i18n="7 days">7 days</button>
+            <button type="button" class="latest-releases-window-button" data-lwindow="30d" aria-pressed="true" data-i18n="30 days">30 days</button>
+            <button type="button" class="latest-releases-window-button" data-lwindow="90d" aria-pressed="false" data-i18n="90 days">90 days</button>
+          </div>
+          <label class="search-field latest-releases-search">
+            <span data-i18n="Find in this window">Find in this window</span>
+            <input
+              id="latest-releases-search"
+              name="lrq"
+              type="search"
+              autocomplete="off"
+              placeholder="Benchmark name"
+              data-i18n-placeholder="Benchmark name"
+              aria-controls="latest-releases-list"
+            >
+          </label>
+          <div class="leaderboard-top-columns" aria-hidden="true">
+            <span class="leaderboard-top-columns-rank" data-i18n="Rank">Rank</span>
+            <span class="leaderboard-top-columns-name" data-i18n="Benchmark">Benchmark</span>
+            <span class="leaderboard-top-columns-count" data-i18n="Attention score">Attention score</span>
+          </div>
+          <ol class="leaderboard-top-list latest-releases-list" id="latest-releases-list"></ol>
+          <p class="empty-state latest-releases-empty" id="latest-releases-empty" aria-live="polite" hidden></p>
+          <p class="section-note" id="latest-releases-note" aria-live="polite"></p>
+        </section>
+
+        <!-- The adoption view, shown when the reader picks it or follows a
+             permalink that carries its filters. Hidden, not removed: its
+             seeded rows stay in the document for crawlers and readers
+             without scripts. -->
+        <div id="leaderboard-adoption" hidden>
+        <section class="benchmark-skyline" id="benchmark-skyline" aria-labelledby="benchmark-skyline-heading">
+          <div class="skyline-heading">
+            <div>
+              <h2 id="benchmark-skyline-heading" data-i18n="Benchmark Frontier">Benchmark Frontier</h2>
+              <p class="skyline-subtitle" data-i18n="Which difficult benchmarks have been tested most">Which difficult benchmarks have been tested most</p>
+            </div>
+          </div>
+          <div class="skyline-toolbar">
+            <label class="score-filter" for="leaderboard-score-filter">
+              <span data-i18n="Show benchmarks with highest reported score below:">Show benchmarks with highest reported score below:</span>
+              <input id="leaderboard-score-filter" name="lscore" type="range" min="10" max="100" step="10" value="70" list="score-filter-steps" data-score-filter aria-controls="benchmark-skyline-chart">
+              <output id="leaderboard-score-value" for="leaderboard-score-filter">70</output>
+            </label>
+            <datalist id="score-filter-steps">
+              <option value="10"></option><option value="20"></option><option value="30"></option>
+              <option value="40"></option><option value="50"></option><option value="60"></option>
+              <option value="70"></option><option value="80"></option><option value="90"></option>
+              <option value="100" label="All"></option>
+            </datalist>
+            <label class="skyline-height-control" for="benchmark-skyline-height">
+              <span data-i18n="Height">Height</span>
+              <select id="benchmark-skyline-height">
+                <option value="models" data-i18n="Models with reported scores">Models with reported scores</option>
+                <option value="documents" data-i18n="Source documents">Source documents</option>
+              </select>
+            </label>
+          </div>
+          <div class="frontier-chart skyline-chart" id="benchmark-skyline-chart" tabindex="0" role="region" aria-label="Benchmark Frontier chart" data-i18n-aria="Benchmark Frontier chart"></div>
+          <div class="skyline-caption">
+            <div id="benchmark-skyline-legend" aria-label="Chart legend" data-i18n-aria="Chart legend"></div>
+            <details class="skyline-method" id="benchmark-skyline-method">
+              <summary class="info-disclosure-toggle" aria-label="Chart notes" data-i18n-aria="Chart notes"><span aria-hidden="true">i</span></summary>
+              <div class="skyline-method-body">
+                <p id="benchmark-skyline-count" role="status"></p>
+                <p id="benchmark-skyline-note"></p>
+                <p id="benchmark-skyline-sources"></p>
+                <p id="benchmark-skyline-coverage"></p>
+                <p id="benchmark-skyline-pareto"></p>
+                <p data-i18n="skyline.reading">Each mark is one benchmark record. Height counts distinct models with numeric scores. Source model IDs preserve evaluated configurations; repeated score rows add no models. Source documents counts distinct cited reports or registry pages through the same evidence collection. Both counts appear on hover.</p>
+            <p data-i18n="skyline.pareto">The side view projects reported scores and the selected counts onto the left wall, leaving out time. The gold staircase compares only benchmarks with verified score scales. Within the dated 2024+ cohort, a benchmark is Pareto when no other eligible benchmark has an equal or lower normalized score and an equal or greater selected count, with at least one strict advantage. Dates select the cohort; they do not determine dominance. Scores and counts are never multiplied. The score slice cannot promote a dominated benchmark onto the frontier.</p>
+            <p data-i18n="skyline.scope">Height uses log1p(count); ticks, tooltips and Pareto use raw counts. The axis covers the full scored 2024+ cohort and stays fixed while filtering. Only declared percentage metrics with a known selected count enter Pareto; lower-is-better percentages become 100 minus the original value. Hollow points flag an unverified score scale or an unknown count, which is never treated as zero. Overlapping caps are spaced apart; hover or focus traces their exact coordinates. Arrow keys move through benchmarks. A shared scale does not establish equivalent test protocols or prove a benchmark is solved.</p>
+            <p data-i18n="skyline.regions">The timeline starts on January 1, 2024, inclusive. Dates use the benchmark's release first, then its earliest numeric LLM score report. When a source dates score entries by model release, the earliest entry supplies a clearly labelled model-release proxy; this is not a verified score-publication date. Crawl timestamps and adoption-only mentions never supply dates. Known dates before 2024 are excluded. Records with no date remain individually visible in a labelled area.</p>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section class="score-ranking leaderboard-top" aria-label="Ranked by data points" data-i18n-aria="Ranked by data points">
+          <div class="leaderboard-top-columns" aria-hidden="true">
+            <span class="leaderboard-top-columns-rank" data-i18n="Rank">Rank</span>
+            <span class="leaderboard-top-columns-name" data-i18n="Benchmark">Benchmark</span>
+            <span class="leaderboard-top-columns-count" data-i18n="Data points">Data points</span>
+          </div>
+          <ol class="leaderboard-top-list" id="score-ranking-list"></ol>
+          <p id="score-ranking-empty" class="empty-state" data-i18n="No scored benchmarks match these filters." hidden>No scored benchmarks match these filters.</p>
+          <button id="score-ranking-more" class="leaderboard-top-more" type="button" data-i18n="Show more" hidden>Show more</button>
+        </section>
+
+        <section class="leaderboard-top" aria-labelledby="leaderboard-adoption-heading">
+          <div class="leaderboard-top-heading">
+            <h2 id="leaderboard-adoption-heading" data-i18n="Most documented benchmarks">Most documented benchmarks</h2>
+            <!-- Written but not shown: the visible copy is in the (i). A screen
+                 reader announces it with the heading. -->
+            <p class="leaderboard-deck visually-hidden" id="leaderboard-measures"></p>
+          </div>
+          <div class="leaderboard-top-columns" aria-hidden="true">
+            <span class="leaderboard-top-columns-rank" data-i18n="Rank">Rank</span>
+            <span class="leaderboard-top-columns-name" data-i18n="Benchmark">Benchmark</span>
+            <span class="leaderboard-top-columns-count" data-i18n="leaderboard.column.model_cards">Source documents</span>
+          </div>
+          <ol class="leaderboard-top-list" id="leaderboard-top-list"></ol>
+          <button
+            class="leaderboard-top-more"
+            id="leaderboard-top-more"
+            type="button"
+            aria-label="Show more ranked benchmarks"
+            hidden
+          >Show more ranked benchmarks</button>
+          <div class="figure-caption">
+            <span id="leaderboard-top-info"></span>
+          </div>
+        </section>
+
+
+        <div class="evidence-strip" id="leaderboard-insights" aria-label="Registry overview" data-i18n-aria="Registry overview"></div>
+
+        <details class="findings-panel" id="benchmark-findings" aria-labelledby="findings-heading" hidden>
+          <summary class="section-title findings-summary">
+            <span>
+              <span class="eyebrow" data-i18n="What the evidence shows">What the evidence shows</span>
+              <strong id="findings-heading" data-i18n="Stated findings">Stated findings</strong>
+            </span>
+            <span id="findings-count" aria-live="polite"></span>
+          </summary>
+          <p class="section-note" id="findings-measures"></p>
+          <div class="findings-list" id="findings-list"></div>
+          <p class="section-note findings-limits" id="findings-limits"></p>
+        </details>
+
+        <!-- Adoption counts are a separate, cumulative evidence view. -->
+        <details class="trend-panel adoption-table" id="adoption-table">
+          <summary class="section-title adoption-table-summary">
+            <span>
+              <strong id="leaderboard-table-heading">Benchmarks by source documents</strong>
+            </span>
+            <span id="leaderboard-count" aria-live="polite"></span>
+          </summary>
+          <form class="filter-panel leaderboard-filters" id="leaderboard-filters">
+            <label class="search-field">
+              Search
+              <input
+                id="leaderboard-search"
+                name="lq"
+                type="search"
+                placeholder="Benchmark name or alias"
+              >
+            </label>
+            <label>
+              Domain
+              <select id="leaderboard-domain" name="ldomain"></select>
+            </label>
+            <label>
+              Organization
+              <select id="leaderboard-organization" name="lorg"></select>
+            </label>
+            <label>
+              Benchmark released
+              <select id="leaderboard-era" name="lera"></select>
+            </label>
+            <button class="clear-button" id="leaderboard-clear" type="button">
+              Clear filters
+            </button>
+          </form>
+          <p class="section-note" data-i18n="leaderboard.filters.note">
+            Each source document counts once per benchmark record. Repeated scores or
+            mentions in the same document add no citations. This table covers all sources.
+          </p>
+          <div class="leaderboard-list" id="leaderboard-list"></div>
+          <div class="leaderboard-list-actions">
+            <button
+              class="secondary-link"
+              id="leaderboard-show-all"
+              type="button"
+              aria-label="Show all tracked benchmarks"
+              hidden
+            >Show all tracked benchmarks</button>
+          </div>
+        </details>
+
+        <details class="ledger" aria-labelledby="leaderboard-cards-heading">
+          <summary class="ledger-summary">
+            <span>
+              <span class="eyebrow" data-i18n="Audit the counts">Audit the counts</span>
+              <strong id="leaderboard-cards-heading" data-i18n="Source documents in the catalog">Source documents in the catalog</strong>
+            </span>
+            <span id="leaderboard-cards-count"></span>
+          </summary>
+          <div class="ledger-body">
+            <p class="section-note" data-i18n="leaderboard.ledger.note">
+              Source documents from every registry. Expand a document to inspect
+              the benchmarks it records and open the original evidence.
+            </p>
+            <div class="leaderboard-list" id="leaderboard-cards"></div>
+          </div>
+        </details>
+        </div>
+      </section>
+
+      <section class="view" id="map-view" aria-labelledby="map-heading">
+        <header class="view-heading">
+          <div>
+            <p class="eyebrow" data-i18n="Big picture">Big picture</p>
+            <h1 id="map-heading" data-i18n="What we found">What we found</h1>
+          </div>
+          <p class="heading-note" data-i18n="map.heading.note">
+            See what shows up most often and where it came from. Open the connections view
+            when you want to look at a specific item.
+          </p>
+        </header>
+        <div class="map-insights" id="map-insights" aria-label="Overview" data-seed><article class="map-insight-card"><h2>At a glance</h2><ul><li><span>Items</span><strong>19,002</strong></li><li><span>Organizations</span><strong>8,194</strong></li><li><span>Authors</span><strong>60,140</strong></li><li><span>Sources</span><strong>16</strong></li><li><span>Topics</span><strong>5</strong></li></ul></article><article class="map-insight-card"><h2>What it is about</h2><ul><li><span>benchmarks</span><strong>11,319 items · 16 sources</strong></li><li><span>evaluations</span><strong>10,781 items · 15 sources</strong></li><li><span>datasets</span><strong>7,939 items · 16 sources</strong></li><li><span>AI agents</span><strong>2,494 items · 14 sources</strong></li><li><span>data quality</span><strong>236 items · 12 sources</strong></li></ul></article><article class="map-insight-card"><h2>Where we found it</h2><ul><li><span>Hugging Face</span><strong>9,265 times found</strong></li><li><span>GitHub</span><strong>4,692 times found</strong></li><li><span>Semantic Scholar</span><strong>4,528 times found</strong></li><li><span>arXiv</span><strong>4,221 times found</strong></li><li><span>Crossref</span><strong>3,427 times found</strong></li><li><span>Zenodo</span><strong>2,253 times found</strong></li></ul></article><article class="map-insight-card"><h2>Who appears most</h2><ul><li><span>DenyTranDFW</span><strong>132 times found</strong></li><li><span>hlido-eu</span><strong>112 times found</strong></li><li><span>Mobiusi</span><strong>108 times found</strong></li><li><span>Weyaxi</span><strong>107 times found</strong></li><li><span>AlphaDojo</span><strong>79 times found</strong></li><li><span>hf-benchmarks</span><strong>79 times found</strong></li></ul></article></div>
+        <details class="relationship-explorer" id="relationship-explorer">
+          <summary>
+            <span>
+              <span class="eyebrow" data-i18n="Want more detail?">Want more detail?</span>
+              <strong data-i18n="See how everything connects">See how everything connects</strong>
+            </span>
+            <span class="map-summary" id="map-summary"></span>
+          </summary>
+          <p class="relationship-explorer-note" data-i18n="map.explorer.note">
+            There are a lot of dots here. Pick one to see what it connects to, or open the
+            matching results.
+          </p>
+          <div class="map-layout">
+            <div
+              class="map-canvas"
+              id="map-canvas"
+              role="region"
+              aria-label="Explore how items connect"
+              tabindex="0"
+            ></div>
+            <aside class="map-detail" id="map-detail" aria-live="polite">
+              <p class="eyebrow" data-i18n="Pick a dot">Pick a dot</p>
+              <h2 data-i18n="See what it connects to">See what it connects to</h2>
+              <p data-i18n="map.detail.note">
+                Choose a topic, source, or organization to show only its results on Today.
+                Choose an item to find every time it appeared.
+              </p>
+            </aside>
+          </div>
+        </details>
+      </section>
+
+      <section class="view" id="saturation-view" aria-labelledby="saturation-heading" hidden>
+        <div class="score-browse-header">
+          <h1 id="saturation-heading" data-i18n="Saturation">Saturation</h1>
+          <label class="score-filter" for="saturation-score-filter">
+            <span data-i18n="Show benchmarks with highest reported score below:">Show benchmarks with highest reported score below:</span>
+            <input id="saturation-score-filter" name="lscore" type="range" min="10" max="100" step="10" value="70" list="score-filter-steps" data-score-filter aria-controls="benchmark-search-results frontier-benchmark">
+            <output id="saturation-score-value" for="saturation-score-filter">70</output>
+          </label>
+        </div>
+
+        <details class="project-dimensions-overview" id="project-dimensions-overview" open>
+          <summary><span data-i18n="Project dimension coverage">Project dimension coverage</span> · <span id="project-dimensions-summary"></span></summary>
+          <p class="section-note" data-i18n="dimensions.scope">The original project defines 9 LLM, 7 VLM and 8 ALM dimensions. Counts use the full catalog and overlap. Classification does not establish complete capability coverage or dimension-specific scores.</p>
+          <div class="project-dimension-grid" id="project-dimensions-grid"></div>
+        </details>
+        <div class="benchmark-workbench">
+          <!-- A tool region, not a content section. The examples used to be a
+               titled block with two subheadings and eight cards, which outranked
+               the search box it was meant to support; they are now one line of
+               chips for a reader who has nothing in mind to type. -->
+          <aside class="benchmark-navigator" aria-labelledby="benchmark-search-heading">
+            <div class="benchmark-search">
+              <h2 class="benchmark-search-label" id="benchmark-search-heading">
+                <label for="benchmark-search-input"
+                       data-i18n="Browse all benchmarks">Browse all benchmarks</label>
+              </h2>
+              <input id="benchmark-search-input" type="search" autocomplete="off"
+                     class="benchmark-search-input"
+                     data-i18n-placeholder="Search benchmarks, tasks, domains…"
+                     placeholder="Search benchmarks, tasks, domains…" />
+              <label class="benchmark-model-label" for="benchmark-model-input"
+                     data-i18n="Model with a reported score">Model with a reported score</label>
+              <input id="benchmark-model-input" type="search" autocomplete="off"
+                     class="benchmark-search-input benchmark-model-input"
+                     data-i18n-placeholder="Filter by model, e.g. GPT-6 Sol"
+                     placeholder="Filter by model, e.g. GPT-6 Sol"
+                     aria-controls="benchmark-search-results frontier-benchmark" />
+              <label class="benchmark-model-label" for="benchmark-dimension-filter"
+                     data-i18n="Project dimensions">Project dimensions</label>
+              <select id="benchmark-dimension-filter" class="benchmark-search-input"
+                      aria-controls="benchmark-search-results frontier-benchmark"></select>
+              <label class="benchmark-model-label" for="benchmark-dimension-evidence"
+                     data-i18n="Dimension evidence">Dimension evidence</label>
+              <select id="benchmark-dimension-evidence" class="benchmark-search-input">
+                <option value="supported" data-i18n="Explicit evidence only">Explicit evidence only</option>
+                <option value="all" data-i18n="Include candidates">Include candidates</option>
+              </select>
+              <p class="section-note" data-i18n="dimensions.filter.note">By default, only records with explicit evidence are included; switch the evidence range to inspect candidates. Dimension filters combine with search, model, general type and score conditions.</p>
+              <label class="benchmark-model-label" for="benchmark-type-filter"
+                     data-i18n="Benchmark type">Benchmark type</label>
+              <select id="benchmark-type-filter" class="benchmark-search-input"
+                      aria-controls="benchmark-search-results frontier-benchmark"></select>
+              <p class="section-note" data-i18n="benchmark.types.note">Types use source labels; a benchmark can have multiple types. Counts cover the full catalog, before search, model and score filters.</p>
+              <p id="benchmark-search-status" class="benchmark-search-status"></p>
+              <div id="benchmark-search-results"></div>
+              <button id="benchmark-search-more" class="clear-button" type="button" data-i18n="Show more" hidden>Show more</button>
+              <div class="benchmark-example-heading" hidden>
+                <p class="benchmark-example-lead" data-i18n="Jump to a benchmark">Jump to a benchmark</p>
+                <span id="benchmark-example-info"></span>
+              </div>
+              <div id="benchmark-shortlist" class="benchmark-shortlist" hidden></div>
+            </div>
+          </aside>
+
+          <section class="frontier-panel" id="adoption-frontier" aria-labelledby="frontier-heading">
+            <div class="frontier-heading-row">
+              <div>
+                <p class="eyebrow" id="frontier-eyebrow" data-i18n="Scores over time">Scores over time</p>
+                <!-- The title owns its own (i): the provenance note used to sit on a
+                     second heading inside the scores block, which repeated the source
+                     name already shown in the badge and pushed the chart down the
+                     page (issue #298). -->
+                <div class="frontier-title-row">
+                  <h2 id="frontier-heading" data-i18n="Benchmark reported scores over time">Benchmark reported scores over time</h2>
+                  <span id="frontier-heading-info"></span>
+                  <details class="frontier-explainer-sub" id="frontier-explainer-sub">
+                    <summary data-i18n="How to read this chart">How to read this chart</summary>
+                    <p class="section-note" data-i18n="frontier.explainer.sub">
+                      Every value that could be read verbatim from a cited document, placed at the date
+                      that document was published rather than at any evaluation date. The line directly
+                      links actual observations that set a new reported record among the values shown; it
+                      neither holds a score between reports nor extends past the final record. Test versions
+                      and run conditions can differ, so this is a reported-record path, not a like-for-like
+                      trend. When no newer number could be read, the gap is marked rather than drawn through.
+                      Whether a benchmark has saturated stays a reading you make, not a score this panel prints.
+                    </p>
+                  </details>
+                </div>
+                <p class="frontier-subline" id="frontier-subline" hidden></p>
+              </div>
+              <div class="frontier-controls">
+                <span class="frontier-stage" id="frontier-stage"></span>
+                <label class="frontier-picker">
+                  All tracked benchmarks
+                  <select id="frontier-benchmark" name="lfrontier"></select>
+                </label>
+              </div>
+            </div>
+            <p id="frontier-filter-note" class="section-note" role="status" hidden></p>
+            <p id="frontier-highest-score" class="section-note" hidden></p>
+            <div class="frontier-catalog" id="frontier-catalog" hidden></div>
+            <div class="frontier-chart" id="frontier-chart"></div>
+            <!-- Legend below the figure it explains: above it, it pushed the
+                 chart down to explain marks the reader had not seen yet. -->
+            <div class="frontier-legend" id="frontier-legend" aria-label="Chart legend"></div>
+            <div class="frontier-org-key" id="frontier-org-key" aria-label="Reporting organization color key"></div>
+            <div class="score-readout" id="frontier-score-readout"></div>
+            <div class="frontier-evidence" id="frontier-evidence">
+              <aside class="frontier-context" aria-labelledby="frontier-task-heading">
+                <div id="frontier-task-preview"></div>
+                <details class="pareto-readiness">
+                  <summary data-i18n="pareto.readiness.summary">What would it take to chart best score against lowest cost?</summary>
+                  <p data-i18n="pareto.readiness.note1">
+                    Two scores can only be compared when each one records which version of
+                    the test it used, which slice of it, whether a high number is good or bad,
+                    which model, what software ran it, how much thinking time it was given,
+                    what it cost, how long it took, when it was published, and where the number
+                    came from. The test and the way it was run have to match; the model, cost,
+                    time and date are free to differ, because those are what the chart compares.
+                    This site records that a model card mentioned a benchmark. It does not yet
+                    record those measurements.
+                  </p>
+                  <p data-i18n="pareto.readiness.note2">
+                    Once they exist, this chart could plot cost or speed against score, and draw
+                    a line through only the results that nothing else beats on both at once. A
+                    date slider would then show how that line moved over time.
+                  </p>
+                </details>
+              </aside>
+            </div>
+          </section>
+        </div>
+
+      </section>
+
+      <section class="view" id="trends-view" aria-labelledby="trends-heading" hidden>
+        <header class="view-heading">
+          <h1 id="trends-heading" data-i18n="Trend">Trend</h1>
+        </header>
+
+        <div class="domain-panel">
+          <div class="section-title">
+            <h2 id="domain-heading" data-i18n="New by domain">New by domain</h2>
+            <span id="domain-date"></span>
+          </div>
+          <div class="domain-grid" id="domain-grid" aria-labelledby="domain-heading"></div>
+        </div>
+
+        <div class="trend-panel">
+          <div class="section-title">
+            <h2 data-i18n="trends.daily.title">Daily evidence and attention volume</h2>
+          </div>
+          <label class="trend-filter">
+            <input type="checkbox" id="trend-released-only" />
+            <span data-i18n="trends.releaseOnly">Releases only</span>
+          </label>
+          <p class="trend-message" id="trend-message" role="status"></p>
+          <div class="trend-chart-frame">
+            <!-- A group, not an img: role="img" would make the day buttons
+                 presentational and hide their tooltip description. -->
+            <div class="trend-chart" id="trend-chart" role="group" aria-label="Daily category counts"></div>
+            <div class="day-tooltip" id="day-tooltip" role="tooltip" aria-hidden="true" hidden></div>
+          </div>
+          <div class="figure-caption">
+            <div class="legend" id="trend-legend" aria-label="Category legend"></div>
+            <details class="figure-note">
+              <summary class="info-disclosure-toggle" aria-label="Chart notes" data-i18n-aria="Chart notes"><span aria-hidden="true">i</span></summary>
+              <p class="section-note" data-i18n="trends.daily.note">Category tags overlap. Each bar is an independent count, not a part of a stacked total.</p>
+              <p class="section-note" data-i18n="trends.releaseOnly.note">Releases only excludes records re-announced as an update to something already surfaced.</p>
+            </details>
+          </div>
+        </div>
+
+        <details class="dev-checker" aria-labelledby="dev-checker-heading">
+          <summary class="dev-checker-summary">
+            <span id="dev-checker-heading" data-i18n="Dev checker">Dev checker</span>
+            <span id="snapshot-count"></span>
+          </summary>
+          <div class="dev-checker-body">
+            <p class="section-note" data-i18n="trends.ledger.note">
+              Source mix counts ranked evidence after scoring. Fetch health counts raw records
+              returned before scoring, so a source can be ok and still empty.
+            </p>
+            <!-- Sources that found nothing are the ones worth reading first: a
+                 source that quietly returns nothing day after day is usually
+                 broken rather than idle (issue #260). role="status" so a screen
+                 reader hears it when the day's numbers are re-rendered. -->
+            <p class="source-gap-note" id="source-gap-note" role="status" hidden></p>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-i18n="Date">Date</th>
+                    <th data-i18n="Coverage (UTC)">Coverage (UTC)</th>
+                    <th data-i18n="Evidence">Evidence</th>
+                    <th data-i18n="Source mix">Source mix</th>
+                    <th data-i18n="Categories">Categories</th>
+                    <th data-i18n="Events">Events</th>
+                    <th data-i18n="Attention">Attention</th>
+                    <th data-i18n="Fetch health">Fetch health</th>
+                  </tr>
+                </thead>
+                <tbody id="trend-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="error-state" id="error-state" hidden>
+        <p class="eyebrow" data-i18n="Dashboard unavailable">Dashboard unavailable</p>
+        <h2 data-i18n="The validated data file could not be loaded.">The validated data file could not be loaded.</h2>
+        <p data-i18n="error.note">Try refreshing, or inspect the latest daily Issue while the dashboard rebuilds.</p>
+        <a href="https://github.com/ktwu01/benchmark-radar/issues?q=is%3Aissue+label%3Adaily-radar" data-i18n="Open daily Issues">Open daily Issues ↗</a>
+      </section>
+    </main>
+
+    <dialog id="rubric-dialog" aria-labelledby="rubric-title">
+      <button
+        class="dialog-close"
+        id="rubric-close"
+        type="button"
+        aria-label="Close scoring rubric"
+      >×</button>
+      <div id="rubric-content"></div>
+    </dialog>
+
+    <dialog id="cite-dialog" aria-labelledby="cite-title">
+      <button
+        class="dialog-close"
+        id="cite-close"
+        type="button"
+        aria-label="Close citation formats"
+      >×</button>
+      <div id="cite-content"></div>
+    </dialog>
+
+    <dialog id="cli-dialog" aria-labelledby="cli-title">
+      <button
+        class="dialog-close"
+        id="cli-close"
+        type="button"
+        aria-label="Close CLI setup"
+      >×</button>
+      <div id="cli-content"></div>
+    </dialog>
+
+    <dialog id="contact-dialog" aria-labelledby="contact-title">
+      <button
+        class="dialog-close"
+        id="contact-close"
+        type="button"
+        aria-label="Close contact options"
+      >×</button>
+      <div id="contact-content"></div>
+    </dialog>
+
+    <footer>
+      <!-- The site's documents, kept out of the view row above so that row
+           stays a list of tools. These are real links with real paths, so the
+           pages are reachable by a reader and a crawler alike. -->
+      <nav class="footer-nav" aria-label="About this site" data-i18n-aria="About this site">
+        <a href="/benchmark-radar-zh24/about/" data-i18n="About">About</a>
+        <a href="/benchmark-radar-zh24/blog/" data-i18n="Blog">Blog</a>
+      </nav>
+      <p id="build-meta">Updated —</p>
+      <aside class="adoption-cta" aria-label="Support Benchmark Radar">
+        <p data-i18n="If this saved you research time, cite the work, star the repo and help other eval builders find it.">
+          If this saved you research time, cite the work, star the repo and help other eval builders find it.
+        </p>
+        <span class="adoption-actions">
+          <!-- A real path, so the citation panel is useful before JavaScript
+               and can be indexed as its own page. -->
+          <a
+            class="primary-link"
+            id="cite-open"
+            href="/benchmark-radar-zh24/cite/"
+            aria-haspopup="dialog"
+            aria-controls="cite-dialog"
+            aria-expanded="false"
+            data-i18n="Cite"
+          >Cite</a>
+          <a
+            class="primary-link"
+            href="https://github.com/ktwu01/benchmark-radar"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-i18n="Star the repository"
+          >Star the repository</a>
+          <button type="button" class="secondary-link" id="share-radar" data-i18n="Share">
+            Share
+          </button>
+        </span>
+      </aside>
+      <details class="privacy-note">
+        <summary data-i18n="Privacy notice">Privacy notice</summary>
+        <p>
+          We use Microsoft Clarity cookies, session replays and heatmaps to understand how people use
+          this site and improve its navigation and content. Sensitive content is masked by default.
+          By using this site, you agree that Benchmark Radar and Microsoft can collect and use this
+          data. See the
+          <a href="https://privacy.microsoft.com/privacystatement">Microsoft Privacy Statement</a>.
+        </p>
+      </details>
+      <p class="copyright">© 2026 Koutian Wu and contributors</p>
+    </footer>
+  </body>
+</html>

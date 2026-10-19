@@ -1,0 +1,599 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+  <channel>
+    <title>Benchmark Radar daily brief</title>
+    <link>https://benchmark-radar.org/blog/</link>
+    <description>One page per collection day: what new benchmarks and evaluations appeared, how strong the evidence was, and which claims the record does not support.</description>
+    <language>en</language>
+    <atom:link href="https://benchmark-radar.org/blog/feed.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 18 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-18</title>
+      <link>https://benchmark-radar.org/blog/2026-10-18/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-18/</guid>
+      <pubDate>Sun, 18 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new Cost Per Correct benchmark ranks large language model agents by dollars spent per correct answer, not accuracy alone. Its five easy tasks use…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-17</title>
+      <link>https://benchmark-radar.org/blog/2026-10-17/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-17/</guid>
+      <pubDate>Sat, 17 Oct 2026 00:00:00 GMT</pubDate>
+      <description>NVIDIA’s garak v0.17.1 is an update to the existing security-evaluation tool. It adds hit@k, which reports whether an attack succeeded within the top k…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-16</title>
+      <link>https://benchmark-radar.org/blog/2026-10-16/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-16/</guid>
+      <pubDate>Fri, 16 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new DIB-Bench release tests a gap that behavioral scoring cannot see: whether the deployed runtime has been tampered with while preserving expected…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-15</title>
+      <link>https://benchmark-radar.org/blog/2026-10-15/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-15/</guid>
+      <pubDate>Thu, 15 Oct 2026 00:00:00 GMT</pubDate>
+      <description>A new audit found that all 761 traceable tumor test images in a widely used brain magnetic resonance imaging benchmark came from patients also represented…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-14</title>
+      <link>https://benchmark-radar.org/blog/2026-10-14/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-14/</guid>
+      <pubDate>Wed, 14 Oct 2026 00:00:00 GMT</pubDate>
+      <description>Autonomous Science Bench is a new benchmark in today’s captured feed that makes an agent choose batches of experiments under a fixed budget, receive…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-13</title>
+      <link>https://benchmark-radar.org/blog/2026-10-13/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-13/</guid>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 GMT</pubDate>
+      <description>Unreachable Oracles introduces an offline audit for checking whether each benchmark answer can actually be derived from the information an agent receives…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-12</title>
+      <link>https://benchmark-radar.org/blog/2026-10-12/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-12/</guid>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 GMT</pubDate>
+      <description>MultiAgentInject is a new security benchmark with 4,050 trials that independently varies task, agent-network topology, attack class, stealth, and…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-11</title>
+      <link>https://benchmark-radar.org/blog/2026-10-11/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-11/</guid>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new Two-Stage Measurement of Update Adherence benchmark tests whether a memory-enabled language-model agent follows a revised requirement rather than…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-10</title>
+      <link>https://benchmark-radar.org/blog/2026-10-10/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-10/</guid>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new milipoint-runs artifact exposes split leakage in the MiliPoint radar benchmark: overlapping windows let most test examples share frames with…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-09</title>
+      <link>https://benchmark-radar.org/blog/2026-10-09/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-09/</guid>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 GMT</pubDate>
+      <description>TRACE is a new diagnostic protocol for checking whether an agent’s benchmark score changed because its behavior changed or because the evaluator changed…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-08</title>
+      <link>https://benchmark-radar.org/blog/2026-10-08/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-08/</guid>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 GMT</pubDate>
+      <description>A new runtime-verification study exposes a data-design gap in existing agent-safety benchmarks. It replayed AgentDojo and STAC trajectories through formal…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-07</title>
+      <link>https://benchmark-radar.org/blog/2026-10-07/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-07/</guid>
+      <pubDate>Wed, 07 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new Agent Network Traffic benchmark (ANT) tests whether security teams can audit large language model agents through network traffic without…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-05</title>
+      <link>https://benchmark-radar.org/blog/2026-10-05/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-05/</guid>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new “Passing the Test You Trained On” study evaluates 15 prompt-injection detectors on benign and injected outputs reconstructed from real agent…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-04</title>
+      <link>https://benchmark-radar.org/blog/2026-10-04/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-04/</guid>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new 2026 Cryo-EM Benchmark Dataset provides 12 protein structures deposited after every test set disclosed for MICA, an artificial intelligence system…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-03</title>
+      <link>https://benchmark-radar.org/blog/2026-10-03/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-03/</guid>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The updated retinal benchmark audit provides image-level manifests for patient-grouped, source-matched, and leave-one-source-out evaluations, plus…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-02</title>
+      <link>https://benchmark-radar.org/blog/2026-10-02/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-02/</guid>
+      <pubDate>Fri, 02 Oct 2026 00:00:00 GMT</pubDate>
+      <description>Video-Index is a new meta-benchmark that audits whether video tests actually require video understanding. Its five-level “attack pyramid” tests…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-10-01</title>
+      <link>https://benchmark-radar.org/blog/2026-10-01/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-10-01/</guid>
+      <pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>
+      <description>The new study “Dating the Model” reports that hidden current-date text injected into system prompts changed measured performance across nine large…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-30</title>
+      <link>https://benchmark-radar.org/blog/2026-09-30/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-30/</guid>
+      <pubDate>Wed, 30 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The newly released UserProxyBench tests a hidden dependency in interactive agent benchmarks: whether the language model playing the user follows its…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-29</title>
+      <link>https://benchmark-radar.org/blog/2026-09-29/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-29/</guid>
+      <pubDate>Tue, 29 Sep 2026 00:00:00 GMT</pubDate>
+      <description>TraceDance is a new release that turns real agent deployment traces into targeted benchmarks for user-specified undesirable behaviors. It evaluates the…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-28</title>
+      <link>https://benchmark-radar.org/blog/2026-09-28/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-28/</guid>
+      <pubDate>Mon, 28 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new Finance Agents Benchmark packages financial due diligence as an end-to-end agent test: 50 tasks, 160 documents, 231 grading criteria, an execution…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-27</title>
+      <link>https://benchmark-radar.org/blog/2026-09-27/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-27/</guid>
+      <pubDate>Sun, 27 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new Kalyvox Voice Benchmark 2026 evaluates one voice agent through 240 controlled French and English calls across 12 scenario families. It reports…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-26</title>
+      <link>https://benchmark-radar.org/blog/2026-09-26/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-26/</guid>
+      <pubDate>Sat, 26 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new repo2bench release converts Python repositories into coding-agent tasks mined from version history or created by removing functions. It admits…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-25</title>
+      <link>https://benchmark-radar.org/blog/2026-09-25/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-25/</guid>
+      <pubDate>Fri, 25 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new PartHackBench release tests whether partial-credit scorers for long-running tool agents reward misleading progress. It compares honest and…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-24</title>
+      <link>https://benchmark-radar.org/blog/2026-09-24/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-24/</guid>
+      <pubDate>Thu, 24 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new Uncheatable Eval benchmark evaluates base language models by measuring how efficiently they losslessly compress newly published text that is…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-23</title>
+      <link>https://benchmark-radar.org/blog/2026-09-23/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-23/</guid>
+      <pubDate>Wed, 23 Sep 2026 00:00:00 GMT</pubDate>
+      <description>A new B3DB audit tests whether stereoisomers inflate blood–brain barrier prediction scores because common two-dimensional molecular representations map…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-22</title>
+      <link>https://benchmark-radar.org/blog/2026-09-22/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-22/</guid>
+      <pubDate>Tue, 22 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new Curation-Bench release evaluates whether coding agents can improve training-data selection through an iterative workflow: agents inspect data…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-20</title>
+      <link>https://benchmark-radar.org/blog/2026-09-20/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-20/</guid>
+      <pubDate>Sun, 20 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The newly released TC-Slang Guardrail Benchmark evaluates Traditional Chinese prompt-injection defenses by slang year and pairs each slang example with a…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-18</title>
+      <link>https://benchmark-radar.org/blog/2026-09-18/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-18/</guid>
+      <pubDate>Fri, 18 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new SonoCorpus and SonoBase release pairs 456,963 ultrasound images and 1,626,085 expert segmentation masks with an interactive segmentation model…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-17</title>
+      <link>https://benchmark-radar.org/blog/2026-09-17/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-17/</guid>
+      <pubDate>Thu, 17 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new lexEN benchmark replaces disputed word-sense labels with a conservative, human-adjudicated correction layer: 211 labels changed and 56 removed…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-16</title>
+      <link>https://benchmark-radar.org/blog/2026-09-16/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-16/</guid>
+      <pubDate>Wed, 16 Sep 2026 00:00:00 GMT</pubDate>
+      <description>A new audit of 254 SWE-bench coding-agent submissions reports that the leaderboard cannot reliably order its leading entries: the top two resolve the same…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-15</title>
+      <link>https://benchmark-radar.org/blog/2026-09-15/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-15/</guid>
+      <pubDate>Tue, 15 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new Sophea release evaluates a production Greek-English speech recognizer against nine simultaneous gates covering both languages, language…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-14</title>
+      <link>https://benchmark-radar.org/blog/2026-09-14/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-14/</guid>
+      <pubDate>Mon, 14 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new KNOWS Benchmark evaluates web agents on 110 tasks that combine web research with producing documents, spreadsheets, and slide decks in Google…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-13</title>
+      <link>https://benchmark-radar.org/blog/2026-09-13/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-13/</guid>
+      <pubDate>Sun, 13 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The newly captured MusicAI background-music benchmark tests audio-capable large language models on 2,000 questions under clean audio, white noise, and 55…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-12</title>
+      <link>https://benchmark-radar.org/blog/2026-09-12/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-12/</guid>
+      <pubDate>Sat, 12 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The newly released Benchmark Radar combines a searchable catalog of AI evaluations with links to datasets and code, mentions in model cards and technical…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-11</title>
+      <link>https://benchmark-radar.org/blog/2026-09-11/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-11/</guid>
+      <pubDate>Fri, 11 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new oncology visual question answering benchmark builds test items from private, single-institution radiology reports paired with three-dimensional…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-10</title>
+      <link>https://benchmark-radar.org/blog/2026-09-10/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-10/</guid>
+      <pubDate>Thu, 10 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new “Double Measurement Confound” paper identifies a recurring agent-evaluation problem in this feed: a fixed software scaffold may make execution…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-09</title>
+      <link>https://benchmark-radar.org/blog/2026-09-09/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-09/</guid>
+      <pubDate>Wed, 09 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new “Style Over Substance” study tests automated safety judges by preserving an answer byte-for-byte while adding tone-only wrappers, such as…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-08</title>
+      <link>https://benchmark-radar.org/blog/2026-09-08/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-08/</guid>
+      <pubDate>Tue, 08 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new URL Intelligence Benchmark evaluates agents and web-analysis tools on operational hazards that ordinary answer-accuracy tests miss: redirects…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-07</title>
+      <link>https://benchmark-radar.org/blog/2026-09-07/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-07/</guid>
+      <pubDate>Mon, 07 Sep 2026 00:00:00 GMT</pubDate>
+      <description>TruthInsightBench is a new benchmark for scientific-discovery agents that replaces reproduction-style tasks with 40 blind tasks from peer-reviewed…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-06</title>
+      <link>https://benchmark-radar.org/blog/2026-09-06/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-06/</guid>
+      <pubDate>Sun, 06 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The new Amharic Automatic Speech Recognition benchmark evaluates open models on 1,548 clips that its publisher says were unavailable for training. It…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-05</title>
+      <link>https://benchmark-radar.org/blog/2026-09-05/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-05/</guid>
+      <pubDate>Sat, 05 Sep 2026 00:00:00 GMT</pubDate>
+      <description>Several new releases in this captured feed turn agent evaluation into domain-specific workflow testing. The clearest is…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-04</title>
+      <link>https://benchmark-radar.org/blog/2026-09-04/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-04/</guid>
+      <pubDate>Fri, 04 Sep 2026 00:00:00 GMT</pubDate>
+      <description>A new preregistered audit, “Clean Engineering, Unstable Measurement,” tests whether a black-box large language model judge behaves like a stable…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-03</title>
+      <link>https://benchmark-radar.org/blog/2026-09-03/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-03/</guid>
+      <pubDate>Thu, 03 Sep 2026 00:00:00 GMT</pubDate>
+      <description>Among today’s captured releases, EarlyEval introduces early outcome prediction: it estimates an agent’s final result from intermediate behavior and stops…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-02</title>
+      <link>https://benchmark-radar.org/blog/2026-09-02/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-02/</guid>
+      <pubDate>Wed, 02 Sep 2026 00:00:00 GMT</pubDate>
+      <description>The newly released InSight benchmark tests agents that must actively interact with visualizations to verify 21,349 claims, rather than answer once from a…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-09-01</title>
+      <link>https://benchmark-radar.org/blog/2026-09-01/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-09-01/</guid>
+      <pubDate>Tue, 01 Sep 2026 00:00:00 GMT</pubDate>
+      <description>EleutherAI released Language Model Evaluation Harness v0.4.13 with fixes that can change prior scores: test questions could leak into their own few-shot…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-31</title>
+      <link>https://benchmark-radar.org/blog/2026-08-31/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-31/</guid>
+      <pubDate>Mon, 31 Aug 2026 00:00:00 GMT</pubDate>
+      <description>PCFBench reflects a recurring push in this captured feed to inspect an agent’s process rather than only its final answer. It separately tests…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-30</title>
+      <link>https://benchmark-radar.org/blog/2026-08-30/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-30/</guid>
+      <pubDate>Sun, 30 Aug 2026 00:00:00 GMT</pubDate>
+      <description>The new INSIDER LLM Detection Benchmark evaluates models that may take harmful actions by comparing the model’s self-reported action log with an…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-29</title>
+      <link>https://benchmark-radar.org/blog/2026-08-29/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-29/</guid>
+      <pubDate>Sat, 29 Aug 2026 00:00:00 GMT</pubDate>
+      <description>The new NBPO benchmark-generations dataset publishes every decoded model response used in three judge-based comparisons, allowing another evaluator to…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-28</title>
+      <link>https://benchmark-radar.org/blog/2026-08-28/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-28/</guid>
+      <pubDate>Fri, 28 Aug 2026 00:00:00 GMT</pubDate>
+      <description>The new Same Model, Different Harness study holds the coding model and tasks fixed while changing how the agent harness manages conversation history and…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-27</title>
+      <link>https://benchmark-radar.org/blog/2026-08-27/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-27/</guid>
+      <pubDate>Thu, 27 Aug 2026 00:00:00 GMT</pubDate>
+      <description>OpenCompass v0.5.4 is a substantive harness update, adding native VLMEvalKit-based multimodal evaluation, multi-round inference with the Multi-IF…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-26</title>
+      <link>https://benchmark-radar.org/blog/2026-08-26/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-26/</guid>
+      <pubDate>Wed, 26 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Across this captured feed, three new agent benchmarks make the evaluated unit an interactive model-plus-runtime system rather than a final answer…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-25</title>
+      <link>https://benchmark-radar.org/blog/2026-08-25/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-25/</guid>
+      <pubDate>Tue, 25 Aug 2026 00:00:00 GMT</pubDate>
+      <description>New release SUSVIBES evaluates 12 coding-agent settings on 186 real-world feature requests for which human developers previously committed vulnerable…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-24</title>
+      <link>https://benchmark-radar.org/blog/2026-08-24/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-24/</guid>
+      <pubDate>Mon, 24 Aug 2026 00:00:00 GMT</pubDate>
+      <description>No material GPT insight: No category moved far enough, persistently enough, or across enough independent sources to support a decision-useful finding in…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-23</title>
+      <link>https://benchmark-radar.org/blog/2026-08-23/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-23/</guid>
+      <pubDate>Sun, 23 Aug 2026 00:00:00 GMT</pubDate>
+      <description>No material GPT insight: No category moved far enough, persistently enough, or across enough independent sources to support a material finding in today’s…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-22</title>
+      <link>https://benchmark-radar.org/blog/2026-08-22/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-22/</guid>
+      <pubDate>Sat, 22 Aug 2026 00:00:00 GMT</pubDate>
+      <description>No material GPT insight: No material pattern was supported: the captured items did not show a sufficiently large, persistent, cross-source shift. Only 19…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-21</title>
+      <link>https://benchmark-radar.org/blog/2026-08-21/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-21/</guid>
+      <pubDate>Fri, 21 Aug 2026 00:00:00 GMT</pubDate>
+      <description>No material GPT insight: No material pattern cleared the feed’s persistence and cross-source thresholds today. Only 65 of 198 corpus evidence records were…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-20</title>
+      <link>https://benchmark-radar.org/blog/2026-08-20/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-20/</guid>
+      <pubDate>Thu, 20 Aug 2026 00:00:00 GMT</pubDate>
+      <description>No material GPT insight: No category changed far enough, persistently enough, and across enough sources to support a decision-useful pattern in this…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-19</title>
+      <link>https://benchmark-radar.org/blog/2026-08-19/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-19/</guid>
+      <pubDate>Wed, 19 Aug 2026 00:00:00 GMT</pubDate>
+      <description>No material GPT insight: No category changed far enough, persistently enough, or across enough sources to support a material finding in this captured…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-18</title>
+      <link>https://benchmark-radar.org/blog/2026-08-18/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-18/</guid>
+      <pubDate>Tue, 18 Aug 2026 00:00:00 GMT</pubDate>
+      <description>No material GPT insight: No category change was sufficiently large, persistent, and cross-source to support a material finding. Tracked metric movement…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-17</title>
+      <link>https://benchmark-radar.org/blog/2026-08-17/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-17/</guid>
+      <pubDate>Mon, 17 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Several new releases in the captured feed redesign evaluation around conditions hidden by static averages: evolving evidence and temporal cutoffs…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-16</title>
+      <link>https://benchmark-radar.org/blog/2026-08-16/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-16/</guid>
+      <pubDate>Sun, 16 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Agent benchmarking in the captured evidence is being designed around controlled execution, not just task sets: a new arena adds side-by-side and blind…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-15</title>
+      <link>https://benchmark-radar.org/blog/2026-08-15/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-15/</guid>
+      <pubDate>Sat, 15 Aug 2026 00:00:00 GMT</pubDate>
+      <description>In today’s captured feed, three independent new releases evaluate agents as operational systems: LCAB preserves complete repair sessions and hardware…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-14</title>
+      <link>https://benchmark-radar.org/blog/2026-08-14/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-14/</guid>
+      <pubDate>Fri, 14 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Two new paper releases in this captured feed question whether aggregate agent scores measure deployable capability: one reports task interactions…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-13</title>
+      <link>https://benchmark-radar.org/blog/2026-08-13/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-13/</guid>
+      <pubDate>Thu, 13 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Across today’s captured new releases, several benchmarks require inspectable process evidence rather than scoring only final outcomes: replayable…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-12</title>
+      <link>https://benchmark-radar.org/blog/2026-08-12/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-12/</guid>
+      <pubDate>Wed, 12 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Several new releases in this captured feed bind benchmarks to deployment context: web-access APIs are compared across quality, latency, cost, and error…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-11</title>
+      <link>https://benchmark-radar.org/blog/2026-08-11/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-11/</guid>
+      <pubDate>Tue, 11 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Multiple new releases in the captured feed move agent evaluation beyond final-task success toward inspecting collaboration graphs, requirement recovery…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-10</title>
+      <link>https://benchmark-radar.org/blog/2026-08-10/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-10/</guid>
+      <pubDate>Mon, 10 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Several new releases in this captured feed evaluate whether a system reached an answer through valid evidence or execution, not merely whether the answer…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-08</title>
+      <link>https://benchmark-radar.org/blog/2026-08-08/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-08/</guid>
+      <pubDate>Sat, 08 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Across this feed’s new releases, benchmark design is moving toward specialized, structurally difficult tasks: open-ended scientific extraction…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-07</title>
+      <link>https://benchmark-radar.org/blog/2026-08-07/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-07/</guid>
+      <pubDate>Fri, 07 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Four newly released agent benchmarks in this captured feed expand evaluation beyond terminal task success: acquisition-stage privacy, learning across…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-06</title>
+      <link>https://benchmark-radar.org/blog/2026-08-06/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-06/</guid>
+      <pubDate>Thu, 06 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Across this captured feed, four newly released benchmarks evaluate behavior beyond a static, well-specified task: proactive bug discovery without issue…</description>
+    </item>
+    <item>
+      <title>Daily AI benchmark brief: 2026-08-05</title>
+      <link>https://benchmark-radar.org/blog/2026-08-05/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-05/</guid>
+      <pubDate>Wed, 05 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Agentic artifacts rose to 26.3% of our captured feed over the last 5 days, against a 13.6% baseline across the prior 4 days (+12.7 percentage points).</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-08-04</title>
+      <link>https://benchmark-radar.org/blog/2026-08-04/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-04/</guid>
+      <pubDate>Tue, 04 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 212 evidence observations from 3 sources on 2026-08-04.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-08-03</title>
+      <link>https://benchmark-radar.org/blog/2026-08-03/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-03/</guid>
+      <pubDate>Mon, 03 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 152 evidence observations from 3 sources on 2026-08-03.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-08-02</title>
+      <link>https://benchmark-radar.org/blog/2026-08-02/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-02/</guid>
+      <pubDate>Sun, 02 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 89 evidence observations from 2 sources on 2026-08-02.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-08-01</title>
+      <link>https://benchmark-radar.org/blog/2026-08-01/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-08-01/</guid>
+      <pubDate>Sat, 01 Aug 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 69 evidence observations from 2 sources on 2026-08-01.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-31</title>
+      <link>https://benchmark-radar.org/blog/2026-07-31/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-31/</guid>
+      <pubDate>Fri, 31 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 60 evidence observations from 2 sources on 2026-07-31.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-30</title>
+      <link>https://benchmark-radar.org/blog/2026-07-30/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-30/</guid>
+      <pubDate>Thu, 30 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 200 evidence observations from 3 sources on 2026-07-30.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-29</title>
+      <link>https://benchmark-radar.org/blog/2026-07-29/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-29/</guid>
+      <pubDate>Wed, 29 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 201 evidence observations from 3 sources on 2026-07-29.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-28</title>
+      <link>https://benchmark-radar.org/blog/2026-07-28/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-28/</guid>
+      <pubDate>Tue, 28 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 186 evidence observations from 3 sources on 2026-07-28.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-27</title>
+      <link>https://benchmark-radar.org/blog/2026-07-27/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-27/</guid>
+      <pubDate>Mon, 27 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 30 evidence observations from 2 sources on 2026-07-27.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-26</title>
+      <link>https://benchmark-radar.org/blog/2026-07-26/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-26/</guid>
+      <pubDate>Sun, 26 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 30 evidence observations from 1 sources on 2026-07-26.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-25</title>
+      <link>https://benchmark-radar.org/blog/2026-07-25/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-25/</guid>
+      <pubDate>Sat, 25 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 32 evidence observations from 1 sources on 2026-07-25.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-24</title>
+      <link>https://benchmark-radar.org/blog/2026-07-24/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-24/</guid>
+      <pubDate>Fri, 24 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 32 evidence observations from 1 sources on 2026-07-24.</description>
+    </item>
+    <item>
+      <title>Benchmark evidence summary: 2026-07-23</title>
+      <link>https://benchmark-radar.org/blog/2026-07-23/</link>
+      <guid isPermaLink="true">https://benchmark-radar.org/blog/2026-07-23/</guid>
+      <pubDate>Thu, 23 Jul 2026 00:00:00 GMT</pubDate>
+      <description>Benchmark Radar collected 20 evidence observations from 1 sources on 2026-07-23.</description>
+    </item>
+  </channel>
+</rss>

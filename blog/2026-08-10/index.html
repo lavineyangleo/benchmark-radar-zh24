@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="/benchmark-radar-zh24/assets/github-runtime-v1.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Several new releases in this captured feed evaluate whether a system reached an answer through valid evidence or execution, not merely whether the answer…">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<title>Daily AI benchmark brief: 2026-08-10 | Benchmark Radar</title>
+<link rel="canonical" href="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-10/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Benchmark Radar">
+<meta property="og:title" content="Daily AI benchmark brief: 2026-08-10 | Benchmark Radar">
+<meta property="og:description" content="Several new releases in this captured feed evaluate whether a system reached an answer through valid evidence or execution, not merely whether the answer…">
+<meta property="og:url" content="https://lavineyangleo.github.io/benchmark-radar-zh24/blog/2026-08-10/">
+<meta property="og:image" content="https://benchmark-radar.org/assets/og-card.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Daily AI benchmark brief: 2026-08-10 | Benchmark Radar">
+<meta name="twitter:description" content="Several new releases in this captured feed evaluate whether a system reached an answer through valid evidence or execution, not merely whether the answer…">
+<meta name="twitter:image" content="https://benchmark-radar.org/assets/og-card.png">
+<link rel="icon" href="/benchmark-radar-zh24/icon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/rss+xml" title="Benchmark Radar daily brief"
+      href="/benchmark-radar-zh24/blog/feed.xml">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/styles.css">
+<link rel="stylesheet" href="/benchmark-radar-zh24/assets/blog.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-10/", "@type": "BlogPosting", "author": {"@type": "Organization", "name": "Benchmark Radar"}, "citation": ["https://arxiv.org/abs/2608.07400", "https://arxiv.org/abs/2604.12147", "https://huggingface.co/datasets/alirezaaminzadeh/opticoder-benchmark-results", "https://arxiv.org/abs/2608.07370", "https://arxiv.org/abs/2512.22539", "https://github.com/GuruThorat/agent-gauntlet", "https://arxiv.org/abs/2608.07038", "https://github.com/ianarawjo/evalstats", "https://arxiv.org/abs/2608.07417", "https://arxiv.org/abs/2608.07411", "https://arxiv.org/abs/2608.07382", "https://arxiv.org/abs/2608.06931", "https://arxiv.org/abs/2608.06850", "https://huggingface.co/datasets/alirezaaminzadeh/or-reasoning-benchmark-results", "https://huggingface.co/datasets/alirezaaminzadeh/minizinc-copilot-benchmark-results", "https://huggingface.co/datasets/MME-Benchmarks/Video-MME-v2", "https://github.com/iavishagupta/tool-calling-benchmark-v0", "https://github.com/ratel-ai/ratel-bench", "https://huggingface.co/datasets/alirezaaminzadeh/retailopt-benchmark-results"], "dateModified": "2026-08-10", "datePublished": "2026-08-10", "description": "Several new releases in this captured feed evaluate whether a system reached an answer through valid evidence or execution, not merely whether the answer…", "headline": "Daily AI benchmark brief: 2026-08-10", "inLanguage": "en", "isPartOf": {"@id": "https://benchmark-radar.org/blog/#blog", "@type": "Blog", "name": "Benchmark Radar blog", "url": "https://benchmark-radar.org/blog/"}, "keywords": ["daily brief", "AI benchmarks", "evaluation"], "mainEntityOfPage": "https://benchmark-radar.org/blog/2026-08-10/", "publisher": {"@id": "https://benchmark-radar.org/#organization", "@type": "Organization", "name": "Benchmark Radar", "url": "https://benchmark-radar.org/"}, "url": "https://benchmark-radar.org/blog/2026-08-10/"}</script><script type="application/ld+json">{"@context": "https://schema.org", "@id": "https://benchmark-radar.org/blog/2026-08-10/#breadcrumb", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "item": "https://benchmark-radar.org/", "name": "Benchmark Radar", "position": 1}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/", "name": "Blog", "position": 2}, {"@type": "ListItem", "item": "https://benchmark-radar.org/blog/2026-08-10/", "name": "Daily AI benchmark brief: 2026-08-10", "position": 3}]}</script>
+<script type="application/json" id="chrome-i18n">{"About": "关于", "About this site": "关于本站", "Blog": "博客", "CLI": "命令行", "Cite": "引用", "Contact": "联系作者", "Dashboard views": "仪表盘视图", "Get in touch · Email, WeChat, Discord": "联系我 · 邮件、微信、Discord", "If this saved you research time, cite the work, star the repo and help other eval builders find it.": "如果它帮你节省了研究时间，请引用这项工作、给仓库点 Star，让更多评测开发者找到它。", "Leaderboard": "排行榜", "Open the repository and star it": "打开仓库并给个 Star", "Privacy notice": "隐私声明", "Publications": "论文与引用", "Saturation": "饱和度", "Share": "分享", "Site utilities": "网站工具", "Star": "Star", "Star the repository": "给仓库点 Star", "Star this repository on GitHub. {count} stars": "在 GitHub 上给这个仓库点 Star。{count} 个 star", "Subscribe to Benchmark Radar via RSS": "通过 RSS 订阅 Benchmark Radar", "Switch to Chinese (中文)": "切换到中文", "Switch to English": "切换到英文", "Today": "今日", "Trends": "趋势", "Updated": "更新于"}</script>
+<script src="/benchmark-radar-zh24/assets/blog.js" defer></script>
+</head>
+<body class="blog-page">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="masthead">
+      <div class="masthead-main">
+        <a class="brand" href="/benchmark-radar-zh24/" aria-label="Benchmark Radar home">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span>
+          </span>
+          <strong>Benchmark Radar™</strong>
+        </a>
+        <nav class="view-nav" aria-label="Dashboard views" data-i18n-aria="Dashboard views">
+          <a href="/benchmark-radar-zh24/" data-i18n="Today">Today</a>
+          <a
+            href="/benchmark-radar-zh24/cli/"
+            id="cli-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="CLI"
+          >
+            CLI
+          </a>
+          <a href="/benchmark-radar-zh24/leaderboard/" data-i18n="Leaderboard">
+            Leaderboard
+          </a>
+          <a href="/benchmark-radar-zh24/saturation/" data-i18n="Saturation">Saturation</a>
+          <a href="/benchmark-radar-zh24/trends/" data-i18n="Trends">Trends</a>
+          <a
+            href="/benchmark-radar-zh24/cite/"
+            id="cite-nav"
+            aria-haspopup="dialog"
+           
+           
+            data-i18n="Publications"
+          >
+            Publications
+          </a>
+        </nav>
+      </div>
+      <div class="masthead-end" aria-label="Site utilities" data-i18n-aria="Site utilities">
+        <a
+          class="repo-badge feed-badge"
+          href="/benchmark-radar-zh24/feed.xml"
+          title="Subscribe to Benchmark Radar via RSS"
+          aria-label="Subscribe to Benchmark Radar via RSS"
+          data-i18n-title="Subscribe to Benchmark Radar via RSS"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="19" r="2"></circle>
+            <path d="M4 11a9 9 0 0 1 9 9"></path>
+            <path d="M4 4a16 16 0 0 1 16 16"></path>
+          </svg>
+          <span class="repo-badge-label">RSS</span>
+        </a>
+        <button
+          type="button"
+          class="repo-badge"
+          id="lang-toggle"
+          aria-pressed="false"
+          title="Switch to Chinese (中文)"
+          data-i18n-title="Switch to Chinese (中文)"
+        >
+          <span class="repo-badge-glyph" id="lang-toggle-label">中</span>
+        </button>
+        <a class="repo-badge" href="/benchmark-radar-zh24/#contact" aria-haspopup="dialog" title="Get in touch · Email, WeChat, Discord" data-i18n-title="Get in touch · Email, WeChat, Discord">
+          <svg class="outline-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Contact">Contact</span>
+        </a>
+        <a
+          class="repo-badge"
+          id="badge-stars"
+          href="https://github.com/ktwu01/benchmark-radar"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open the repository and star it"
+          data-i18n-title="Open the repository and star it"
+        >
+          <svg class="brand-icon github-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 2.5a9.5 9.5 0 0 0-3 18.52c.48.09.65-.21.65-.46v-1.67c-2.67.58-3.23-1.13-3.23-1.13-.44-1.12-1.07-1.42-1.07-1.42-.87-.6.07-.59.07-.59.96.07 1.47.99 1.47.99.86 1.47 2.25 1.05 2.8.8.09-.62.34-1.05.61-1.29-2.13-.24-4.37-1.07-4.37-4.75 0-1.05.38-1.91.99-2.58-.1-.24-.43-1.22.09-2.54 0 0 .81-.26 2.63.98A9.16 9.16 0 0 1 12 7.96c.82 0 1.65.11 2.42.33 1.82-1.24 2.63-.98 2.63-.98.52 1.32.19 2.3.09 2.54.61.67.99 1.53.99 2.58 0 3.69-2.25 4.5-4.39 4.74.35.3.65.88.65 1.78v2.63c0 .25.17.55.66.46A9.5 9.5 0 0 0 12 2.5Z"
+            ></path>
+          </svg>
+          <span class="repo-badge-label" data-i18n="Star">Star</span>
+          <span class="repo-badge-count" data-count>—</span>
+        </a>
+      </div>
+    </header>
+<main id="main-content" tabindex="-1"><div class="blog-view"><div data-lang-content="en">
+<header class="blog-hero">
+  <h1>Daily AI benchmark brief: 2026-08-10</h1>
+</header>
+<div class="blog-prose"><div class="blog-stats"><div class="blog-stat"><strong>327</strong><span>evidence observations</span></div><div class="blog-stat"><strong>5</strong><span>sources represented</span></div><div class="blog-stat"><strong>18</strong><span>public-attention signals</span></div></div><section class="blog-section"><div class="blog-section-heading"><h2>Daily briefing</h2></div><ol class="blog-index"><li class="blog-card">Several new releases in this captured feed evaluate whether a system reached an answer through valid evidence or execution, not merely whether the answer looks correct. They test provenance-sensitive retrieval, linked citations, plan compliance, and executable feasibility, objective, and constraint checks. [E004, E011, E014, E027] Why it matters: Evaluation builders should preserve retrieved passages, trajectories, generated code, and execution results. Otherwise, model selection can reward plausible answers produced from wrong evidence, ignored plans, or invalid programs, obscuring failures that matter in deployed research, finance, and optimization systems. Evidence: E004, E011, E014, E027. High confidence.</li><li class="blog-card">Two new benchmark releases independently emphasize controlled robustness testing for embodied or tool-using systems. VLA-Arena structures difficulty around factors including safety and distractors, while Agent Gauntlet tests distractors, transient faults, indirect prompt injection, schema drift, and silent versus visible failure. [E001, E045] Why it matters: Agent evaluations should report degradation and failure visibility across controlled perturbations, rather than only nominal task success. This changes product decisions by exposing systems that perform adequately in clean conditions but fail silently when tools, schemas, observations, or instructions become unreliable. Evidence: E001, E045. High confidence.</li><li class="blog-card">A new reference-free evaluation proposal and an updated statistical toolkit both address weaknesses in scalable automated scoring: unavailable references or runtime tests in binary reverse engineering, and inference under LLM-judge bias. [E028, E072] Why it matters: Teams adopting model-based judges should add bias-sensitive statistical analysis and document when scores lack executable or reference-based validation. This can change benchmark and release decisions by preventing judge outputs from being treated as interchangeable with direct correctness evidence. Evidence: E028, E072. Medium confidence.</li></ol></section><section class="blog-section"><div class="blog-section-heading"><h2>What arrived</h2></div><article class="blog-panel"><h3>What benchmarks, datasets, or evaluation methods did the radar first see today?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>The radar first observed a substantial set of artifacts today, including VLA-Arena, ISYV-Bench, GeoBenchLLM, FinRank, SkySeaLand, Science Edge Evaluation, LitTraceQA, RegionDet, and several execution-based optimization benchmarks [E001, E002, E003, E004, E005, E008, E027, E031, E014, E032, E036].</p><p>The arrivals cover robot task difficulty [E001], identity-aware video reasoning [E002], geographic reasoning [E003], evidence tracing in financial and scientific answers [E004, E027], satellite detection [E005], experimental science questions [E008], region detection [E031], plan-following by coding agents [E011], and answer checking through code execution and solver outcomes [E014, E032, E036].</p><p><strong>Takeaway:</strong> Within this captured feed, today’s first-seen work emphasizes evaluations tied to structured tasks, supporting evidence, executable outputs, or operational failure modes rather than answer matching alone [E001, E004, E014, E027, E045]. Category tags overlap, and the feed is keyword-filtered rather than representative of the field.</p><p class="blog-caveat"><strong>Another reading:</strong> First-seen means new to the radar, not necessarily newly created or released. For example, Video-MME-v2 entered this packet as an update to an existing artifact rather than a new release [E061]. The supplied evidence is also a curated subset, and source collection failures may have omitted relevant work.</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> artifacts first observed by the radar today: <strong>219</strong></li></ul></article><article class="blog-panel"><h3>Which of today&#x27;s arrivals document how they score an answer?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>The clearest documented scoring schemes are in the OptiCoder, OR Reasoning, MiniZinc Copilot, and RetailOpt benchmark-result datasets. They evaluate generated optimization answers through execution, compilation, feasibility, objective agreement, constraint checks, repair outcomes, or optimality criteria [E014, E032, E036, E078].</p><p>OptiCoder checks whether generated code runs, produces a feasible solution, matches the target objective within a stated tolerance, respects constraints, and binds parameters correctly [E014]. OR Reasoning combines compilation, feasibility, objective matching, and optimality checks [E032]. MiniZinc Copilot adds solve and repair-success checks [E036]. RetailOpt compares execution, feasibility, and objective agreement across several code-generation systems [E078].</p><p><strong>Takeaway:</strong> These arrivals make scoring relatively auditable because success is tied to program and solver behavior rather than only a human or model judge [E014, E032, E036, E078]. Other arrivals name metrics or verifiers, but the supplied descriptions do not expose enough rubric detail to classify them as fully documented answer-scoring methods [E005, E044, E063].</p><p class="blog-caveat"><strong>Another reading:</strong> Execution-based checks can verify syntactic and optimization properties without proving that an answer correctly represents the user’s intended problem. The summaries also omit implementation details needed to reproduce every score, while some other arrivals mention standard metrics or verifiers without showing their complete scoring rules [E005, E014, E032, E036, E044, E078].</p><ul class="blog-list"><li><span class="blog-cite-id">S015</span> artifacts first observed by the radar today: <strong>219</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What is still moving</h2></div><article class="blog-panel"><h3>Which artifacts the radar already tracked moved measurably, and over what span?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span><span class="blog-chip">Not enough evidence</span></div><p>The cited registry entries identify the tracked artifacts, movement metric, and full tracked span. They cover download movement for several datasets and star movement for a repository; every change is cumulative across its stated span, not a one-day change.</p><p>The rendered statistic labels provide the artifact names and date ranges. Some download counts increased, some decreased, and the repository’s star count increased within this captured feed.</p><p><strong>Takeaway:</strong> Treat these as platform-counter changes over each artifact’s complete tracked span. The supplied packet lacks corresponding evidence records with citation IDs, so the artifact-level claims cannot be fully substantiated under the radar’s citation rules.</p><p class="blog-caveat"><strong>Another reading:</strong> The tracked-artifact packet lists additional movements, but many lack registry statistics and therefore cannot be reported as grounded numeric findings. The feed is also keyword-filtered and not representative of the field.</p><ul class="blog-list"><li><span class="blog-cite-id">S018</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,991.0 downloads</strong></li><li><span class="blog-cite-id">S019</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>5,935.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for origamidance/genvsr-video-benchmarks: <strong>1,193.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for Weyaxi/followers-leaderboard: <strong>-810.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> stars change for santifer/career-ops: <strong>806.0 stars</strong></li><li><span class="blog-cite-id">S023</span> downloads change for vava22684/song-jury-leaderboard: <strong>672.0 downloads</strong></li><li><span class="blog-cite-id">S024</span> downloads change for runbenchhub/leaderboards: <strong>-479.0 downloads</strong></li><li><span class="blog-cite-id">S025</span> downloads change for airsplay/open-video-zero-shot-benchmark-media: <strong>378.0 downloads</strong></li></ul></article><article class="blog-panel"><h3>Which of that movement is corroborated by more than one connector?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>None of the cited movement statistics is corroborated by more than one connector. Each metric was reported by only its platform connector.</p><p>Another source did not independently report the same download or star change for any of these registry-backed movements.</p><p><strong>Takeaway:</strong> All listed movements should be treated as single-source measurements within this captured feed, even where the radar may have seen an artifact through multiple connectors.</p><p class="blog-caveat"><strong>Another reading:</strong> The registry separately records some tracked artifacts seen by more than one connector, but explicitly warns that an additional sighting does not mean both connectors measured the same metric.</p><ul class="blog-list"><li><span class="blog-cite-id">S017</span> tracked artifacts today seen by more than one connector: <strong>8</strong></li><li><span class="blog-cite-id">S018</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,991.0 downloads</strong></li><li><span class="blog-cite-id">S019</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>5,935.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for origamidance/genvsr-video-benchmarks: <strong>1,193.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for Weyaxi/followers-leaderboard: <strong>-810.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> stars change for santifer/career-ops: <strong>806.0 stars</strong></li><li><span class="blog-cite-id">S023</span> downloads change for vava22684/song-jury-leaderboard: <strong>672.0 downloads</strong></li><li><span class="blog-cite-id">S024</span> downloads change for runbenchhub/leaderboards: <strong>-479.0 downloads</strong></li><li><span class="blog-cite-id">S025</span> downloads change for airsplay/open-video-zero-shot-benchmark-media: <strong>378.0 downloads</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>What it means</h2></div><article class="blog-panel"><h3>What should someone building or evaluating AI systems do differently today?</h3><div class="blog-tags"><span class="blog-chip">medium confidence</span></div><p>Within this captured feed, benchmark, dataset, and evaluation tags overlap heavily, while both releases and updates appear. Newly released artifacts cover structured robot tasks, evidence-grounded financial retrieval, scientific tool use, and agent plan compliance, suggesting useful dimensions for targeted internal tests rather than a universal leaderboard swap.</p><p>Add tests that check whether systems handle harder task variants, cite the intended source, use tools correctly, and follow the requested plan. Keep new releases, updates, and public attention separate. Treat the listed download and star movements only as screening signals because each covers its full tracked span and comes from one connector.</p><p><strong>Takeaway:</strong> Expand the evaluation matrix around failure modes relevant to your product, then reproduce results on private or held-out tasks before changing a model, agent, or benchmark. This is an actionable reading of the keyword-filtered feed, not evidence about the whole AI field.</p><p class="blog-caveat"><strong>Another reading:</strong> A competing reading is that these specialized releases are too early and self-described to justify immediate process changes. The absent certified comparison window, limited cross-connector sightings, and uncorroborated movement metrics support piloting these checks rather than making them release gates.</p><ul class="blog-list"><li><span class="blog-cite-id">S003</span> records with event kind released: <strong>190</strong></li><li><span class="blog-cite-id">S004</span> records with event kind updated: <strong>137</strong></li><li><span class="blog-cite-id">S010</span> records tagged benchmark: <strong>218 count (multi-label)</strong></li><li><span class="blog-cite-id">S011</span> records tagged dataset: <strong>148 count (multi-label)</strong></li><li><span class="blog-cite-id">S012</span> records tagged evaluation: <strong>141 count (multi-label)</strong></li><li><span class="blog-cite-id">S017</span> tracked artifacts today seen by more than one connector: <strong>8</strong></li><li><span class="blog-cite-id">S018</span> downloads change for AlphaDojo/dojo_benchmark_kline: <strong>10,991.0 downloads</strong></li><li><span class="blog-cite-id">S019</span> downloads change for lmarena-ai/leaderboard-dataset: <strong>5,935.0 downloads</strong></li><li><span class="blog-cite-id">S020</span> downloads change for origamidance/genvsr-video-benchmarks: <strong>1,193.0 downloads</strong></li><li><span class="blog-cite-id">S021</span> downloads change for Weyaxi/followers-leaderboard: <strong>-810.0 downloads</strong></li><li><span class="blog-cite-id">S022</span> stars change for santifer/career-ops: <strong>806.0 stars</strong></li><li><span class="blog-cite-id">S023</span> downloads change for vava22684/song-jury-leaderboard: <strong>672.0 downloads</strong></li><li><span class="blog-cite-id">S024</span> downloads change for runbenchhub/leaderboards: <strong>-479.0 downloads</strong></li><li><span class="blog-cite-id">S025</span> downloads change for airsplay/open-video-zero-shot-benchmark-media: <strong>378.0 downloads</strong></li></ul></article><article class="blog-panel"><h3>What does today&#x27;s evidence fail to show, and what would change the reading?</h3><div class="blog-tags"><span class="blog-chip">high confidence</span></div><p>The feed does not establish a field-wide trend, acceleration, adoption ranking, or independently verified quality advantage. There is no certified comparison window, and several connectors were unavailable. Release descriptions for the highlighted benchmarks also do not constitute independent validation of their data, scoring, or reported findings.</p><p>Differences from other days could reflect collection changes rather than changes in AI work. The reading would strengthen with a certified window using stable coverage and taxonomy, restored connectors, the same metric reported by multiple connectors, and independent reruns that inspect test data, scoring code, contamination, and task relevance.</p><p><strong>Takeaway:</strong> Use today’s feed to discover candidates, not to infer market direction or declare winners. A representative sampling design, comparable history, corroborated measurements, and independent replication would be needed to support those stronger conclusions.</p><p class="blog-caveat"><strong>Another reading:</strong> The captured volume spans code, dataset, and scholarly connectors, and many records are marked as releases, so the feed still supports a narrow claim that it found substantial publication activity. That breadth does not resolve keyword-selection bias, missing coverage, or the absence of comparable history.</p><ul class="blog-list"><li><span class="blog-cite-id">S001</span> evidence records captured today: <strong>327</strong></li><li><span class="blog-cite-id">S003</span> records with event kind released: <strong>190</strong></li><li><span class="blog-cite-id">S005</span> records contributed by GitHub: <strong>117</strong></li><li><span class="blog-cite-id">S006</span> records contributed by Hugging Face: <strong>80</strong></li><li><span class="blog-cite-id">S007</span> records contributed by Semantic Scholar: <strong>69</strong></li><li><span class="blog-cite-id">S008</span> records contributed by arXiv: <strong>33</strong></li><li><span class="blog-cite-id">S009</span> records contributed by OpenAlex: <strong>28</strong></li><li><span class="blog-cite-id">S015</span> artifacts first observed by the radar today: <strong>219</strong></li><li><span class="blog-cite-id">S017</span> tracked artifacts today seen by more than one connector: <strong>8</strong></li></ul></article></section><section class="blog-section"><div class="blog-section-heading"><h2>Evidence sources</h2></div><ul class="blog-evidence"><li><span class="blog-cite-id">E004</span> <a href="https://arxiv.org/abs/2608.07400">FinRank: An Evidence-Grounded Benchmark for Financial Question Answering and Retrieval over SEC Filings</a></li><li><span class="blog-cite-id">E011</span> <a href="https://arxiv.org/abs/2604.12147">From Plan to Action: How Well Do Agents Follow the Plan?</a></li><li><span class="blog-cite-id">E014</span> <a href="https://huggingface.co/datasets/alirezaaminzadeh/opticoder-benchmark-results">alirezaaminzadeh/opticoder-benchmark-results</a></li><li><span class="blog-cite-id">E027</span> <a href="https://arxiv.org/abs/2608.07370">LitTraceQA: A Benchmark for Multi-Stage Grounding and Verification in Scientific Question Answering</a></li><li><span class="blog-cite-id">E001</span> <a href="https://arxiv.org/abs/2512.22539">VLA-Arena: An Open-Source Framework for Benchmarking Vision-Language-Action Models</a></li><li><span class="blog-cite-id">E045</span> <a href="https://github.com/GuruThorat/agent-gauntlet">GuruThorat/agent-gauntlet</a></li><li><span class="blog-cite-id">E028</span> <a href="https://arxiv.org/abs/2608.07038">Beyond Text Matching: Towards Reference-Free Evaluation for Human-Oriented Binary Reverse Engineering</a></li><li><span class="blog-cite-id">E072</span> <a href="https://github.com/ianarawjo/evalstats">ianarawjo/evalstats</a></li><li><span class="blog-cite-id">E002</span> <a href="https://arxiv.org/abs/2608.07417">I Seek You in Videos: Identity-Conditioned Queries for Person-Centric Video Reasoning</a></li><li><span class="blog-cite-id">E003</span> <a href="https://arxiv.org/abs/2608.07411">GeoBenchLLM: A Comprehensive Benchmark for Evaluating LLMs on Geo-Related Tasks</a></li><li><span class="blog-cite-id">E005</span> <a href="https://arxiv.org/abs/2608.07382">SkySeaLand: A Wide-Format Satellite Transportation Benchmark with an Ultra-Lightweight Detection Baseline</a></li><li><span class="blog-cite-id">E008</span> <a href="https://arxiv.org/abs/2608.06931">Science Edge Evaluation: SEE the Missing Step Toward Real Scientific Discovery</a></li><li><span class="blog-cite-id">E031</span> <a href="https://arxiv.org/abs/2608.06850">RegionDet: A Benchmark for Region Detection Beyond Object Instances</a></li><li><span class="blog-cite-id">E032</span> <a href="https://huggingface.co/datasets/alirezaaminzadeh/or-reasoning-benchmark-results">alirezaaminzadeh/or-reasoning-benchmark-results</a></li><li><span class="blog-cite-id">E036</span> <a href="https://huggingface.co/datasets/alirezaaminzadeh/minizinc-copilot-benchmark-results">alirezaaminzadeh/minizinc-copilot-benchmark-results</a></li><li><span class="blog-cite-id">E061</span> <a href="https://huggingface.co/datasets/MME-Benchmarks/Video-MME-v2">MME-Benchmarks/Video-MME-v2</a></li><li><span class="blog-cite-id">E044</span> <a href="https://github.com/iavishagupta/tool-calling-benchmark-v0">iavishagupta/tool-calling-benchmark-v0</a></li><li><span class="blog-cite-id">E063</span> <a href="https://github.com/ratel-ai/ratel-bench">ratel-ai/ratel-bench</a></li><li><span class="blog-cite-id">E078</span> <a href="https://huggingface.co/datasets/alirezaaminzadeh/retailopt-benchmark-results">alirezaaminzadeh/retailopt-benchmark-results</a></li></ul></section><section class="blog-section blog-panel"><h2>Where this came from, and what it does not cover</h2><p>Built from the validated daily snapshot and its 327 evidence records.</p><p>Briefing model: gpt-5.6-sol.</p><p>It read 91 of 327 records.</p><p class="blog-caveat">This briefing covers 91 injected evidence records out of 327 in the captured corpus, so it is not a full-corpus read. Brave, OpenReview, and Semantic Scholar connectors were unavailable, and the keyword-filtered feed is not representative. Daily totals were not used for trend claims because collection signatures and measurement coverage are not comparable across the required history. No attention signal was observed today; all listed discussions are carried-forward context.</p></section></div>
+</div></div></main>
+<footer>
+      <nav class="footer-nav" aria-label="About this site" data-i18n-aria="About this site">
+        <a href="/benchmark-radar-zh24/about/" data-i18n="About">About</a>
+        <a class="nav-active" aria-current="page" href="/benchmark-radar-zh24/blog/" data-i18n="Blog">Blog</a>
+      </nav>
+      <p id="build-meta"><span data-i18n="Updated">Updated</span> 2026-08-10</p>
+      <aside class="adoption-cta" aria-label="Support Benchmark Radar">
+        <p data-i18n="If this saved you research time, cite the work, star the repo and help other eval builders find it.">
+          If this saved you research time, cite the work, star the repo and help other eval builders find it.
+        </p>
+        <span class="adoption-actions">
+          <a
+            class="primary-link"
+            id="cite-open"
+            href="/benchmark-radar-zh24/cite/"
+            aria-haspopup="dialog"
+            aria-controls="cite-dialog"
+            aria-expanded="false"
+            data-i18n="Cite"
+          >Cite</a>
+          <a
+            class="primary-link"
+            href="https://github.com/ktwu01/benchmark-radar"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-i18n="Star the repository"
+          >Star the repository</a>
+          <button type="button" class="secondary-link" id="share-radar" data-i18n="Share">
+            Share
+          </button>
+        </span>
+      </aside>
+      <details class="privacy-note">
+        <summary data-i18n="Privacy notice">Privacy notice</summary>
+        <p>
+          We use Microsoft Clarity cookies, session replays and heatmaps to understand how people use
+          this site and improve its navigation and content. Sensitive content is masked by default.
+          By using this site, you agree that Benchmark Radar and Microsoft can collect and use this
+          data. See the
+          <a href="https://privacy.microsoft.com/privacystatement">Microsoft Privacy Statement</a>.
+        </p>
+      </details>
+      <p class="copyright">© 2026 Koutian Wu and contributors</p>
+    </footer
