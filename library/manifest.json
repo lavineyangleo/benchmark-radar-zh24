@@ -1,0 +1,88 @@
+{
+  "current": {
+    "dataVersion": "数据 v4 / 序号 v5",
+    "previewVersion": "preview-v1",
+    "note": "新增研究资料导航主页，集中展示资料入口、数据概况与版本快照。",
+    "date": "2026-10-23"
+  },
+  "metrics": [
+    {
+      "label": "论文作品与版本",
+      "value": 994
+    },
+    {
+      "label": "来源成绩记录",
+      "value": 13084
+    },
+    {
+      "label": "来源内模型条目",
+      "value": 1026
+    },
+    {
+      "label": "能力维度",
+      "value": 24
+    }
+  ],
+  "resources": [
+    {
+      "title": "论文与模型资料库",
+      "category": "资料库",
+      "description": "论文序号、基准关联、模型成绩和公开论文入口。",
+      "href": "../papers/",
+      "icon": "01",
+      "note": "数据 v4 · 固定序号 v5"
+    },
+    {
+      "title": "24维能力覆盖",
+      "category": "资料库",
+      "description": "按大语言、视觉语言与听觉语言能力查看覆盖情况。",
+      "href": "../papers/#coverage",
+      "icon": "02",
+      "note": "24 个能力维度"
+    },
+    {
+      "title": "模型成绩明细",
+      "category": "资料库",
+      "description": "查看原始分数、指标、单位、来源与评测协议。",
+      "href": "../papers/#scores",
+      "icon": "03",
+      "note": "保留来源，不合并排名"
+    },
+    {
+      "title": "基座与评测模型",
+      "category": "资料库",
+      "description": "按来源内模型条目浏览成绩数量与基准覆盖。",
+      "href": "../papers/#models",
+      "icon": "04",
+      "note": "同名模型不自动合并"
+    },
+    {
+      "title": "基准饱和度",
+      "category": "分析视图",
+      "description": "访问现有 Benchmark Radar 饱和度分析页面。",
+      "href": "../saturation/?lscore=100",
+      "icon": "05",
+      "note": "Benchmark Radar"
+    },
+    {
+      "title": "基准探索",
+      "category": "分析视图",
+      "description": "访问现有雷达站点的基准探索页面。",
+      "href": "../explore/",
+      "icon": "06",
+      "note": "Benchmark Radar"
+    }
+  ],
+  "releases": [
+    {
+      "version": "preview-v1",
+      "title": "preview-v1 · 资料预览",
+      "date": "2026-10-23",
+      "changes": [
+        "新增研究资料导航主页，集中展示资料入口、数据概况与版本快照。",
+        "保留固定论文序号、真实来源成绩与可回看的网页快照。"
+      ],
+      "snapshot": "versions/preview-v1.html"
+    }
+  ]
+}
